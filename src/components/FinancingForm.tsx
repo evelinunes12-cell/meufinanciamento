@@ -11,6 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { formatCurrencyInput, parseCurrencyInput } from "@/lib/calculations";
 
 const FinancingForm = () => {
   const navigate = useNavigate();
@@ -23,21 +24,6 @@ const FinancingForm = () => {
   const [taxaMensal, setTaxaMensal] = useState("1.75");
   const [dataPrimeiraParcela, setDataPrimeiraParcela] = useState<Date>();
   const [dataContratacao, setDataContratacao] = useState<Date>();
-
-  const formatCurrency = (value: string) => {
-    const numbers = value.replace(/\D/g, "");
-    const amount = parseFloat(numbers) / 100;
-    if (isNaN(amount)) return "";
-    return amount.toLocaleString("pt-BR", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
-  };
-
-  const parseCurrency = (value: string) => {
-    const numbers = value.replace(/\D/g, "");
-    return parseFloat(numbers) / 100;
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,15 +40,31 @@ const FinancingForm = () => {
     setIsLoading(true);
 
     try {
-      // Delete existing financing
-      await supabase.from("financiamento").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      // Delete existing financing and parcelas
+      const { data: existingFinanciamento } = await supabase
+        .from("financiamento")
+        .select("id")
+        .limit(1)
+        .maybeSingle();
+
+      if (existingFinanciamento) {
+        await supabase
+          .from("parcelas")
+          .delete()
+          .eq("financiamento_id", existingFinanciamento.id);
+
+        await supabase
+          .from("financiamento")
+          .delete()
+          .eq("id", existingFinanciamento.id);
+      }
 
       // Create new financing
       const { data: financiamento, error: financiamentoError } = await supabase
         .from("financiamento")
         .insert({
-          valor_financiado: parseCurrency(valorFinanciado),
-          valor_parcela: parseCurrency(valorParcela),
+          valor_financiado: parseCurrencyInput(valorFinanciado),
+          valor_parcela: parseCurrencyInput(valorParcela),
           numero_parcelas: parseInt(numeroParcelas),
           taxa_diaria: parseFloat(taxaDiaria) / 100,
           taxa_mensal: parseFloat(taxaMensal) / 100,
@@ -78,7 +80,7 @@ const FinancingForm = () => {
 
       // Generate installments
       const parcelas = [];
-      const valorParcelaNum = parseCurrency(valorParcela);
+      const valorParcelaNum = parseCurrencyInput(valorParcela);
 
       for (let i = 1; i <= parseInt(numeroParcelas); i++) {
         const dataVencimento = new Date(dataPrimeiraParcela);
@@ -125,7 +127,7 @@ const FinancingForm = () => {
             id="valorFinanciado"
             placeholder="0,00"
             value={valorFinanciado}
-            onChange={(e) => setValorFinanciado(formatCurrency(e.target.value))}
+            onChange={(e) => setValorFinanciado(formatCurrencyInput(e.target.value))}
             required
             className="text-lg"
           />
@@ -137,7 +139,7 @@ const FinancingForm = () => {
             id="valorParcela"
             placeholder="0,00"
             value={valorParcela}
-            onChange={(e) => setValorParcela(formatCurrency(e.target.value))}
+            onChange={(e) => setValorParcela(formatCurrencyInput(e.target.value))}
             required
             className="text-lg"
           />
@@ -182,6 +184,7 @@ const FinancingForm = () => {
                 onSelect={setDataPrimeiraParcela}
                 locale={ptBR}
                 initialFocus
+                className="pointer-events-auto"
               />
             </PopoverContent>
           </Popover>
@@ -192,12 +195,13 @@ const FinancingForm = () => {
           <Input
             id="taxaDiaria"
             type="number"
-            step="0.01"
+            step="0.0001"
             placeholder="0.06"
             value={taxaDiaria}
             onChange={(e) => setTaxaDiaria(e.target.value)}
             required
           />
+          <p className="text-xs text-muted-foreground">Padrão: 0,06% ao dia</p>
         </div>
 
         <div className="space-y-2">
@@ -211,6 +215,7 @@ const FinancingForm = () => {
             onChange={(e) => setTaxaMensal(e.target.value)}
             required
           />
+          <p className="text-xs text-muted-foreground">Padrão: 1,75% ao mês</p>
         </div>
 
         <div className="space-y-2 md:col-span-2">
@@ -237,6 +242,7 @@ const FinancingForm = () => {
                 onSelect={setDataContratacao}
                 locale={ptBR}
                 initialFocus
+                className="pointer-events-auto"
               />
             </PopoverContent>
           </Popover>

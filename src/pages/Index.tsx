@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Car, ChevronRight, Sparkles } from "lucide-react";
+import { Car, ChevronRight, Sparkles, Info } from "lucide-react";
 import Header from "@/components/Header";
 import FinancingForm from "@/components/FinancingForm";
 import { Button } from "@/components/ui/button";
@@ -46,21 +46,30 @@ const Index = () => {
           {/* Existing Financing Notice */}
           {hasFinancing && (
             <Card className="mb-6 border-primary/20 bg-primary/5 animate-slide-up">
-              <CardContent className="flex items-center justify-between p-4">
+              <CardContent className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4">
                 <div className="flex items-center gap-3">
                   <Sparkles className="h-5 w-5 text-primary" />
                   <span className="font-medium">
                     Você já tem um financiamento cadastrado
                   </span>
                 </div>
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={() => navigate("/parcelas")}
-                >
-                  Ver Parcelas
-                  <ChevronRight className="ml-1 h-4 w-4" />
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate("/parcelas")}
+                  >
+                    Ver Parcelas
+                  </Button>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={() => navigate("/dashboard")}
+                  >
+                    Dashboard
+                    <ChevronRight className="ml-1 h-4 w-4" />
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           )}
@@ -82,27 +91,49 @@ const Index = () => {
             </CardContent>
           </Card>
 
+          {/* Info Card - Fórmula */}
+          <Card className="mt-6 border-accent bg-accent/30 animate-slide-up" style={{ animationDelay: "150ms" }}>
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <Info className="h-5 w-5 text-accent-foreground mt-0.5" />
+                <div className="text-sm">
+                  <p className="font-semibold text-accent-foreground mb-1">
+                    Fórmula de Cálculo (Padrão Bancário)
+                  </p>
+                  <p className="text-muted-foreground">
+                    <code className="bg-background/50 px-1.5 py-0.5 rounded text-xs">
+                      valor_presente = valor_parcela ÷ (1 + taxa_diária)^dias
+                    </code>
+                  </p>
+                  <p className="text-muted-foreground mt-1">
+                    A mesma fórmula usada pelo Itaú e outros bancos para calcular o desconto em antecipações.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Info Cards */}
           <div className="mt-8 grid gap-4 sm:grid-cols-3 animate-slide-up" style={{ animationDelay: "200ms" }}>
             <div className="rounded-xl border border-border/50 bg-card p-4 text-center shadow-card">
-              <div className="mb-2 text-2xl font-bold text-primary">💰</div>
+              <div className="mb-2 text-2xl">💰</div>
               <h3 className="font-medium">Economize</h3>
               <p className="text-sm text-muted-foreground">
                 Antecipe parcelas e pague menos juros
               </p>
             </div>
             <div className="rounded-xl border border-border/50 bg-card p-4 text-center shadow-card">
-              <div className="mb-2 text-2xl font-bold text-primary">📊</div>
+              <div className="mb-2 text-2xl">📊</div>
               <h3 className="font-medium">Acompanhe</h3>
               <p className="text-sm text-muted-foreground">
                 Visualize todas as suas parcelas
               </p>
             </div>
             <div className="rounded-xl border border-border/50 bg-card p-4 text-center shadow-card">
-              <div className="mb-2 text-2xl font-bold text-primary">🎯</div>
+              <div className="mb-2 text-2xl">🎯</div>
               <h3 className="font-medium">Controle</h3>
               <p className="text-sm text-muted-foreground">
-                Tenha controle total do seu financiamento
+                Dashboard com gráficos e relatórios
               </p>
             </div>
           </div>
