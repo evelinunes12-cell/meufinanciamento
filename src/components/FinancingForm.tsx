@@ -12,9 +12,11 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { formatCurrencyInput, parseCurrencyInput } from "@/lib/calculations";
+import { useAuth } from "@/hooks/useAuth";
 
 const FinancingForm = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
   const [valorFinanciado, setValorFinanciado] = useState("");
@@ -37,13 +39,23 @@ const FinancingForm = () => {
       return;
     }
 
+    if (!user) {
+      toast({
+        title: "Erro",
+        description: "Você precisa estar logado para cadastrar um financiamento",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      // Delete existing financing and parcelas
+      // Delete existing financing and parcelas for this user
       const { data: existingFinanciamento } = await supabase
         .from("financiamento")
         .select("id")
+        .eq("user_id", user.id)
         .limit(1)
         .maybeSingle();
 
@@ -59,7 +71,7 @@ const FinancingForm = () => {
           .eq("id", existingFinanciamento.id);
       }
 
-      // Create new financing
+      // Create new financing with user_id
       const { data: financiamento, error: financiamentoError } = await supabase
         .from("financiamento")
         .insert({
@@ -72,6 +84,7 @@ const FinancingForm = () => {
           data_contratacao: dataContratacao
             ? format(dataContratacao, "yyyy-MM-dd")
             : null,
+          user_id: user.id,
         })
         .select()
         .single();
@@ -107,7 +120,6 @@ const FinancingForm = () => {
 
       navigate("/parcelas");
     } catch (error: any) {
-      console.error("Error:", error);
       toast({
         title: "Erro",
         description: error.message || "Erro ao cadastrar financiamento",

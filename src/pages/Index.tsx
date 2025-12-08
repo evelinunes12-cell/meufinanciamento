@@ -6,23 +6,28 @@ import FinancingForm from "@/components/FinancingForm";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 const Index = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [hasFinancing, setHasFinancing] = useState<boolean | null>(null);
 
   useEffect(() => {
     const checkFinancing = async () => {
+      if (!user) return;
+      
       const { data } = await supabase
         .from("financiamento")
         .select("id")
+        .eq("user_id", user.id)
         .limit(1);
 
       setHasFinancing(data && data.length > 0);
     };
 
     checkFinancing();
-  }, []);
+  }, [user]);
 
   return (
     <div className="min-h-screen bg-background">

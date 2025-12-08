@@ -1,9 +1,24 @@
 import { Link, useLocation } from "react-router-dom";
-import { Car, FileText, Home, BarChart3 } from "lucide-react";
+import { Car, FileText, Home, BarChart3, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "@/hooks/use-toast";
 
 const Header = () => {
   const location = useLocation();
+  const { signOut } = useAuth();
+
+  const handleSignOut = async () => {
+    const { error } = await signOut();
+    if (error) {
+      toast({
+        title: "Erro",
+        description: "Erro ao sair da conta",
+        variant: "destructive",
+      });
+    }
+  };
 
   const navItems = [
     { path: "/", label: "Configuração", icon: Home },
@@ -44,6 +59,15 @@ const Header = () => {
               </Link>
             );
           })}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleSignOut}
+            className="ml-2 text-muted-foreground hover:text-destructive"
+          >
+            <LogOut className="h-4 w-4" />
+            <span className="hidden sm:inline ml-2">Sair</span>
+          </Button>
         </nav>
       </div>
     </header>
