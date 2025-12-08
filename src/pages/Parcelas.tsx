@@ -21,6 +21,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { calcularSaldoDevedor } from "@/lib/calculations";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Financiamento {
   id: string;
@@ -49,17 +50,21 @@ interface Parcela {
 
 const Parcelas = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [financiamento, setFinanciamento] = useState<Financiamento | null>(null);
   const [parcelas, setParcelas] = useState<Parcela[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isResetting, setIsResetting] = useState(false);
 
   const fetchData = async () => {
+    if (!user) return;
+    
     setIsLoading(true);
 
     const { data: financiamentoData } = await supabase
       .from("financiamento")
       .select("*")
+      .eq("user_id", user.id)
       .limit(1)
       .maybeSingle();
 
@@ -120,7 +125,7 @@ const Parcelas = () => {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [user]);
 
   if (isLoading) {
     return (

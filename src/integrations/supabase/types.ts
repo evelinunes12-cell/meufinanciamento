@@ -24,6 +24,7 @@ export type Database = {
           taxa_diaria: number
           taxa_mensal: number
           updated_at: string | null
+          user_id: string | null
           valor_financiado: number
           valor_parcela: number
         }
@@ -36,6 +37,7 @@ export type Database = {
           taxa_diaria?: number
           taxa_mensal?: number
           updated_at?: string | null
+          user_id?: string | null
           valor_financiado: number
           valor_parcela: number
         }
@@ -48,6 +50,7 @@ export type Database = {
           taxa_diaria?: number
           taxa_mensal?: number
           updated_at?: string | null
+          user_id?: string | null
           valor_financiado?: number
           valor_parcela?: number
         }
