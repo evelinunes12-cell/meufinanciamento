@@ -14,6 +14,125 @@ export type Database = {
   }
   public: {
     Tables: {
+      categorias: {
+        Row: {
+          cor: string
+          created_at: string
+          icone: string | null
+          id: string
+          nome: string
+          tipo: string
+          user_id: string
+        }
+        Insert: {
+          cor?: string
+          created_at?: string
+          icone?: string | null
+          id?: string
+          nome: string
+          tipo: string
+          user_id: string
+        }
+        Update: {
+          cor?: string
+          created_at?: string
+          icone?: string | null
+          id?: string
+          nome?: string
+          tipo?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      contas: {
+        Row: {
+          cor: string
+          created_at: string
+          dia_fechamento: number | null
+          dia_vencimento: number | null
+          id: string
+          limite: number | null
+          nome_conta: string
+          saldo_inicial: number
+          tipo: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cor?: string
+          created_at?: string
+          dia_fechamento?: number | null
+          dia_vencimento?: number | null
+          id?: string
+          limite?: number | null
+          nome_conta: string
+          saldo_inicial?: number
+          tipo: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cor?: string
+          created_at?: string
+          dia_fechamento?: number | null
+          dia_vencimento?: number | null
+          id?: string
+          limite?: number | null
+          nome_conta?: string
+          saldo_inicial?: number
+          tipo?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      faturas_cartao: {
+        Row: {
+          conta_cartao_id: string
+          created_at: string
+          id: string
+          mes_referencia: string
+          status: string
+          updated_at: string
+          user_id: string
+          valor_pago: number
+          valor_total: number
+          vencimento_fatura: string
+        }
+        Insert: {
+          conta_cartao_id: string
+          created_at?: string
+          id?: string
+          mes_referencia: string
+          status?: string
+          updated_at?: string
+          user_id: string
+          valor_pago?: number
+          valor_total?: number
+          vencimento_fatura: string
+        }
+        Update: {
+          conta_cartao_id?: string
+          created_at?: string
+          id?: string
+          mes_referencia?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+          valor_pago?: number
+          valor_total?: number
+          vencimento_fatura?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "faturas_cartao_conta_cartao_id_fkey"
+            columns: ["conta_cartao_id"]
+            isOneToOne: false
+            referencedRelation: "contas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       financiamento: {
         Row: {
           created_at: string | null
@@ -55,6 +174,41 @@ export type Database = {
           valor_parcela?: number
         }
         Relationships: []
+      }
+      orcamentos: {
+        Row: {
+          categoria_id: string
+          created_at: string
+          id: string
+          mes_referencia: string
+          user_id: string
+          valor_limite: number
+        }
+        Insert: {
+          categoria_id: string
+          created_at?: string
+          id?: string
+          mes_referencia: string
+          user_id: string
+          valor_limite: number
+        }
+        Update: {
+          categoria_id?: string
+          created_at?: string
+          id?: string
+          mes_referencia?: string
+          user_id?: string
+          valor_limite?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orcamentos_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "categorias"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       parcelas: {
         Row: {
@@ -114,6 +268,66 @@ export type Database = {
             columns: ["financiamento_id"]
             isOneToOne: false
             referencedRelation: "financiamento"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transacoes: {
+        Row: {
+          categoria_id: string | null
+          conta_id: string
+          created_at: string
+          data: string
+          descricao: string | null
+          forma_pagamento: string
+          id: string
+          recorrencia: string | null
+          tipo: string
+          updated_at: string
+          user_id: string
+          valor: number
+        }
+        Insert: {
+          categoria_id?: string | null
+          conta_id: string
+          created_at?: string
+          data: string
+          descricao?: string | null
+          forma_pagamento: string
+          id?: string
+          recorrencia?: string | null
+          tipo: string
+          updated_at?: string
+          user_id: string
+          valor: number
+        }
+        Update: {
+          categoria_id?: string | null
+          conta_id?: string
+          created_at?: string
+          data?: string
+          descricao?: string | null
+          forma_pagamento?: string
+          id?: string
+          recorrencia?: string | null
+          tipo?: string
+          updated_at?: string
+          user_id?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transacoes_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "categorias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transacoes_conta_id_fkey"
+            columns: ["conta_id"]
+            isOneToOne: false
+            referencedRelation: "contas"
             referencedColumns: ["id"]
           },
         ]
