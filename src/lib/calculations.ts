@@ -54,9 +54,10 @@ export function calcularAntecipacao(
     };
   }
 
-  // Pagamento antecipado - Fórmula bancária exata
-  // valor_presente = valor_parcela / (1 + taxa_diaria) ^ dias_antecedencia
-  const fatorDesconto = Math.pow(1 + taxaDiaria, diasDiferenca);
+  // Pagamento antecipado - Fórmula bancária (desconto simples)
+  // valor_presente = valor_parcela / (1 + taxa_diaria * dias_antecedencia)
+  // Esta é a fórmula mais comum usada por bancos brasileiros como Itaú
+  const fatorDesconto = 1 + (taxaDiaria * diasDiferenca);
   const valorPresente = valorParcela / fatorDesconto;
   const economia = valorParcela - valorPresente;
 
