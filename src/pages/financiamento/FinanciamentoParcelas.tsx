@@ -217,7 +217,9 @@ const FinanciamentoParcelas = () => {
           totalParcelas={parcelas.length}
           totalPago={totalPago}
           totalEconomia={totalEconomia}
+          totalAmortizacao={parcelasPagas.reduce((acc, p) => acc + (Number(p.amortizacao) || 0), 0)}
           saldoDevedor={saldoDevedor}
+          valorFinanciado={financiamento.valor_financiado}
         />
 
         <Card className="shadow-card">
@@ -230,7 +232,7 @@ const FinanciamentoParcelas = () => {
           <CardContent className="p-0">
             <InstallmentsTable
               parcelas={parcelas}
-              financiamento={financiamento}
+              taxaDiaria={financiamento.taxa_diaria}
               onUpdate={fetchData}
             />
           </CardContent>

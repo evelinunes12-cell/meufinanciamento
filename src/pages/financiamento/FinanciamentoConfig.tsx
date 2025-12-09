@@ -166,7 +166,7 @@ const FinanciamentoConfig = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <FinancingForm onSuccess={fetchFinanciamento} existingFinancing={financiamento} />
+                <FinancingForm />
               </CardContent>
             </Card>
           </div>
@@ -182,7 +182,7 @@ const FinanciamentoConfig = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <FinancingForm onSuccess={fetchFinanciamento} />
+              <FinancingForm />
             </CardContent>
           </Card>
         )}

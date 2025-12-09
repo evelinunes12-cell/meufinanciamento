@@ -150,9 +150,10 @@ const FinanciamentoDashboard = () => {
           totalEconomia={totalEconomia}
           totalAmortizacao={totalAmortizacao}
           saldoDevedor={saldoDevedor}
+          valorFinanciado={financiamento.valor_financiado}
         />
 
-        <DashboardCharts parcelas={parcelas} />
+        <DashboardCharts parcelas={parcelas} valorFinanciado={financiamento.valor_financiado} />
       </div>
     </AppLayout>
   );
