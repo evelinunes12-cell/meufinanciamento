@@ -26,7 +26,7 @@ const Auth = () => {
 
   useEffect(() => {
     if (user && !authLoading) {
-      navigate("/");
+      navigate("/financas");
     }
   }, [user, authLoading, navigate]);
 
@@ -66,7 +66,7 @@ const Auth = () => {
         title: "Bem-vindo!",
         description: "Login realizado com sucesso",
       });
-      navigate("/");
+      navigate("/financas");
     }
   };
 
@@ -97,7 +97,7 @@ const Auth = () => {
         title: "Conta criada!",
         description: "Sua conta foi criada com sucesso.",
       });
-      navigate("/");
+      navigate("/financas");
     }
   };
 
@@ -116,9 +116,9 @@ const Auth = () => {
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
             <span className="text-2xl">💰</span>
           </div>
-          <CardTitle className="text-2xl font-bold">Controle de Financiamento</CardTitle>
+          <CardTitle className="text-2xl font-bold">Meu Controle Financeiro</CardTitle>
           <CardDescription>
-            Gerencie suas parcelas e economize com antecipações
+            Gerencie suas finanças pessoais e financiamentos
           </CardDescription>
         </CardHeader>
         <CardContent>
