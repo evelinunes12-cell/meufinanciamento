@@ -14,6 +14,7 @@ import { Plus, Trash2, Edit, TrendingUp, TrendingDown } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
+import { transacaoSchema } from "@/lib/validations";
 
 interface Transacao {
   id: string;
@@ -118,16 +119,37 @@ const Transacoes = () => {
       return;
     }
 
-    const data = {
-      user_id: user?.id,
+    // Validate input data with zod
+    const parsedValor = parseFloat(formData.valor);
+    const validationData = {
       conta_id: formData.conta_id,
       categoria_id: formData.categoria_id || null,
-      valor: parseFloat(formData.valor),
-      tipo: formData.tipo,
+      valor: isNaN(parsedValor) ? 0 : parsedValor,
+      tipo: formData.tipo as 'receita' | 'despesa',
       data: formData.data,
-      forma_pagamento: formData.forma_pagamento,
-      recorrencia: formData.recorrencia,
+      forma_pagamento: formData.forma_pagamento as 'pix' | 'debito' | 'credito' | 'dinheiro' | 'transferencia' | 'outro',
+      recorrencia: formData.recorrencia as 'nenhuma' | 'semanal' | 'mensal' | 'anual',
       descricao: formData.descricao || null,
+    };
+
+    const validationResult = transacaoSchema.safeParse(validationData);
+    if (!validationResult.success) {
+      const firstError = validationResult.error.errors[0];
+      toast({ title: "Erro de validação", description: firstError.message, variant: "destructive" });
+      return;
+    }
+
+    const validated = validationResult.data;
+    const data = {
+      user_id: user?.id as string,
+      conta_id: validated.conta_id,
+      categoria_id: validated.categoria_id || null,
+      valor: validated.valor,
+      tipo: validated.tipo,
+      data: validated.data,
+      forma_pagamento: validated.forma_pagamento,
+      recorrencia: validated.recorrencia,
+      descricao: validated.descricao || null,
     };
 
     if (editingId) {

@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { formatCurrencyInput, parseCurrencyInput } from "@/lib/calculations";
 import { useAuth } from "@/hooks/useAuth";
+import { financiamentoSchema } from "@/lib/validations";
 
 const FinancingForm = () => {
   const navigate = useNavigate();
@@ -71,19 +72,40 @@ const FinancingForm = () => {
           .eq("id", existingFinanciamento.id);
       }
 
+      // Validate input data with zod
+      const validationData = {
+        valor_financiado: parseCurrencyInput(valorFinanciado),
+        valor_parcela: parseCurrencyInput(valorParcela),
+        numero_parcelas: parseInt(numeroParcelas) || 0,
+        taxa_diaria: parseFloat(taxaDiaria) / 100 || 0,
+        taxa_mensal: parseFloat(taxaMensal) / 100 || 0,
+        data_primeira_parcela: format(dataPrimeiraParcela, "yyyy-MM-dd"),
+        data_contratacao: dataContratacao
+          ? format(dataContratacao, "yyyy-MM-dd")
+          : null,
+      };
+
+      const validationResult = financiamentoSchema.safeParse(validationData);
+      if (!validationResult.success) {
+        const firstError = validationResult.error.errors[0];
+        toast({ title: "Erro de validação", description: firstError.message, variant: "destructive" });
+        setIsLoading(false);
+        return;
+      }
+
+      const validated = validationResult.data;
+
       // Create new financing with user_id
       const { data: financiamento, error: financiamentoError } = await supabase
         .from("financiamento")
         .insert({
-          valor_financiado: parseCurrencyInput(valorFinanciado),
-          valor_parcela: parseCurrencyInput(valorParcela),
-          numero_parcelas: parseInt(numeroParcelas),
-          taxa_diaria: parseFloat(taxaDiaria) / 100,
-          taxa_mensal: parseFloat(taxaMensal) / 100,
-          data_primeira_parcela: format(dataPrimeiraParcela, "yyyy-MM-dd"),
-          data_contratacao: dataContratacao
-            ? format(dataContratacao, "yyyy-MM-dd")
-            : null,
+          valor_financiado: validated.valor_financiado,
+          valor_parcela: validated.valor_parcela,
+          numero_parcelas: validated.numero_parcelas,
+          taxa_diaria: validated.taxa_diaria,
+          taxa_mensal: validated.taxa_mensal,
+          data_primeira_parcela: validated.data_primeira_parcela,
+          data_contratacao: validated.data_contratacao,
           user_id: user.id,
         })
         .select()

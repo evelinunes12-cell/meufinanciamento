@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Plus, Trash2, Edit, Wallet, CreditCard, PiggyBank, Landmark, Banknote } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { contaSchema } from "@/lib/validations";
 
 interface Conta {
   id: string;
@@ -84,15 +85,34 @@ const Contas = () => {
       return;
     }
 
-    const data = {
-      user_id: user?.id,
-      nome_conta: formData.nome_conta,
-      tipo: formData.tipo,
+    // Validate input data with zod
+    const validationData = {
+      nome_conta: formData.nome_conta.trim(),
+      tipo: formData.tipo as 'corrente' | 'poupanca' | 'carteira' | 'investimento' | 'credito',
       saldo_inicial: parseFloat(formData.saldo_inicial) || 0,
       cor: formData.cor,
       limite: formData.tipo === "credito" && formData.limite ? parseFloat(formData.limite) : null,
       dia_fechamento: formData.tipo === "credito" && formData.dia_fechamento ? parseInt(formData.dia_fechamento) : null,
       dia_vencimento: formData.tipo === "credito" && formData.dia_vencimento ? parseInt(formData.dia_vencimento) : null,
+    };
+
+    const validationResult = contaSchema.safeParse(validationData);
+    if (!validationResult.success) {
+      const firstError = validationResult.error.errors[0];
+      toast({ title: "Erro de validação", description: firstError.message, variant: "destructive" });
+      return;
+    }
+
+    const validated = validationResult.data;
+    const data = {
+      user_id: user?.id as string,
+      nome_conta: validated.nome_conta,
+      tipo: validated.tipo,
+      saldo_inicial: validated.saldo_inicial,
+      cor: validated.cor,
+      limite: validated.limite ?? null,
+      dia_fechamento: validated.dia_fechamento ?? null,
+      dia_vencimento: validated.dia_vencimento ?? null,
     };
 
     if (editingId) {
