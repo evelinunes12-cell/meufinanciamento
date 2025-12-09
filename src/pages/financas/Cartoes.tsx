@@ -88,7 +88,7 @@ const Cartoes = () => {
             <p className="text-muted-foreground">Acompanhe seus gastos e faturas</p>
           </div>
           <Button asChild variant="outline">
-            <Link to="/contas">
+            <Link to="/financas/contas">
               Gerenciar Cartões
             </Link>
           </Button>
@@ -103,7 +103,7 @@ const Cartoes = () => {
                 Cadastre seus cartões de crédito para acompanhar gastos e faturas
               </p>
               <Button asChild>
-                <Link to="/contas">Cadastrar Cartão</Link>
+                <Link to="/financas/contas">Cadastrar Cartão</Link>
               </Button>
             </CardContent>
           </Card>

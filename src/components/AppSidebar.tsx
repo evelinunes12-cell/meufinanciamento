@@ -39,13 +39,13 @@ const navGroups: NavGroup[] = [
     title: "Finanças Pessoais",
     icon: Wallet,
     items: [
-      { path: "/", label: "Dashboard", icon: LayoutDashboard },
-      { path: "/transacoes", label: "Transações", icon: ArrowRightLeft },
-      { path: "/contas", label: "Contas", icon: Wallet },
-      { path: "/categorias", label: "Categorias", icon: Tag },
-      { path: "/cartoes", label: "Cartões", icon: CreditCard },
-      { path: "/orcamento", label: "Orçamento", icon: Target },
-      { path: "/relatorios", label: "Relatórios", icon: FileText },
+      { path: "/financas", label: "Dashboard", icon: LayoutDashboard },
+      { path: "/financas/transacoes", label: "Transações", icon: ArrowRightLeft },
+      { path: "/financas/contas", label: "Contas", icon: Wallet },
+      { path: "/financas/categorias", label: "Categorias", icon: Tag },
+      { path: "/financas/cartoes", label: "Cartões", icon: CreditCard },
+      { path: "/financas/orcamento", label: "Orçamento", icon: Target },
+      { path: "/financas/relatorios", label: "Relatórios", icon: FileText },
     ],
   },
   {
@@ -89,7 +89,7 @@ const AppSidebar = () => {
   const SidebarContent = () => (
     <div className="flex flex-col h-full">
       <div className="p-4 border-b border-border">
-        <Link to="/" className="flex items-center gap-3">
+        <Link to="/financas" className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl gradient-primary shadow-soft">
             <Wallet className="h-5 w-5 text-primary-foreground" />
           </div>
@@ -161,7 +161,7 @@ const AppSidebar = () => {
     <>
       {/* Mobile Header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-card border-b border-border px-4 h-14 flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-2">
+        <Link to="/financas" className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg gradient-primary">
             <Wallet className="h-4 w-4 text-primary-foreground" />
           </div>
