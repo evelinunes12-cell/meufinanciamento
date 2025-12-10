@@ -7,9 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Trash2, Edit, TrendingUp, TrendingDown } from "lucide-react";
+import { Plus, Trash2, Edit, TrendingUp, TrendingDown, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface Categoria {
@@ -25,6 +25,8 @@ const cores = [
   "#EC4899", "#06B6D4", "#84CC16", "#F97316", "#6366F1"
 ];
 
+const ITEMS_PER_PAGE = 10;
+
 const Categorias = () => {
   const { user } = useAuth();
   const [categorias, setCategorias] = useState<Categoria[]>([]);
@@ -32,6 +34,8 @@ const Categorias = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("despesa");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
 
   const [formData, setFormData] = useState({
     nome: "",
@@ -42,6 +46,11 @@ const Categorias = () => {
   useEffect(() => {
     if (user) fetchData();
   }, [user]);
+
+  // Reset page when tab or search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, searchTerm]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -111,12 +120,23 @@ const Categorias = () => {
     fetchData();
   };
 
-  const categoriasReceita = categorias.filter(c => c.tipo === "receita");
-  const categoriasDespesa = categorias.filter(c => c.tipo === "despesa");
+  const categoriasReceita = categorias
+    .filter(c => c.tipo === "receita")
+    .filter(c => c.nome.toLowerCase().includes(searchTerm.toLowerCase()));
+  
+  const categoriasDespesa = categorias
+    .filter(c => c.tipo === "despesa")
+    .filter(c => c.nome.toLowerCase().includes(searchTerm.toLowerCase()));
 
-  const CategoriaCard = ({ categoria }: { categoria: Categoria }) => (
+  const currentCategorias = activeTab === "receita" ? categoriasReceita : categoriasDespesa;
+  const totalPages = Math.ceil(currentCategorias.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const paginatedCategorias = currentCategorias.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+  const CategoriaCard = ({ categoria, index }: { categoria: Categoria; index: number }) => (
     <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
       <div className="flex items-center gap-3">
+        <span className="text-muted-foreground font-mono text-sm w-6">{startIndex + index + 1}</span>
         <div 
           className="w-4 h-4 rounded-full"
           style={{ backgroundColor: categoria.cor }}
@@ -150,7 +170,7 @@ const Categorias = () => {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-2xl font-bold text-foreground">Categorias</h1>
-            <p className="text-muted-foreground">Organize suas transações por categorias</p>
+            <p className="text-muted-foreground">Organize suas transações por categorias ({categorias.length} categorias)</p>
           </div>
           <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
             <DialogTrigger asChild>
@@ -162,6 +182,9 @@ const Categorias = () => {
             <DialogContent className="max-w-md">
               <DialogHeader>
                 <DialogTitle>{editingId ? "Editar" : "Nova"} Categoria</DialogTitle>
+                <DialogDescription>
+                  Preencha os dados da categoria abaixo.
+                </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
@@ -209,6 +232,17 @@ const Categorias = () => {
           </Dialog>
         </div>
 
+        {/* Search */}
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar categorias..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full max-w-md grid-cols-2">
             <TabsTrigger value="despesa" className="flex items-center gap-2">
@@ -224,12 +258,12 @@ const Categorias = () => {
           <TabsContent value="despesa" className="mt-4">
             <Card className="shadow-card">
               <CardContent className="p-4 space-y-2">
-                {categoriasDespesa.map((cat) => (
-                  <CategoriaCard key={cat.id} categoria={cat} />
+                {paginatedCategorias.map((cat, index) => (
+                  <CategoriaCard key={cat.id} categoria={cat} index={index} />
                 ))}
                 {categoriasDespesa.length === 0 && (
                   <p className="text-center py-8 text-muted-foreground">
-                    Nenhuma categoria de despesa cadastrada
+                    {searchTerm ? "Nenhuma categoria encontrada" : "Nenhuma categoria de despesa cadastrada"}
                   </p>
                 )}
               </CardContent>
@@ -239,18 +273,60 @@ const Categorias = () => {
           <TabsContent value="receita" className="mt-4">
             <Card className="shadow-card">
               <CardContent className="p-4 space-y-2">
-                {categoriasReceita.map((cat) => (
-                  <CategoriaCard key={cat.id} categoria={cat} />
+                {paginatedCategorias.map((cat, index) => (
+                  <CategoriaCard key={cat.id} categoria={cat} index={index} />
                 ))}
                 {categoriasReceita.length === 0 && (
                   <p className="text-center py-8 text-muted-foreground">
-                    Nenhuma categoria de receita cadastrada
+                    {searchTerm ? "Nenhuma categoria encontrada" : "Nenhuma categoria de receita cadastrada"}
                   </p>
                 )}
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              Mostrando {startIndex + 1} - {Math.min(startIndex + ITEMS_PER_PAGE, currentCategorias.length)} de {currentCategorias.length}
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Anterior
+              </Button>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <Button
+                    key={page}
+                    variant={currentPage === page ? "default" : "outline"}
+                    size="sm"
+                    className="w-8"
+                    onClick={() => setCurrentPage(page)}
+                  >
+                    {page}
+                  </Button>
+                ))}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+              >
+                Próxima
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     </AppLayout>
   );
