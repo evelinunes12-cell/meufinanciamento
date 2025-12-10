@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Download, FileText, TrendingUp, TrendingDown } from "lucide-react";
-import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths } from "date-fns";
+import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
 
@@ -33,6 +33,12 @@ interface Categoria {
   tipo: string;
   cor: string;
 }
+
+// Fix timezone issue by using parseISO
+const formatDate = (dateString: string) => {
+  const date = parseISO(dateString);
+  return format(date, "dd/MM/yyyy", { locale: ptBR });
+};
 
 const Relatorios = () => {
   const { user } = useAuth();
@@ -126,7 +132,7 @@ const Relatorios = () => {
     if (tipoRelatorio === "geral") {
       csv = "Data,Tipo,Descrição,Categoria,Conta,Valor\n";
       transacoes.forEach(t => {
-        csv += `${format(new Date(t.data), "dd/MM/yyyy")},${t.tipo},${t.descricao || "-"},${getCategoriaNome(t.categoria_id)},${getContaNome(t.conta_id)},${t.tipo === "receita" ? "" : "-"}${t.valor}\n`;
+        csv += `${formatDate(t.data)},${t.tipo},${t.descricao || "-"},${getCategoriaNome(t.categoria_id)},${getContaNome(t.conta_id)},${t.tipo === "receita" ? "" : "-"}${t.valor}\n`;
       });
     } else if (tipoRelatorio === "categoria") {
       csv = "Categoria,Tipo,Total\n";
@@ -267,7 +273,7 @@ const Relatorios = () => {
                 <TableBody>
                   {transacoes.map((t) => (
                     <TableRow key={t.id}>
-                      <TableCell>{format(new Date(t.data), "dd/MM/yyyy")}</TableCell>
+                      <TableCell>{formatDate(t.data)}</TableCell>
                       <TableCell className="capitalize">{t.tipo}</TableCell>
                       <TableCell>{t.descricao || "-"}</TableCell>
                       <TableCell>{getCategoriaNome(t.categoria_id)}</TableCell>
