@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/AppLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,6 +35,8 @@ interface Transacao {
   valor: number;
   tipo: string;
   data: string;
+  forma_pagamento: string;
+  is_pago_executado: boolean | null;
 }
 
 const Orcamento = () => {
@@ -76,7 +78,7 @@ const Orcamento = () => {
 
     if (orcamentosRes.data) setOrcamentos(orcamentosRes.data);
     if (categoriasRes.data) setCategorias(categoriasRes.data);
-    if (transacoesRes.data) setTransacoes(transacoesRes.data);
+    if (transacoesRes.data) setTransacoes(transacoesRes.data as Transacao[]);
     setLoading(false);
   };
 
@@ -151,9 +153,14 @@ const Orcamento = () => {
   const getCategoriaNome = (id: string) => categorias.find(c => c.id === id)?.nome || "-";
   const getCategoriaCor = (id: string) => categorias.find(c => c.id === id)?.cor || "#888";
 
+  // Filter valid transactions: exclude transfers and non-executed payments
   const getGastosCategoria = (categoriaId: string) => {
     return transacoes
-      .filter(t => t.categoria_id === categoriaId)
+      .filter(t => 
+        t.categoria_id === categoriaId && 
+        t.forma_pagamento !== "transferencia" &&
+        t.is_pago_executado !== false
+      )
       .reduce((acc, t) => acc + Number(t.valor), 0);
   };
 

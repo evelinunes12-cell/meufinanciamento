@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-// Transacoes validation schema
+// Transacoes validation schema - Updated for advanced financial management
 export const transacaoSchema = z.object({
   conta_id: z.string().uuid({ message: "Conta inválida" }),
   categoria_id: z.string().uuid({ message: "Categoria inválida" }).nullable().optional(),
@@ -12,6 +12,38 @@ export const transacaoSchema = z.object({
   forma_pagamento: z.enum(['pix', 'debito', 'credito', 'dinheiro', 'transferencia', 'outro'], { message: "Forma de pagamento inválida" }),
   recorrencia: z.enum(['nenhuma', 'semanal', 'mensal', 'anual'], { message: "Recorrência inválida" }),
   descricao: z.string().max(500, { message: "Descrição muito longa" }).nullable().optional(),
+  // New fields for advanced management
+  parcelas_total: z.number({ invalid_type_error: "Número de parcelas deve ser um número" })
+    .int({ message: "Número de parcelas deve ser inteiro" })
+    .min(1, { message: "Mínimo de 1 parcela" })
+    .max(360, { message: "Máximo de 360 parcelas" })
+    .nullable()
+    .optional(),
+  parcela_atual: z.number({ invalid_type_error: "Parcela atual deve ser um número" })
+    .int({ message: "Parcela atual deve ser inteira" })
+    .min(1, { message: "Mínimo parcela 1" })
+    .nullable()
+    .optional(),
+  is_pago_executado: z.boolean().nullable().optional(),
+  data_execucao_pagamento: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: "Data de execução inválida" }).nullable().optional(),
+  conta_destino_id: z.string().uuid({ message: "Conta destino inválida" }).nullable().optional(),
+  transacao_origem_id: z.string().uuid({ message: "Transação origem inválida" }).nullable().optional(),
+}).refine((data) => {
+  // Validação: se for transferência, conta_destino_id é obrigatório
+  if (data.forma_pagamento === 'transferencia' && !data.conta_destino_id) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Conta destino é obrigatória para transferências",
+  path: ["conta_destino_id"],
+}).refine((data) => {
+  // Validação: se for crédito ou recorrência, parcelas_total é recomendado
+  // Mas não obrigatório para permitir flexibilidade
+  return true;
+}, {
+  message: "Número de parcelas é obrigatório para crédito ou recorrência",
+  path: ["parcelas_total"],
 });
 
 // Contas validation schema

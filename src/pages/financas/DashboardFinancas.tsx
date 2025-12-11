@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { TrendingUp, TrendingDown, Wallet, PiggyBank, CreditCard, ArrowUpDown } from "lucide-react";
 import { format, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear, startOfQuarter, endOfQuarter } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, LineChart, Line } from "recharts";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 
 interface Transacao {
   id: string;
@@ -16,6 +16,8 @@ interface Transacao {
   data: string;
   categoria_id: string | null;
   conta_id: string;
+  forma_pagamento: string;
+  is_pago_executado: boolean | null;
 }
 
 interface Conta {
@@ -80,24 +82,36 @@ const DashboardFinancas = () => {
       supabase.from("categorias").select("*"),
     ]);
 
-    if (transacoesRes.data) setTransacoes(transacoesRes.data);
+    if (transacoesRes.data) setTransacoes(transacoesRes.data as Transacao[]);
     if (contasRes.data) setContas(contasRes.data);
     if (categoriasRes.data) setCategorias(categoriasRes.data);
     setLoading(false);
   };
 
-  const totalReceitas = transacoes.filter(t => t.tipo === "receita").reduce((acc, t) => acc + Number(t.valor), 0);
-  const totalDespesas = transacoes.filter(t => t.tipo === "despesa").reduce((acc, t) => acc + Number(t.valor), 0);
+  // Filter valid transactions: exclude transfers and non-executed payments
+  const transacoesValidas = transacoes.filter(t => 
+    t.forma_pagamento !== "transferencia" && 
+    t.is_pago_executado !== false
+  );
+
+  const totalReceitas = transacoesValidas
+    .filter(t => t.tipo === "receita")
+    .reduce((acc, t) => acc + Number(t.valor), 0);
+  
+  const totalDespesas = transacoesValidas
+    .filter(t => t.tipo === "despesa")
+    .reduce((acc, t) => acc + Number(t.valor), 0);
+  
   const saldoMes = totalReceitas - totalDespesas;
 
   const saldoContas = contas.reduce((acc, conta) => {
-    const transacoesConta = transacoes.filter(t => t.conta_id === conta.id);
+    const transacoesConta = transacoesValidas.filter(t => t.conta_id === conta.id);
     const receitas = transacoesConta.filter(t => t.tipo === "receita").reduce((a, t) => a + Number(t.valor), 0);
     const despesas = transacoesConta.filter(t => t.tipo === "despesa").reduce((a, t) => a + Number(t.valor), 0);
     return acc + Number(conta.saldo_inicial) + receitas - despesas;
   }, 0);
 
-  const gastosCartao = transacoes.filter(t => {
+  const gastosCartao = transacoesValidas.filter(t => {
     const conta = contas.find(c => c.id === t.conta_id);
     return conta?.tipo === "credito" && t.tipo === "despesa";
   }).reduce((acc, t) => acc + Number(t.valor), 0);
@@ -105,7 +119,7 @@ const DashboardFinancas = () => {
   const despesasPorCategoria = categorias
     .filter(c => c.tipo === "despesa")
     .map(cat => {
-      const total = transacoes
+      const total = transacoesValidas
         .filter(t => t.categoria_id === cat.id && t.tipo === "despesa")
         .reduce((acc, t) => acc + Number(t.valor), 0);
       return { name: cat.nome, value: total, color: cat.cor };
@@ -280,7 +294,7 @@ const DashboardFinancas = () => {
             <CardContent>
               <div className="space-y-4">
                 {contas.map((conta) => {
-                  const transacoesConta = transacoes.filter(t => t.conta_id === conta.id);
+                  const transacoesConta = transacoesValidas.filter(t => t.conta_id === conta.id);
                   const receitas = transacoesConta.filter(t => t.tipo === "receita").reduce((a, t) => a + Number(t.valor), 0);
                   const despesas = transacoesConta.filter(t => t.tipo === "despesa").reduce((a, t) => a + Number(t.valor), 0);
                   const saldo = Number(conta.saldo_inicial) + receitas - despesas;
