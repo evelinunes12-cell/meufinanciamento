@@ -159,6 +159,7 @@ const Orcamento = () => {
       .filter(t => 
         t.categoria_id === categoriaId && 
         t.forma_pagamento !== "transferencia" &&
+        t.forma_pagamento !== "transferencia_entre_contas" &&
         t.is_pago_executado !== false
       )
       .reduce((acc, t) => acc + Number(t.valor), 0);

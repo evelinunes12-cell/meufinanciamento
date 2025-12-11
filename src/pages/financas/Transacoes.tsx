@@ -54,6 +54,7 @@ const formasPagamento = [
   { value: "credito", label: "Crédito" },
   { value: "dinheiro", label: "Dinheiro" },
   { value: "transferencia", label: "Transferência" },
+  { value: "transferencia_entre_contas", label: "Transf. Entre Contas" },
   { value: "outro", label: "Outro" },
 ];
 
@@ -193,32 +194,42 @@ const Transacoes = () => {
       return;
     }
 
+    const isTransfer = formData.forma_pagamento === 'transferencia' || formData.forma_pagamento === 'transferencia_entre_contas';
+    
     // Validate transfer requires destination account
-    if (formData.forma_pagamento === 'transferencia' && !formData.conta_destino_id) {
+    if (isTransfer && !formData.conta_destino_id) {
       toast({ title: "Erro", description: "Selecione a conta destino para transferência", variant: "destructive" });
       return;
     }
 
     // Validate destination is different from origin
-    if (formData.forma_pagamento === 'transferencia' && formData.conta_destino_id === formData.conta_id) {
+    if (isTransfer && formData.conta_destino_id === formData.conta_id) {
       toast({ title: "Erro", description: "Conta destino deve ser diferente da conta origem", variant: "destructive" });
+      return;
+    }
+    
+    // Validate categoria for transferencia_entre_contas
+    if (formData.forma_pagamento === 'transferencia_entre_contas' && !formData.categoria_id) {
+      toast({ title: "Erro", description: "Selecione uma categoria para transferência entre contas", variant: "destructive" });
       return;
     }
 
     const parsedValor = parseFloat(formData.valor);
     const parsedParcelas = formData.parcelas_total ? parseInt(formData.parcelas_total) : null;
     
-    // Handle transfer logic
-    if (formData.forma_pagamento === 'transferencia' && !editingId) {
+    // Handle transfer logic (both types)
+    if (isTransfer && !editingId) {
+      const isTransferenciaEntreContas = formData.forma_pagamento === 'transferencia_entre_contas';
+      
       // Create two transactions: one expense (origin) and one income (destination)
       const transacaoSaida = {
         user_id: user?.id as string,
         conta_id: formData.conta_id,
-        categoria_id: null,
+        categoria_id: isTransferenciaEntreContas ? formData.categoria_id : null,
         valor: parsedValor,
         tipo: 'despesa',
         data: formData.data,
-        forma_pagamento: 'transferencia',
+        forma_pagamento: formData.forma_pagamento,
         recorrencia: 'nenhuma',
         descricao: formData.descricao || `Transferência para ${contas.find(c => c.id === formData.conta_destino_id)?.nome_conta}`,
         is_pago_executado: true,
@@ -228,11 +239,11 @@ const Transacoes = () => {
       const transacaoEntrada = {
         user_id: user?.id as string,
         conta_id: formData.conta_destino_id,
-        categoria_id: null,
+        categoria_id: isTransferenciaEntreContas ? formData.categoria_id : null,
         valor: parsedValor,
         tipo: 'receita',
         data: formData.data,
-        forma_pagamento: 'transferencia',
+        forma_pagamento: formData.forma_pagamento,
         recorrencia: 'nenhuma',
         descricao: formData.descricao || `Transferência de ${contas.find(c => c.id === formData.conta_id)?.nome_conta}`,
         is_pago_executado: true,
@@ -405,10 +416,14 @@ const Transacoes = () => {
       return;
     }
 
+    const categoryTipo = formData.forma_pagamento === 'transferencia_entre_contas' 
+      ? 'transferencia' 
+      : formData.tipo;
+
     const { data, error } = await supabase.from("categorias").insert({
       user_id: user?.id,
       nome: newCategoryName.trim(),
-      tipo: formData.tipo,
+      tipo: categoryTipo,
       cor: newCategoryCor,
     }).select().single();
 
@@ -438,13 +453,20 @@ const Transacoes = () => {
   const getCategoriaNome = (id: string | null) => id ? categorias.find(c => c.id === id)?.nome || "-" : "-";
   const getCategoriaCor = (id: string | null) => id ? categorias.find(c => c.id === id)?.cor || "#888" : "#888";
 
+  // For transferencia_entre_contas, show transfer categories; otherwise show by tipo
   const categoriasFiltered = categorias
-    .filter(c => c.tipo === formData.tipo)
+    .filter(c => {
+      if (formData.forma_pagamento === 'transferencia_entre_contas') {
+        return c.tipo === 'transferencia';
+      }
+      return c.tipo === formData.tipo;
+    })
     .filter(c => c.nome.toLowerCase().includes(categorySearch.toLowerCase()));
 
   // Show installment fields when credit or has recurrence
   const showInstallmentFields = formData.forma_pagamento === 'credito' || formData.recorrencia !== 'nenhuma';
   const showTransferFields = formData.forma_pagamento === 'transferencia';
+  const showTransferEntreContasFields = formData.forma_pagamento === 'transferencia_entre_contas';
 
   // Pagination
   const totalPages = Math.ceil(transacoes.length / ITEMS_PER_PAGE);
@@ -511,7 +533,7 @@ const Transacoes = () => {
                       <Select 
                         value={formData.tipo} 
                         onValueChange={(v) => setFormData({ ...formData, tipo: v, categoria_id: "" })}
-                        disabled={showTransferFields}
+                        disabled={showTransferFields || showTransferEntreContasFields}
                       >
                         <SelectTrigger>
                           <SelectValue />
@@ -551,7 +573,7 @@ const Transacoes = () => {
                   </div>
 
                   {/* Transfer destination account */}
-                  {showTransferFields && (
+                  {(showTransferFields || showTransferEntreContasFields) && (
                     <div className="space-y-2">
                       <Label>Conta Destino *</Label>
                       <Select value={formData.conta_destino_id} onValueChange={(v) => setFormData({ ...formData, conta_destino_id: v })}>
@@ -569,7 +591,8 @@ const Transacoes = () => {
                     </div>
                   )}
 
-                  {!showTransferFields && (
+                  {/* Category selection - show for transferencia_entre_contas or regular transactions */}
+                  {(showTransferEntreContasFields || !showTransferFields) && (
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <Label>Categoria</Label>
@@ -584,7 +607,7 @@ const Transacoes = () => {
                             <DialogHeader>
                               <DialogTitle>Nova Categoria</DialogTitle>
                               <DialogDescription>
-                                Criar categoria de {formData.tipo}
+                                Criar categoria de {showTransferEntreContasFields ? 'transferência' : formData.tipo}
                               </DialogDescription>
                             </DialogHeader>
                             <div className="space-y-4">
@@ -628,12 +651,15 @@ const Transacoes = () => {
                       </div>
                       <Select value={formData.categoria_id} onValueChange={(v) => setFormData({ ...formData, categoria_id: v })}>
                         <SelectTrigger>
-                          <SelectValue placeholder="Selecione uma categoria" />
+                          <SelectValue placeholder={showTransferEntreContasFields ? "Selecione uma categoria de transferência *" : "Selecione uma categoria"} />
                         </SelectTrigger>
                         <SelectContent>
                           {categoriasFiltered.length === 0 ? (
                             <div className="p-2 text-center text-muted-foreground text-sm">
-                              Nenhuma categoria encontrada
+                              {showTransferEntreContasFields 
+                                ? "Nenhuma categoria de transferência. Crie uma na aba 'Categorias'."
+                                : "Nenhuma categoria encontrada"
+                              }
                             </div>
                           ) : (
                             categoriasFiltered.map((cat) => (
@@ -663,12 +689,15 @@ const Transacoes = () => {
                       <Label>Forma Pagamento</Label>
                       <Select 
                         value={formData.forma_pagamento} 
-                        onValueChange={(v) => setFormData({ 
-                          ...formData, 
-                          forma_pagamento: v,
-                          tipo: v === 'transferencia' ? 'despesa' : formData.tipo,
-                          categoria_id: v === 'transferencia' ? '' : formData.categoria_id,
-                        })}
+                        onValueChange={(v) => {
+                          const isTransferType = v === 'transferencia' || v === 'transferencia_entre_contas';
+                          setFormData({ 
+                            ...formData, 
+                            forma_pagamento: v,
+                            tipo: isTransferType ? 'despesa' : formData.tipo,
+                            categoria_id: v === 'transferencia' ? '' : (v === 'transferencia_entre_contas' ? '' : formData.categoria_id),
+                          });
+                        }}
                       >
                         <SelectTrigger>
                           <SelectValue />
@@ -682,7 +711,7 @@ const Transacoes = () => {
                     </div>
                   </div>
 
-                  {!showTransferFields && (
+                  {!showTransferFields && !showTransferEntreContasFields && (
                     <div className="space-y-2">
                       <Label>Recorrência</Label>
                       <Select value={formData.recorrencia} onValueChange={(v) => setFormData({ ...formData, recorrencia: v })}>
@@ -699,7 +728,7 @@ const Transacoes = () => {
                   )}
 
                   {/* Installment fields */}
-                  {showInstallmentFields && !showTransferFields && !editingId && (
+                  {showInstallmentFields && !showTransferFields && !showTransferEntreContasFields && !editingId && (
                     <div className="space-y-2 p-3 bg-muted/50 rounded-lg">
                       <Label>Número de Parcelas</Label>
                       <Input
@@ -767,7 +796,12 @@ const Transacoes = () => {
                       {transacao.forma_pagamento === 'transferencia' ? (
                         <Badge className="bg-primary/10 text-primary hover:bg-primary/20">
                           <ArrowRightLeft className="h-3 w-3 mr-1" />
-                          Transfer
+                          Transf.
+                        </Badge>
+                      ) : transacao.forma_pagamento === 'transferencia_entre_contas' ? (
+                        <Badge className="bg-violet-500/10 text-violet-600 hover:bg-violet-500/20">
+                          <ArrowRightLeft className="h-3 w-3 mr-1" />
+                          T. Contas
                         </Badge>
                       ) : transacao.tipo === "receita" ? (
                         <Badge className="bg-success/10 text-success hover:bg-success/20">

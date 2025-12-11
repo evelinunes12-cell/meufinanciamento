@@ -91,6 +91,7 @@ const DashboardFinancas = () => {
   // Filter valid transactions: exclude transfers and non-executed payments
   const transacoesValidas = transacoes.filter(t => 
     t.forma_pagamento !== "transferencia" && 
+    t.forma_pagamento !== "transferencia_entre_contas" &&
     t.is_pago_executado !== false
   );
 
