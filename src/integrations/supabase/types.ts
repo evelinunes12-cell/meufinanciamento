@@ -275,42 +275,60 @@ export type Database = {
       transacoes: {
         Row: {
           categoria_id: string | null
+          conta_destino_id: string | null
           conta_id: string
           created_at: string
           data: string
+          data_execucao_pagamento: string | null
           descricao: string | null
           forma_pagamento: string
           id: string
+          is_pago_executado: boolean | null
+          parcela_atual: number | null
+          parcelas_total: number | null
           recorrencia: string | null
           tipo: string
+          transacao_origem_id: string | null
           updated_at: string
           user_id: string
           valor: number
         }
         Insert: {
           categoria_id?: string | null
+          conta_destino_id?: string | null
           conta_id: string
           created_at?: string
           data: string
+          data_execucao_pagamento?: string | null
           descricao?: string | null
           forma_pagamento: string
           id?: string
+          is_pago_executado?: boolean | null
+          parcela_atual?: number | null
+          parcelas_total?: number | null
           recorrencia?: string | null
           tipo: string
+          transacao_origem_id?: string | null
           updated_at?: string
           user_id: string
           valor: number
         }
         Update: {
           categoria_id?: string | null
+          conta_destino_id?: string | null
           conta_id?: string
           created_at?: string
           data?: string
+          data_execucao_pagamento?: string | null
           descricao?: string | null
           forma_pagamento?: string
           id?: string
+          is_pago_executado?: boolean | null
+          parcela_atual?: number | null
+          parcelas_total?: number | null
           recorrencia?: string | null
           tipo?: string
+          transacao_origem_id?: string | null
           updated_at?: string
           user_id?: string
           valor?: number
@@ -324,10 +342,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "transacoes_conta_destino_id_fkey"
+            columns: ["conta_destino_id"]
+            isOneToOne: false
+            referencedRelation: "contas"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "transacoes_conta_id_fkey"
             columns: ["conta_id"]
             isOneToOne: false
             referencedRelation: "contas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transacoes_transacao_origem_id_fkey"
+            columns: ["transacao_origem_id"]
+            isOneToOne: false
+            referencedRelation: "transacoes"
             referencedColumns: ["id"]
           },
         ]
