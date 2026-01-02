@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,12 +11,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Trash2, Edit, TrendingUp, TrendingDown, Search, ChevronLeft, ChevronRight, Check, ArrowRightLeft } from "lucide-react";
 import { format, parseISO, addWeeks, addMonths, addYears } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
-import { transacaoSchema } from "@/lib/validations";
+import { formatCurrencyInput, parseCurrencyInput } from "@/lib/calculations";
 
 interface Transacao {
   id: string;
@@ -87,21 +87,47 @@ const meses = [
   { value: "12", label: "Dezembro" },
 ];
 
+async function fetchTransacoesData(
+  userId: string | undefined,
+  filterMes: string,
+  filterAno: string
+) {
+  if (!userId) return null;
+
+  const startDate = `${filterAno}-${filterMes}-01`;
+  const endDate = `${filterAno}-${filterMes}-31`;
+
+  const [transacoesRes, contasRes, categoriasRes] = await Promise.all([
+    supabase
+      .from("transacoes")
+      .select("*")
+      .gte("data", startDate)
+      .lte("data", endDate)
+      .order("data", { ascending: false })
+      .order("created_at", { ascending: false }),
+    supabase.from("contas").select("*"),
+    supabase.from("categorias").select("*").order("nome"),
+  ]);
+
+  return {
+    transacoes: (transacoesRes.data || []) as Transacao[],
+    contas: (contasRes.data || []) as Conta[],
+    categorias: (categoriasRes.data || []) as Categoria[],
+  };
+}
+
 const Transacoes = () => {
   const { user } = useAuth();
-  const [transacoes, setTransacoes] = useState<Transacao[]>([]);
-  const [contas, setContas] = useState<Conta[]>([]);
-  const [categorias, setCategorias] = useState<Categoria[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  
+
   // Filters
   const currentDate = new Date();
   const [filterMes, setFilterMes] = useState(String(currentDate.getMonth() + 1).padStart(2, '0'));
   const [filterAno, setFilterAno] = useState(String(currentDate.getFullYear()));
-  
+
   // Category inline creation
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [categorySearch, setCategorySearch] = useState("");
@@ -125,34 +151,22 @@ const Transacoes = () => {
   // Generate years for filter (last 5 years + current + next year)
   const anos = Array.from({ length: 7 }, (_, i) => String(currentDate.getFullYear() - 5 + i));
 
-  useEffect(() => {
-    if (user) {
-      fetchData();
-    }
-  }, [user, filterMes, filterAno]);
+  const { data, isLoading } = useQuery({
+    queryKey: ["transacoes", user?.id, filterMes, filterAno],
+    queryFn: () => fetchTransacoesData(user?.id, filterMes, filterAno),
+    enabled: !!user?.id,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
 
-  const fetchData = async () => {
-    setLoading(true);
-    const startDate = `${filterAno}-${filterMes}-01`;
-    const endDate = `${filterAno}-${filterMes}-31`;
-    
-    const [transacoesRes, contasRes, categoriasRes] = await Promise.all([
-      supabase
-        .from("transacoes")
-        .select("*")
-        .gte("data", startDate)
-        .lte("data", endDate)
-        .order("data", { ascending: false })
-        .order("created_at", { ascending: false }),
-      supabase.from("contas").select("*"),
-      supabase.from("categorias").select("*").order("nome"),
-    ]);
+  const transacoes = data?.transacoes || [];
+  const contas = data?.contas || [];
+  const categorias = data?.categorias || [];
 
-    if (transacoesRes.data) setTransacoes(transacoesRes.data as Transacao[]);
-    if (contasRes.data) setContas(contasRes.data);
-    if (categoriasRes.data) setCategorias(categoriasRes.data);
-    setLoading(false);
-    setCurrentPage(1);
+  const invalidateQueries = () => {
+    queryClient.invalidateQueries({ queryKey: ["transacoes"] });
+    queryClient.invalidateQueries({ queryKey: ["saldo-contas"] });
+    queryClient.invalidateQueries({ queryKey: ["dashboard-financas"] });
+    queryClient.invalidateQueries({ queryKey: ["orcamentos"] });
   };
 
   const resetForm = () => {
@@ -186,16 +200,21 @@ const Transacoes = () => {
     }
   };
 
+  const handleValorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatCurrencyInput(e.target.value);
+    setFormData({ ...formData, valor: formatted });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.conta_id || !formData.valor) {
       toast({ title: "Erro", description: "Preencha os campos obrigatórios", variant: "destructive" });
       return;
     }
 
     const isTransfer = formData.forma_pagamento === 'transferencia' || formData.forma_pagamento === 'transferencia_entre_contas';
-    
+
     // Validate transfer requires destination account
     if (isTransfer && !formData.conta_destino_id) {
       toast({ title: "Erro", description: "Selecione a conta destino para transferência", variant: "destructive" });
@@ -207,20 +226,20 @@ const Transacoes = () => {
       toast({ title: "Erro", description: "Conta destino deve ser diferente da conta origem", variant: "destructive" });
       return;
     }
-    
+
     // Validate categoria for transferencia_entre_contas
     if (formData.forma_pagamento === 'transferencia_entre_contas' && !formData.categoria_id) {
       toast({ title: "Erro", description: "Selecione uma categoria para transferência entre contas", variant: "destructive" });
       return;
     }
 
-    const parsedValor = parseFloat(formData.valor);
+    const parsedValor = parseCurrencyInput(formData.valor);
     const parsedParcelas = formData.parcelas_total ? parseInt(formData.parcelas_total) : null;
-    
+
     // Handle transfer logic (both types)
     if (isTransfer && !editingId) {
       const isTransferenciaEntreContas = formData.forma_pagamento === 'transferencia_entre_contas';
-      
+
       // Create two transactions: one expense (origin) and one income (destination)
       const transacaoSaida = {
         user_id: user?.id as string,
@@ -265,12 +284,12 @@ const Transacoes = () => {
       toast({ title: "Sucesso", description: "Transferência realizada" });
       setDialogOpen(false);
       resetForm();
-      fetchData();
+      invalidateQueries();
       return;
     }
 
     // Standard transaction or installment/recurrence logic
-    const needsInstallments = (formData.forma_pagamento === 'credito' || formData.recorrencia !== 'nenhuma') 
+    const needsInstallments = (formData.forma_pagamento === 'credito' || formData.recorrencia !== 'nenhuma')
       && parsedParcelas && parsedParcelas > 1 && !editingId;
 
     if (needsInstallments) {
@@ -279,10 +298,10 @@ const Transacoes = () => {
       const transacoesToInsert = [];
 
       for (let i = 0; i < parsedParcelas; i++) {
-        const nextDate = formData.forma_pagamento === 'credito' 
-          ? addMonths(baseDate, i) 
+        const nextDate = formData.forma_pagamento === 'credito'
+          ? addMonths(baseDate, i)
           : getNextDate(baseDate, formData.recorrencia, i);
-        
+
         transacoesToInsert.push({
           user_id: user?.id as string,
           conta_id: formData.conta_id,
@@ -328,7 +347,7 @@ const Transacoes = () => {
       toast({ title: "Sucesso", description: `${parsedParcelas} parcelas criadas` });
     } else {
       // Single transaction
-      const data = {
+      const dataToSave = {
         user_id: user?.id as string,
         conta_id: formData.conta_id,
         categoria_id: formData.categoria_id || null,
@@ -344,14 +363,14 @@ const Transacoes = () => {
       };
 
       if (editingId) {
-        const { error } = await supabase.from("transacoes").update(data).eq("id", editingId);
+        const { error } = await supabase.from("transacoes").update(dataToSave).eq("id", editingId);
         if (error) {
           toast({ title: "Erro", description: "Erro ao atualizar transação", variant: "destructive" });
           return;
         }
         toast({ title: "Sucesso", description: "Transação atualizada" });
       } else {
-        const { error } = await supabase.from("transacoes").insert(data);
+        const { error } = await supabase.from("transacoes").insert(dataToSave);
         if (error) {
           toast({ title: "Erro", description: "Erro ao criar transação", variant: "destructive" });
           return;
@@ -362,14 +381,14 @@ const Transacoes = () => {
 
     setDialogOpen(false);
     resetForm();
-    fetchData();
+    invalidateQueries();
   };
 
   const handleEdit = (transacao: Transacao) => {
     setFormData({
       conta_id: transacao.conta_id,
       categoria_id: transacao.categoria_id || "",
-      valor: transacao.valor.toString(),
+      valor: transacao.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
       tipo: transacao.tipo,
       data: transacao.data,
       forma_pagamento: transacao.forma_pagamento,
@@ -390,15 +409,15 @@ const Transacoes = () => {
       return;
     }
     toast({ title: "Sucesso", description: "Transação excluída" });
-    fetchData();
+    invalidateQueries();
   };
 
   const handleConfirmPayment = async (id: string) => {
     const { error } = await supabase
       .from("transacoes")
-      .update({ 
-        is_pago_executado: true, 
-        data_execucao_pagamento: format(new Date(), 'yyyy-MM-dd') 
+      .update({
+        is_pago_executado: true,
+        data_execucao_pagamento: format(new Date(), 'yyyy-MM-dd')
       })
       .eq("id", id);
 
@@ -407,7 +426,7 @@ const Transacoes = () => {
       return;
     }
     toast({ title: "Sucesso", description: "Pagamento confirmado" });
-    fetchData();
+    invalidateQueries();
   };
 
   const handleCreateCategory = async () => {
@@ -416,11 +435,11 @@ const Transacoes = () => {
       return;
     }
 
-    const categoryTipo = formData.forma_pagamento === 'transferencia_entre_contas' 
-      ? 'transferencia' 
+    const categoryTipo = formData.forma_pagamento === 'transferencia_entre_contas'
+      ? 'transferencia'
       : formData.tipo;
 
-    const { data, error } = await supabase.from("categorias").insert({
+    const { data: newCat, error } = await supabase.from("categorias").insert({
       user_id: user?.id,
       nome: newCategoryName.trim(),
       tipo: categoryTipo,
@@ -433,11 +452,11 @@ const Transacoes = () => {
     }
 
     toast({ title: "Sucesso", description: "Categoria criada" });
-    setCategorias([...categorias, data]);
-    setFormData({ ...formData, categoria_id: data.id });
+    setFormData({ ...formData, categoria_id: newCat.id });
     setNewCategoryName("");
     setNewCategoryCor("#3B82F6");
     setCategoryDialogOpen(false);
+    invalidateQueries();
   };
 
   const formatCurrency = (value: number) => {
@@ -473,7 +492,7 @@ const Transacoes = () => {
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const paginatedTransacoes = transacoes.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
-  if (loading) {
+  if (isLoading) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center min-h-[50vh]">
@@ -492,7 +511,7 @@ const Transacoes = () => {
             <p className="text-muted-foreground">Gerencie suas receitas e despesas ({transacoes.length} lançamentos)</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Select value={filterMes} onValueChange={setFilterMes}>
+            <Select value={filterMes} onValueChange={(v) => { setFilterMes(v); setCurrentPage(1); }}>
               <SelectTrigger className="w-32">
                 <SelectValue />
               </SelectTrigger>
@@ -502,7 +521,7 @@ const Transacoes = () => {
                 ))}
               </SelectContent>
             </Select>
-            <Select value={filterAno} onValueChange={setFilterAno}>
+            <Select value={filterAno} onValueChange={(v) => { setFilterAno(v); setCurrentPage(1); }}>
               <SelectTrigger className="w-24">
                 <SelectValue />
               </SelectTrigger>
@@ -530,8 +549,8 @@ const Transacoes = () => {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Tipo</Label>
-                      <Select 
-                        value={formData.tipo} 
+                      <Select
+                        value={formData.tipo}
                         onValueChange={(v) => setFormData({ ...formData, tipo: v, categoria_id: "" })}
                         disabled={showTransferFields || showTransferEntreContasFields}
                       >
@@ -546,13 +565,17 @@ const Transacoes = () => {
                     </div>
                     <div className="space-y-2">
                       <Label>Valor *</Label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={formData.valor}
-                        onChange={(e) => setFormData({ ...formData, valor: e.target.value })}
-                        placeholder="0,00"
-                      />
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
+                          R$
+                        </span>
+                        <Input
+                          value={formData.valor}
+                          onChange={handleValorChange}
+                          placeholder="0,00"
+                          className="pl-10"
+                        />
+                      </div>
                     </div>
                   </div>
 
@@ -656,7 +679,7 @@ const Transacoes = () => {
                         <SelectContent>
                           {categoriasFiltered.length === 0 ? (
                             <div className="p-2 text-center text-muted-foreground text-sm">
-                              {showTransferEntreContasFields 
+                              {showTransferEntreContasFields
                                 ? "Nenhuma categoria de transferência. Crie uma na aba 'Categorias'."
                                 : "Nenhuma categoria encontrada"
                               }
@@ -687,12 +710,12 @@ const Transacoes = () => {
                     </div>
                     <div className="space-y-2">
                       <Label>Forma Pagamento</Label>
-                      <Select 
-                        value={formData.forma_pagamento} 
+                      <Select
+                        value={formData.forma_pagamento}
                         onValueChange={(v) => {
                           const isTransferType = v === 'transferencia' || v === 'transferencia_entre_contas';
-                          setFormData({ 
-                            ...formData, 
+                          setFormData({
+                            ...formData,
                             forma_pagamento: v,
                             tipo: isTransferType ? 'despesa' : formData.tipo,
                             categoria_id: v === 'transferencia' ? '' : (v === 'transferencia_entre_contas' ? '' : formData.categoria_id),
@@ -741,7 +764,7 @@ const Transacoes = () => {
                         disabled={formData.is_parcelas_ilimitadas}
                       />
                       <p className="text-xs text-muted-foreground">
-                        {formData.forma_pagamento === 'credito' 
+                        {formData.forma_pagamento === 'credito'
                           ? "Parcelas mensais do cartão de crédito"
                           : `Quantas vezes a ${formData.recorrencia === 'semanal' ? 'semana' : formData.recorrencia === 'mensal' ? 'mês' : 'ano'} será repetida`
                         }
@@ -818,7 +841,7 @@ const Transacoes = () => {
                     <TableCell className="max-w-[150px] truncate">{transacao.descricao || "-"}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <div 
+                        <div
                           className="w-2 h-2 rounded-full"
                           style={{ backgroundColor: getCategoriaCor(transacao.categoria_id) }}
                         />
@@ -830,7 +853,7 @@ const Transacoes = () => {
                       {formasPagamento.find(f => f.value === transacao.forma_pagamento)?.label}
                     </TableCell>
                     <TableCell>
-                      {transacao.parcelas_total 
+                      {transacao.parcelas_total
                         ? `${transacao.parcela_atual}/${transacao.parcelas_total}`
                         : "-"
                       }
@@ -852,9 +875,9 @@ const Transacoes = () => {
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
                         {transacao.is_pago_executado === false && (
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
+                          <Button
+                            variant="ghost"
+                            size="icon"
                             className="text-success"
                             onClick={() => handleConfirmPayment(transacao.id)}
                             title="Confirmar pagamento"
