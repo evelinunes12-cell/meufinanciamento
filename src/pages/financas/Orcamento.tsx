@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -39,12 +40,34 @@ interface Transacao {
   is_pago_executado: boolean | null;
 }
 
+async function fetchOrcamentoData(userId: string | undefined, mesAtual: string) {
+  if (!userId) return null;
+
+  const now = new Date();
+  const start = startOfMonth(now);
+  const end = endOfMonth(now);
+
+  const [orcamentosRes, categoriasRes, transacoesRes] = await Promise.all([
+    supabase.from("orcamentos").select("*").eq("mes_referencia", mesAtual),
+    supabase.from("categorias").select("*").eq("tipo", "despesa"),
+    supabase
+      .from("transacoes")
+      .select("*")
+      .eq("tipo", "despesa")
+      .gte("data", format(start, "yyyy-MM-dd"))
+      .lte("data", format(end, "yyyy-MM-dd")),
+  ]);
+
+  return {
+    orcamentos: (orcamentosRes.data || []) as Orcamento[],
+    categorias: (categoriasRes.data || []) as Categoria[],
+    transacoes: (transacoesRes.data || []) as Transacao[],
+  };
+}
+
 const Orcamento = () => {
   const { user } = useAuth();
-  const [orcamentos, setOrcamentos] = useState<Orcamento[]>([]);
-  const [categorias, setCategorias] = useState<Categoria[]>([]);
-  const [transacoes, setTransacoes] = useState<Transacao[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -55,32 +78,16 @@ const Orcamento = () => {
 
   const mesAtual = format(startOfMonth(new Date()), "yyyy-MM-dd");
 
-  useEffect(() => {
-    if (user) fetchData();
-  }, [user]);
+  const { data, isLoading } = useQuery({
+    queryKey: ["orcamentos", user?.id, mesAtual],
+    queryFn: () => fetchOrcamentoData(user?.id, mesAtual),
+    enabled: !!user?.id,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
 
-  const fetchData = async () => {
-    setLoading(true);
-    const now = new Date();
-    const start = startOfMonth(now);
-    const end = endOfMonth(now);
-
-    const [orcamentosRes, categoriasRes, transacoesRes] = await Promise.all([
-      supabase.from("orcamentos").select("*").eq("mes_referencia", mesAtual),
-      supabase.from("categorias").select("*").eq("tipo", "despesa"),
-      supabase
-        .from("transacoes")
-        .select("*")
-        .eq("tipo", "despesa")
-        .gte("data", format(start, "yyyy-MM-dd"))
-        .lte("data", format(end, "yyyy-MM-dd")),
-    ]);
-
-    if (orcamentosRes.data) setOrcamentos(orcamentosRes.data);
-    if (categoriasRes.data) setCategorias(categoriasRes.data);
-    if (transacoesRes.data) setTransacoes(transacoesRes.data as Transacao[]);
-    setLoading(false);
-  };
+  const orcamentos = data?.orcamentos || [];
+  const categorias = data?.categorias || [];
+  const transacoes = data?.transacoes || [];
 
   const resetForm = () => {
     setFormData({ categoria_id: "", valor_limite: "" });
@@ -95,7 +102,7 @@ const Orcamento = () => {
       return;
     }
 
-    const data = {
+    const dataToSave = {
       user_id: user?.id,
       categoria_id: formData.categoria_id,
       valor_limite: parseFloat(formData.valor_limite),
@@ -103,14 +110,14 @@ const Orcamento = () => {
     };
 
     if (editingId) {
-      const { error } = await supabase.from("orcamentos").update(data).eq("id", editingId);
+      const { error } = await supabase.from("orcamentos").update(dataToSave).eq("id", editingId);
       if (error) {
         toast({ title: "Erro", description: "Erro ao atualizar orçamento", variant: "destructive" });
         return;
       }
       toast({ title: "Sucesso", description: "Orçamento atualizado" });
     } else {
-      const { error } = await supabase.from("orcamentos").insert(data);
+      const { error } = await supabase.from("orcamentos").insert(dataToSave);
       if (error) {
         if (error.code === "23505") {
           toast({ title: "Erro", description: "Já existe um orçamento para essa categoria neste mês", variant: "destructive" });
@@ -124,7 +131,7 @@ const Orcamento = () => {
 
     setDialogOpen(false);
     resetForm();
-    fetchData();
+    queryClient.invalidateQueries({ queryKey: ["orcamentos"] });
   };
 
   const handleEdit = (orcamento: Orcamento) => {
@@ -143,7 +150,7 @@ const Orcamento = () => {
       return;
     }
     toast({ title: "Sucesso", description: "Orçamento excluído" });
-    fetchData();
+    queryClient.invalidateQueries({ queryKey: ["orcamentos"] });
   };
 
   const formatCurrency = (value: number) => {
@@ -169,7 +176,7 @@ const Orcamento = () => {
     c => !orcamentos.some(o => o.categoria_id === c.id) || (editingId && orcamentos.find(o => o.id === editingId)?.categoria_id === c.id)
   );
 
-  if (loading) {
+  if (isLoading) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center min-h-[50vh]">

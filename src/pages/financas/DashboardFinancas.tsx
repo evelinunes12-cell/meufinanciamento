@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -8,6 +8,7 @@ import { TrendingUp, TrendingDown, Wallet, PiggyBank, CreditCard, ArrowUpDown } 
 import { format, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear, startOfQuarter, endOfQuarter } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
+import { useState } from "react";
 
 interface Transacao {
   id: string;
@@ -37,13 +38,8 @@ interface Categoria {
 
 const COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16'];
 
-const DashboardFinancas = () => {
-  const { user } = useAuth();
-  const [transacoes, setTransacoes] = useState<Transacao[]>([]);
-  const [contas, setContas] = useState<Conta[]>([]);
-  const [categorias, setCategorias] = useState<Categoria[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [periodo, setPeriodo] = useState("mes");
+async function fetchDashboardData(userId: string | undefined, periodo: string) {
+  if (!userId) return null;
 
   const getDateRange = () => {
     const now = new Date();
@@ -61,32 +57,40 @@ const DashboardFinancas = () => {
     }
   };
 
-  useEffect(() => {
-    if (user) {
-      fetchData();
-    }
-  }, [user, periodo]);
+  const { start, end } = getDateRange();
 
-  const fetchData = async () => {
-    setLoading(true);
-    const { start, end } = getDateRange();
+  const [transacoesRes, contasRes, categoriasRes] = await Promise.all([
+    supabase
+      .from("transacoes")
+      .select("*")
+      .gte("data", format(start, "yyyy-MM-dd"))
+      .lte("data", format(end, "yyyy-MM-dd"))
+      .order("data", { ascending: false }),
+    supabase.from("contas").select("*"),
+    supabase.from("categorias").select("*"),
+  ]);
 
-    const [transacoesRes, contasRes, categoriasRes] = await Promise.all([
-      supabase
-        .from("transacoes")
-        .select("*")
-        .gte("data", format(start, "yyyy-MM-dd"))
-        .lte("data", format(end, "yyyy-MM-dd"))
-        .order("data", { ascending: false }),
-      supabase.from("contas").select("*"),
-      supabase.from("categorias").select("*"),
-    ]);
-
-    if (transacoesRes.data) setTransacoes(transacoesRes.data as Transacao[]);
-    if (contasRes.data) setContas(contasRes.data);
-    if (categoriasRes.data) setCategorias(categoriasRes.data);
-    setLoading(false);
+  return {
+    transacoes: (transacoesRes.data || []) as Transacao[],
+    contas: (contasRes.data || []) as Conta[],
+    categorias: (categoriasRes.data || []) as Categoria[],
   };
+}
+
+const DashboardFinancas = () => {
+  const { user } = useAuth();
+  const [periodo, setPeriodo] = useState("mes");
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["dashboard-financas", user?.id, periodo],
+    queryFn: () => fetchDashboardData(user?.id, periodo),
+    enabled: !!user?.id,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+
+  const transacoes = data?.transacoes || [];
+  const contas = data?.contas || [];
+  const categorias = data?.categorias || [];
 
   // Filter valid transactions: exclude transfers and non-executed payments
   const transacoesValidas = transacoes.filter(t => 
@@ -131,7 +135,7 @@ const DashboardFinancas = () => {
     return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center min-h-[50vh]">
