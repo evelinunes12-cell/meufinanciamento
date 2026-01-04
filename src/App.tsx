@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import { SaldoProvider } from "@/contexts/SaldoContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
@@ -30,8 +31,9 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <SidebarProvider>
-          <Routes>
+        <SaldoProvider>
+          <SidebarProvider>
+            <Routes>
             <Route path="/auth" element={<Auth />} />
             
             {/* Redirect root to financas dashboard */}
@@ -129,8 +131,9 @@ const App = () => (
             />
 
             <Route path="*" element={<NotFound />} />
-          </Routes>
-        </SidebarProvider>
+            </Routes>
+          </SidebarProvider>
+        </SaldoProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
