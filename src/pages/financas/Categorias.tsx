@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Trash2, Edit, TrendingUp, TrendingDown, ArrowRightLeft, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Trash2, Edit, TrendingUp, TrendingDown, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface Categoria {
@@ -54,7 +54,11 @@ const Categorias = () => {
 
   const fetchData = async () => {
     setLoading(true);
-    const { data } = await supabase.from("categorias").select("*").order("nome");
+    const { data } = await supabase
+      .from("categorias")
+      .select("*")
+      .in("tipo", ["receita", "despesa"])
+      .order("nome");
     if (data) setCategorias(data);
     setLoading(false);
   };
@@ -128,15 +132,7 @@ const Categorias = () => {
     .filter(c => c.tipo === "despesa")
     .filter(c => c.nome.toLowerCase().includes(searchTerm.toLowerCase()));
 
-  const categoriasTransferencia = categorias
-    .filter(c => c.tipo === "transferencia")
-    .filter(c => c.nome.toLowerCase().includes(searchTerm.toLowerCase()));
-
-  const currentCategorias = activeTab === "receita" 
-    ? categoriasReceita 
-    : activeTab === "despesa" 
-    ? categoriasDespesa 
-    : categoriasTransferencia;
+  const currentCategorias = activeTab === "receita" ? categoriasReceita : categoriasDespesa;
   const totalPages = Math.ceil(currentCategorias.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const paginatedCategorias = currentCategorias.slice(startIndex, startIndex + ITEMS_PER_PAGE);
@@ -213,7 +209,6 @@ const Categorias = () => {
                     <SelectContent>
                       <SelectItem value="receita">Receita</SelectItem>
                       <SelectItem value="despesa">Despesa</SelectItem>
-                      <SelectItem value="transferencia">Transferência</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -253,7 +248,7 @@ const Categorias = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full max-w-lg grid-cols-3">
+          <TabsList className="grid w-full max-w-md grid-cols-2">
             <TabsTrigger value="despesa" className="flex items-center gap-2">
               <TrendingDown className="h-4 w-4" />
               Despesas ({categoriasDespesa.length})
@@ -261,10 +256,6 @@ const Categorias = () => {
             <TabsTrigger value="receita" className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
               Receitas ({categoriasReceita.length})
-            </TabsTrigger>
-            <TabsTrigger value="transferencia" className="flex items-center gap-2">
-              <ArrowRightLeft className="h-4 w-4" />
-              Transf. ({categoriasTransferencia.length})
             </TabsTrigger>
           </TabsList>
 
@@ -292,21 +283,6 @@ const Categorias = () => {
                 {categoriasReceita.length === 0 && (
                   <p className="text-center py-8 text-muted-foreground">
                     {searchTerm ? "Nenhuma categoria encontrada" : "Nenhuma categoria de receita cadastrada"}
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="transferencia" className="mt-4">
-            <Card className="shadow-card">
-              <CardContent className="p-4 space-y-2">
-                {paginatedCategorias.map((cat, index) => (
-                  <CategoriaCard key={cat.id} categoria={cat} index={index} />
-                ))}
-                {categoriasTransferencia.length === 0 && (
-                  <p className="text-center py-8 text-muted-foreground">
-                    {searchTerm ? "Nenhuma categoria encontrada" : "Nenhuma categoria de transferência cadastrada"}
                   </p>
                 )}
               </CardContent>
