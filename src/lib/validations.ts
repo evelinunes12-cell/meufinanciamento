@@ -97,6 +97,18 @@ export const financiamentoSchema = z.object({
   data_contratacao: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: "Data inválida" }).nullable().optional(),
 });
 
+// Categoria validation schema
+export const categoriaSchema = z.object({
+  nome: z.string()
+    .min(1, { message: "Nome é obrigatório" })
+    .max(100, { message: "Nome muito longo (máximo 100 caracteres)" })
+    .trim()
+    .refine(val => val.length > 0, { message: "Nome não pode ser apenas espaços" }),
+  tipo: z.enum(['receita', 'despesa'], { message: "Tipo inválido" }),
+  cor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, { message: "Cor deve ser um código hexadecimal válido" }),
+});
+
 export type TransacaoInput = z.infer<typeof transacaoSchema>;
 export type ContaInput = z.infer<typeof contaSchema>;
 export type FinanciamentoInput = z.infer<typeof financiamentoSchema>;
+export type CategoriaInput = z.infer<typeof categoriaSchema>;

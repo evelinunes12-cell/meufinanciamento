@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Trash2, Edit, TrendingUp, TrendingDown, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { categoriaSchema } from "@/lib/validations";
 
 interface Categoria {
   id: string;
@@ -71,16 +72,26 @@ const Categorias = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.nome) {
-      toast({ title: "Erro", description: "Nome da categoria é obrigatório", variant: "destructive" });
+    // Validate using zod schema
+    const validationData = {
+      nome: formData.nome.trim(),
+      tipo: formData.tipo as 'receita' | 'despesa',
+      cor: formData.cor,
+    };
+
+    const result = categoriaSchema.safeParse(validationData);
+    if (!result.success) {
+      const firstError = result.error.errors[0];
+      toast({ title: "Erro de validação", description: firstError.message, variant: "destructive" });
       return;
     }
 
+    const validated = result.data;
     const data = {
       user_id: user?.id,
-      nome: formData.nome,
-      tipo: formData.tipo,
-      cor: formData.cor,
+      nome: validated.nome,
+      tipo: validated.tipo,
+      cor: validated.cor,
     };
 
     if (editingId) {
