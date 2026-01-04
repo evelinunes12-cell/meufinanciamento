@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -28,10 +29,21 @@ const cores = [
 
 const ITEMS_PER_PAGE = 10;
 
+async function fetchCategoriasData(userId: string | undefined) {
+  if (!userId) return [];
+
+  const { data } = await supabase
+    .from("categorias")
+    .select("*")
+    .in("tipo", ["receita", "despesa"])
+    .order("nome");
+
+  return (data || []) as Categoria[];
+}
+
 const Categorias = () => {
   const { user } = useAuth();
-  const [categorias, setCategorias] = useState<Categoria[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("despesa");
@@ -44,24 +56,21 @@ const Categorias = () => {
     cor: "#3B82F6",
   });
 
-  useEffect(() => {
-    if (user) fetchData();
-  }, [user]);
+  const { data: categorias = [], isLoading } = useQuery({
+    queryKey: ["categorias", user?.id],
+    queryFn: () => fetchCategoriasData(user?.id),
+    enabled: !!user?.id,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
 
   // Reset page when tab or search changes
   useEffect(() => {
     setCurrentPage(1);
   }, [activeTab, searchTerm]);
 
-  const fetchData = async () => {
-    setLoading(true);
-    const { data } = await supabase
-      .from("categorias")
-      .select("*")
-      .in("tipo", ["receita", "despesa"])
-      .order("nome");
-    if (data) setCategorias(data);
-    setLoading(false);
+  const invalidateQueries = () => {
+    queryClient.invalidateQueries({ queryKey: ["categorias"] });
+    queryClient.invalidateQueries({ queryKey: ["transacoes"] });
   };
 
   const resetForm = () => {
@@ -112,7 +121,7 @@ const Categorias = () => {
 
     setDialogOpen(false);
     resetForm();
-    fetchData();
+    invalidateQueries();
   };
 
   const handleEdit = (categoria: Categoria) => {
@@ -132,7 +141,7 @@ const Categorias = () => {
       return;
     }
     toast({ title: "Sucesso", description: "Categoria excluída" });
-    fetchData();
+    invalidateQueries();
   };
 
   const categoriasReceita = categorias
@@ -169,7 +178,7 @@ const Categorias = () => {
     </div>
   );
 
-  if (loading) {
+  if (isLoading) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center min-h-[50vh]">
