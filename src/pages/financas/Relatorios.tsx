@@ -97,13 +97,16 @@ const Relatorios = () => {
   const getContaNome = (id: string) => contas.find(c => c.id === id)?.nome_conta || "-";
   const getCategoriaNome = (id: string | null) => id ? categorias.find(c => c.id === id)?.nome || "-" : "-";
 
-  const totalReceitas = transacoes.filter(t => t.tipo === "receita").reduce((acc, t) => acc + Number(t.valor), 0);
-  const totalDespesas = transacoes.filter(t => t.tipo === "despesa").reduce((acc, t) => acc + Number(t.valor), 0);
+  // Filter valid transactions: exclude transfers for aggregations
+  const transacoesValidas = transacoes.filter(t => t.forma_pagamento !== "transferencia");
+  
+  const totalReceitas = transacoesValidas.filter(t => t.tipo === "receita").reduce((acc, t) => acc + Number(t.valor), 0);
+  const totalDespesas = transacoesValidas.filter(t => t.tipo === "despesa").reduce((acc, t) => acc + Number(t.valor), 0);
   const saldo = totalReceitas - totalDespesas;
 
   // Relatório por categoria
   const relatorioCategoria = categorias.map(cat => {
-    const total = transacoes
+    const total = transacoesValidas
       .filter(t => t.categoria_id === cat.id)
       .reduce((acc, t) => acc + Number(t.valor) * (t.tipo === "despesa" ? -1 : 1), 0);
     return { categoria: cat.nome, tipo: cat.tipo, cor: cat.cor, total };
@@ -111,7 +114,7 @@ const Relatorios = () => {
 
   // Relatório por conta
   const relatorioConta = contas.map(conta => {
-    const transacoesConta = transacoes.filter(t => t.conta_id === conta.id);
+    const transacoesConta = transacoesValidas.filter(t => t.conta_id === conta.id);
     const receitas = transacoesConta.filter(t => t.tipo === "receita").reduce((a, t) => a + Number(t.valor), 0);
     const despesas = transacoesConta.filter(t => t.tipo === "despesa").reduce((a, t) => a + Number(t.valor), 0);
     return { conta: conta.nome_conta, receitas, despesas, saldo: receitas - despesas };

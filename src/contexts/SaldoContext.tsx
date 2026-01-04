@@ -45,10 +45,10 @@ async function fetchSaldoData(userId: string | undefined) {
 }
 
 function calculateSaldoContas(contas: Conta[], transacoes: Transacao[]): number {
+  // Exclude transfers from balance calculation to avoid double counting
   const transacoesValidas = transacoes.filter(
     (t) =>
       t.forma_pagamento !== "transferencia" &&
-      t.forma_pagamento !== "transferencia_entre_contas" &&
       t.is_pago_executado !== false
   );
 
