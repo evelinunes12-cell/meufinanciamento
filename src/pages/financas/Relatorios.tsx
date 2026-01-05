@@ -1,15 +1,17 @@
-import { useEffect, useState } from "react";
+import { useState, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Download, FileText, TrendingUp, TrendingDown } from "lucide-react";
-import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths, parseISO } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
+import { AdvancedFilters, FilterState, getDateRangeFromFilters, getInitialFilterState } from "@/components/AdvancedFilters";
 
 interface Transacao {
   id: string;
@@ -20,6 +22,7 @@ interface Transacao {
   data: string;
   forma_pagamento: string;
   descricao: string | null;
+  is_pago_executado: boolean | null;
 }
 
 interface Conta {
@@ -40,55 +43,44 @@ const formatDate = (dateString: string) => {
   return format(date, "dd/MM/yyyy", { locale: ptBR });
 };
 
+async function fetchRelatoriosData(userId: string | undefined, startDate: string, endDate: string) {
+  if (!userId) return null;
+
+  const [transacoesRes, contasRes, categoriasRes] = await Promise.all([
+    supabase
+      .from("transacoes")
+      .select("*")
+      .gte("data", startDate)
+      .lte("data", endDate)
+      .order("data", { ascending: false }),
+    supabase.from("contas").select("*"),
+    supabase.from("categorias").select("*"),
+  ]);
+
+  return {
+    transacoes: (transacoesRes.data || []) as Transacao[],
+    contas: (contasRes.data || []) as Conta[],
+    categorias: (categoriasRes.data || []) as Categoria[],
+  };
+}
+
 const Relatorios = () => {
   const { user } = useAuth();
-  const [transacoes, setTransacoes] = useState<Transacao[]>([]);
-  const [contas, setContas] = useState<Conta[]>([]);
-  const [categorias, setCategorias] = useState<Categoria[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [periodo, setPeriodo] = useState("mes");
+  const [filters, setFilters] = useState<FilterState>(getInitialFilterState());
   const [tipoRelatorio, setTipoRelatorio] = useState("geral");
 
-  const getDateRange = () => {
-    const now = new Date();
-    switch (periodo) {
-      case "mes":
-        return { start: startOfMonth(now), end: endOfMonth(now) };
-      case "trimestre":
-        return { start: subMonths(startOfMonth(now), 2), end: endOfMonth(now) };
-      case "semestre":
-        return { start: subMonths(startOfMonth(now), 5), end: endOfMonth(now) };
-      case "ano":
-        return { start: startOfYear(now), end: endOfYear(now) };
-      default:
-        return { start: startOfMonth(now), end: endOfMonth(now) };
-    }
-  };
+  const { startDate, endDate } = getDateRangeFromFilters(filters);
 
-  useEffect(() => {
-    if (user) fetchData();
-  }, [user, periodo]);
+  const { data, isLoading } = useQuery({
+    queryKey: ["relatorios", user?.id, startDate, endDate],
+    queryFn: () => fetchRelatoriosData(user?.id, startDate, endDate),
+    enabled: !!user?.id,
+    staleTime: 5 * 60 * 1000,
+  });
 
-  const fetchData = async () => {
-    setLoading(true);
-    const { start, end } = getDateRange();
-
-    const [transacoesRes, contasRes, categoriasRes] = await Promise.all([
-      supabase
-        .from("transacoes")
-        .select("*")
-        .gte("data", format(start, "yyyy-MM-dd"))
-        .lte("data", format(end, "yyyy-MM-dd"))
-        .order("data", { ascending: false }),
-      supabase.from("contas").select("*"),
-      supabase.from("categorias").select("*"),
-    ]);
-
-    if (transacoesRes.data) setTransacoes(transacoesRes.data);
-    if (contasRes.data) setContas(contasRes.data);
-    if (categoriasRes.data) setCategorias(categoriasRes.data);
-    setLoading(false);
-  };
+  const transacoes = data?.transacoes || [];
+  const contas = data?.contas || [];
+  const categorias = data?.categorias || [];
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
@@ -97,8 +89,34 @@ const Relatorios = () => {
   const getContaNome = (id: string) => contas.find(c => c.id === id)?.nome_conta || "-";
   const getCategoriaNome = (id: string | null) => id ? categorias.find(c => c.id === id)?.nome || "-" : "-";
 
+  // Apply advanced filters client-side
+  const filteredTransacoes = useMemo(() => {
+    let result = transacoes;
+    
+    if (filters.tipo) {
+      result = result.filter(t => t.tipo === filters.tipo);
+    }
+    if (filters.categoriaId) {
+      result = result.filter(t => t.categoria_id === filters.categoriaId);
+    }
+    if (filters.contaId) {
+      result = result.filter(t => t.conta_id === filters.contaId);
+    }
+    if (filters.formaPagamento) {
+      result = result.filter(t => t.forma_pagamento === filters.formaPagamento);
+    }
+    if (filters.statusPagamento) {
+      result = result.filter(t => {
+        const isPago = t.is_pago_executado === true;
+        return filters.statusPagamento === "pago" ? isPago : !isPago;
+      });
+    }
+    
+    return result;
+  }, [transacoes, filters.tipo, filters.categoriaId, filters.contaId, filters.formaPagamento, filters.statusPagamento]);
+
   // Filter valid transactions: exclude transfers for aggregations
-  const transacoesValidas = transacoes.filter(t => t.forma_pagamento !== "transferencia");
+  const transacoesValidas = filteredTransacoes.filter(t => t.forma_pagamento !== "transferencia");
   
   const totalReceitas = transacoesValidas.filter(t => t.tipo === "receita").reduce((acc, t) => acc + Number(t.valor), 0);
   const totalDespesas = transacoesValidas.filter(t => t.tipo === "despesa").reduce((acc, t) => acc + Number(t.valor), 0);
@@ -123,7 +141,7 @@ const Relatorios = () => {
   // Relatório por forma de pagamento
   const formasPagamento = ["pix", "debito", "credito", "dinheiro", "transferencia", "outro"];
   const relatorioFormaPagamento = formasPagamento.map(fp => {
-    const total = transacoes
+    const total = filteredTransacoes
       .filter(t => t.forma_pagamento === fp)
       .reduce((acc, t) => acc + Number(t.valor) * (t.tipo === "despesa" ? -1 : 1), 0);
     return { forma: fp.charAt(0).toUpperCase() + fp.slice(1), total };
@@ -134,7 +152,7 @@ const Relatorios = () => {
     
     if (tipoRelatorio === "geral") {
       csv = "Data,Tipo,Descrição,Categoria,Conta,Valor\n";
-      transacoes.forEach(t => {
+      filteredTransacoes.forEach(t => {
         csv += `${formatDate(t.data)},${t.tipo},${t.descricao || "-"},${getCategoriaNome(t.categoria_id)},${getContaNome(t.conta_id)},${t.tipo === "receita" ? "" : "-"}${t.valor}\n`;
       });
     } else if (tipoRelatorio === "categoria") {
@@ -157,7 +175,7 @@ const Relatorios = () => {
     toast({ title: "Sucesso", description: "Relatório exportado com sucesso" });
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center min-h-[50vh]">
@@ -176,17 +194,6 @@ const Relatorios = () => {
             <p className="text-muted-foreground">Análise detalhada das suas finanças</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Select value={periodo} onValueChange={setPeriodo}>
-              <SelectTrigger className="w-32">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="mes">Este Mês</SelectItem>
-                <SelectItem value="trimestre">Trimestre</SelectItem>
-                <SelectItem value="semestre">Semestre</SelectItem>
-                <SelectItem value="ano">Este Ano</SelectItem>
-              </SelectContent>
-            </Select>
             <Select value={tipoRelatorio} onValueChange={setTipoRelatorio}>
               <SelectTrigger className="w-40">
                 <SelectValue />
@@ -204,6 +211,18 @@ const Relatorios = () => {
             </Button>
           </div>
         </div>
+
+        {/* Advanced Filters */}
+        <AdvancedFilters
+          filters={filters}
+          onFiltersChange={setFilters}
+          categorias={categorias}
+          contas={contas}
+          showTipo
+          showCategoria
+          showConta
+          showFormaPagamento
+        />
 
         {/* Resumo */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -274,7 +293,7 @@ const Relatorios = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {transacoes.map((t) => (
+                  {filteredTransacoes.map((t) => (
                     <TableRow key={t.id}>
                       <TableCell>{formatDate(t.data)}</TableCell>
                       <TableCell className="capitalize">{t.tipo}</TableCell>
@@ -364,7 +383,7 @@ const Relatorios = () => {
               </Table>
             )}
 
-            {transacoes.length === 0 && (
+            {filteredTransacoes.length === 0 && (
               <div className="text-center py-8 text-muted-foreground">
                 Nenhuma transação no período selecionado
               </div>
