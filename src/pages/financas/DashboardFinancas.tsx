@@ -3,12 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TrendingUp, TrendingDown, Wallet, PiggyBank, CreditCard, ArrowUpDown } from "lucide-react";
-import { format, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear, startOfQuarter, endOfQuarter } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { format } from "date-fns";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import { useState } from "react";
+import { AdvancedFilters, FilterState, getInitialFilterState, getDateRangeFromFilters } from "@/components/AdvancedFilters";
 
 interface Transacao {
   id: string;
@@ -38,33 +37,15 @@ interface Categoria {
 
 const COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16'];
 
-async function fetchDashboardData(userId: string | undefined, periodo: string) {
+async function fetchDashboardData(userId: string | undefined, startDate: string, endDate: string) {
   if (!userId) return null;
-
-  const getDateRange = () => {
-    const now = new Date();
-    switch (periodo) {
-      case "mes":
-        return { start: startOfMonth(now), end: endOfMonth(now) };
-      case "trimestre":
-        return { start: startOfQuarter(now), end: endOfQuarter(now) };
-      case "semestre":
-        return { start: subMonths(startOfMonth(now), 5), end: endOfMonth(now) };
-      case "ano":
-        return { start: startOfYear(now), end: endOfYear(now) };
-      default:
-        return { start: startOfMonth(now), end: endOfMonth(now) };
-    }
-  };
-
-  const { start, end } = getDateRange();
 
   const [transacoesRes, contasRes, categoriasRes] = await Promise.all([
     supabase
       .from("transacoes")
       .select("*")
-      .gte("data", format(start, "yyyy-MM-dd"))
-      .lte("data", format(end, "yyyy-MM-dd"))
+      .gte("data", startDate)
+      .lte("data", endDate)
       .order("data", { ascending: false }),
     supabase.from("contas").select("*"),
     supabase.from("categorias").select("*"),
@@ -79,21 +60,35 @@ async function fetchDashboardData(userId: string | undefined, periodo: string) {
 
 const DashboardFinancas = () => {
   const { user } = useAuth();
-  const [periodo, setPeriodo] = useState("mes");
+  
+  const [filters, setFilters] = useState<FilterState>(getInitialFilterState);
+
+  const { startDate, endDate } = getDateRangeFromFilters(filters);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["dashboard-financas", user?.id, periodo],
-    queryFn: () => fetchDashboardData(user?.id, periodo),
+    queryKey: ["dashboard-financas", user?.id, startDate, endDate],
+    queryFn: () => fetchDashboardData(user?.id, startDate, endDate),
     enabled: !!user?.id,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000,
   });
 
   const transacoes = data?.transacoes || [];
   const contas = data?.contas || [];
   const categorias = data?.categorias || [];
 
+  // Apply client-side filters
+  const transacoesFiltradas = transacoes.filter((t) => {
+    if (filters.tipo && t.tipo !== filters.tipo) return false;
+    if (filters.categoriaId && t.categoria_id !== filters.categoriaId) return false;
+    if (filters.contaId && t.conta_id !== filters.contaId) return false;
+    if (filters.formaPagamento && t.forma_pagamento !== filters.formaPagamento) return false;
+    if (filters.statusPagamento === "pago" && t.is_pago_executado !== true) return false;
+    if (filters.statusPagamento === "pendente" && t.is_pago_executado !== false) return false;
+    return true;
+  });
+
   // Filter valid transactions: exclude transfers and non-executed payments
-  const transacoesValidas = transacoes.filter(t => 
+  const transacoesValidas = transacoesFiltradas.filter(t => 
     t.forma_pagamento !== "transferencia" && 
     t.is_pago_executado !== false
   );
@@ -108,6 +103,7 @@ const DashboardFinancas = () => {
   
   const saldoMes = totalReceitas - totalDespesas;
 
+  // Calculate total account balance (using all transactions, not just filtered period)
   const saldoContas = contas.reduce((acc, conta) => {
     const transacoesConta = transacoesValidas.filter(t => t.conta_id === conta.id);
     const receitas = transacoesConta.filter(t => t.tipo === "receita").reduce((a, t) => a + Number(t.valor), 0);
@@ -147,22 +143,23 @@ const DashboardFinancas = () => {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex flex-col gap-4">
           <div>
             <h1 className="text-2xl font-bold text-foreground">Dashboard Financeiro</h1>
             <p className="text-muted-foreground">Visão geral das suas finanças</p>
           </div>
-          <Select value={periodo} onValueChange={setPeriodo}>
-            <SelectTrigger className="w-40">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="mes">Este Mês</SelectItem>
-              <SelectItem value="trimestre">Trimestre</SelectItem>
-              <SelectItem value="semestre">Semestre</SelectItem>
-              <SelectItem value="ano">Este Ano</SelectItem>
-            </SelectContent>
-          </Select>
+          
+          <AdvancedFilters
+            filters={filters}
+            onFiltersChange={setFilters}
+            categorias={categorias}
+            contas={contas}
+            showTipo
+            showCategoria
+            showConta
+            showFormaPagamento
+            showStatusPagamento
+          />
         </div>
 
         {/* KPIs */}
@@ -202,7 +199,7 @@ const DashboardFinancas = () => {
                   <ArrowUpDown className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Saldo do Mês</p>
+                  <p className="text-xs text-muted-foreground">Saldo do Período</p>
                   <p className={`text-lg font-bold ${saldoMes >= 0 ? "text-success" : "text-destructive"}`}>
                     {formatCurrency(saldoMes)}
                   </p>
