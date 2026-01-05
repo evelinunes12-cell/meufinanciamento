@@ -212,14 +212,14 @@ export const AdvancedFilters = ({
                 <div className="space-y-1">
                   <Label className="text-xs text-muted-foreground">Tipo</Label>
                   <Select 
-                    value={filters.tipo || ""} 
-                    onValueChange={(v) => updateFilter("tipo", v)}
+                    value={filters.tipo || "__all__"} 
+                    onValueChange={(v) => updateFilter("tipo", v === "__all__" ? "" : v)}
                   >
                     <SelectTrigger className="w-32">
                       <SelectValue placeholder="Todos" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Todos</SelectItem>
+                      <SelectItem value="__all__">Todos</SelectItem>
                       <SelectItem value="receita">Receita</SelectItem>
                       <SelectItem value="despesa">Despesa</SelectItem>
                     </SelectContent>
@@ -231,14 +231,14 @@ export const AdvancedFilters = ({
                 <div className="space-y-1">
                   <Label className="text-xs text-muted-foreground">Categoria</Label>
                   <Select 
-                    value={filters.categoriaId || ""} 
-                    onValueChange={(v) => updateFilter("categoriaId", v)}
+                    value={filters.categoriaId || "__all__"} 
+                    onValueChange={(v) => updateFilter("categoriaId", v === "__all__" ? "" : v)}
                   >
                     <SelectTrigger className="w-40">
                       <SelectValue placeholder="Todas" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Todas</SelectItem>
+                      <SelectItem value="__all__">Todas</SelectItem>
                       {categorias.map((cat) => (
                         <SelectItem key={cat.id} value={cat.id}>{cat.nome}</SelectItem>
                       ))}
@@ -251,14 +251,14 @@ export const AdvancedFilters = ({
                 <div className="space-y-1">
                   <Label className="text-xs text-muted-foreground">Conta</Label>
                   <Select 
-                    value={filters.contaId || ""} 
-                    onValueChange={(v) => updateFilter("contaId", v)}
+                    value={filters.contaId || "__all__"} 
+                    onValueChange={(v) => updateFilter("contaId", v === "__all__" ? "" : v)}
                   >
                     <SelectTrigger className="w-40">
                       <SelectValue placeholder="Todas" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Todas</SelectItem>
+                      <SelectItem value="__all__">Todas</SelectItem>
                       {contas.map((conta) => (
                         <SelectItem key={conta.id} value={conta.id}>{conta.nome_conta}</SelectItem>
                       ))}
@@ -271,14 +271,14 @@ export const AdvancedFilters = ({
                 <div className="space-y-1">
                   <Label className="text-xs text-muted-foreground">Pagamento</Label>
                   <Select 
-                    value={filters.formaPagamento || ""} 
-                    onValueChange={(v) => updateFilter("formaPagamento", v)}
+                    value={filters.formaPagamento || "__all__"} 
+                    onValueChange={(v) => updateFilter("formaPagamento", v === "__all__" ? "" : v)}
                   >
                     <SelectTrigger className="w-36">
                       <SelectValue placeholder="Todas" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Todas</SelectItem>
+                      <SelectItem value="__all__">Todas</SelectItem>
                       {formasPagamento.map((fp) => (
                         <SelectItem key={fp.value} value={fp.value}>{fp.label}</SelectItem>
                       ))}
@@ -291,14 +291,14 @@ export const AdvancedFilters = ({
                 <div className="space-y-1">
                   <Label className="text-xs text-muted-foreground">Status</Label>
                   <Select 
-                    value={filters.statusPagamento || ""} 
-                    onValueChange={(v) => updateFilter("statusPagamento", v)}
+                    value={filters.statusPagamento || "__all__"} 
+                    onValueChange={(v) => updateFilter("statusPagamento", v === "__all__" ? "" : v)}
                   >
                     <SelectTrigger className="w-32">
                       <SelectValue placeholder="Todos" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Todos</SelectItem>
+                      <SelectItem value="__all__">Todos</SelectItem>
                       <SelectItem value="pago">Pago</SelectItem>
                       <SelectItem value="pendente">Pendente</SelectItem>
                     </SelectContent>
