@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -11,11 +11,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, Edit, TrendingUp, TrendingDown, Search, ChevronLeft, ChevronRight, Check, ArrowRightLeft } from "lucide-react";
+import { Plus, Trash2, Edit, TrendingUp, TrendingDown, ChevronLeft, ChevronRight, Check, ArrowRightLeft, Search } from "lucide-react";
 import { format, parseISO, addWeeks, addMonths, addYears } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
 import { formatCurrencyInput, parseCurrencyInput } from "@/lib/calculations";
+import { AdvancedFilters, FilterState, getDateRangeFromFilters, getInitialFilterState } from "@/components/AdvancedFilters";
 
 interface Transacao {
   id: string;
@@ -71,30 +72,12 @@ const cores = [
 
 const ITEMS_PER_PAGE = 10;
 
-const meses = [
-  { value: "01", label: "Janeiro" },
-  { value: "02", label: "Fevereiro" },
-  { value: "03", label: "Março" },
-  { value: "04", label: "Abril" },
-  { value: "05", label: "Maio" },
-  { value: "06", label: "Junho" },
-  { value: "07", label: "Julho" },
-  { value: "08", label: "Agosto" },
-  { value: "09", label: "Setembro" },
-  { value: "10", label: "Outubro" },
-  { value: "11", label: "Novembro" },
-  { value: "12", label: "Dezembro" },
-];
-
 async function fetchTransacoesData(
   userId: string | undefined,
-  filterMes: string,
-  filterAno: string
+  startDate: string,
+  endDate: string
 ) {
   if (!userId) return null;
-
-  const startDate = `${filterAno}-${filterMes}-01`;
-  const endDate = `${filterAno}-${filterMes}-31`;
 
   const [transacoesRes, contasRes, categoriasRes] = await Promise.all([
     supabase
@@ -123,9 +106,7 @@ const Transacoes = () => {
   const [currentPage, setCurrentPage] = useState(1);
 
   // Filters
-  const currentDate = new Date();
-  const [filterMes, setFilterMes] = useState(String(currentDate.getMonth() + 1).padStart(2, '0'));
-  const [filterAno, setFilterAno] = useState(String(currentDate.getFullYear()));
+  const [filters, setFilters] = useState<FilterState>(getInitialFilterState());
 
   // Category inline creation
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
@@ -147,14 +128,12 @@ const Transacoes = () => {
     is_parcelas_ilimitadas: false,
   });
 
-  // Generate years for filter (2020 to current + 1 year)
-  const startYear = 2020;
-  const endYear = currentDate.getFullYear() + 1;
-  const anos = Array.from({ length: endYear - startYear + 1 }, (_, i) => String(startYear + i));
+  // Calculate date range based on filters
+  const { startDate, endDate } = getDateRangeFromFilters(filters);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["transacoes", user?.id, filterMes, filterAno],
-    queryFn: () => fetchTransacoesData(user?.id, filterMes, filterAno),
+    queryKey: ["transacoes", user?.id, startDate, endDate],
+    queryFn: () => fetchTransacoesData(user?.id, startDate, endDate),
     enabled: !!user?.id,
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
@@ -472,10 +451,36 @@ const Transacoes = () => {
   const showInstallmentFields = formData.forma_pagamento === 'credito' || formData.recorrencia !== 'nenhuma';
   const showTransferFields = formData.forma_pagamento === 'transferencia';
 
+  // Apply advanced filters client-side
+  const filteredTransacoes = useMemo(() => {
+    let result = data?.transacoes || [];
+    
+    if (filters.tipo) {
+      result = result.filter(t => t.tipo === filters.tipo);
+    }
+    if (filters.categoriaId) {
+      result = result.filter(t => t.categoria_id === filters.categoriaId);
+    }
+    if (filters.contaId) {
+      result = result.filter(t => t.conta_id === filters.contaId);
+    }
+    if (filters.formaPagamento) {
+      result = result.filter(t => t.forma_pagamento === filters.formaPagamento);
+    }
+    if (filters.statusPagamento) {
+      result = result.filter(t => {
+        const isPago = t.is_pago_executado === true;
+        return filters.statusPagamento === "pago" ? isPago : !isPago;
+      });
+    }
+    
+    return result;
+  }, [data?.transacoes, filters.tipo, filters.categoriaId, filters.contaId, filters.formaPagamento, filters.statusPagamento]);
+
   // Pagination
-  const totalPages = Math.ceil(transacoes.length / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(filteredTransacoes.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const paginatedTransacoes = transacoes.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  const paginatedTransacoes = filteredTransacoes.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
   if (isLoading) {
     return (
@@ -493,36 +498,15 @@ const Transacoes = () => {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-2xl font-bold text-foreground">Transações</h1>
-            <p className="text-muted-foreground">Gerencie suas receitas e despesas ({transacoes.length} lançamentos)</p>
+            <p className="text-muted-foreground">Gerencie suas receitas e despesas ({filteredTransacoes.length} lançamentos)</p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Select value={filterMes} onValueChange={(v) => { setFilterMes(v); setCurrentPage(1); }}>
-              <SelectTrigger className="w-32">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {meses.map((m) => (
-                  <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={filterAno} onValueChange={(v) => { setFilterAno(v); setCurrentPage(1); }}>
-              <SelectTrigger className="w-24">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {anos.map((a) => (
-                  <SelectItem key={a} value={a}>{a}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
-              <DialogTrigger asChild>
-                <Button className="gradient-primary text-primary-foreground">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Nova Transação
-                </Button>
-              </DialogTrigger>
+          <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
+            <DialogTrigger asChild>
+              <Button className="gradient-primary text-primary-foreground">
+                <Plus className="h-4 w-4 mr-2" />
+                Nova Transação
+              </Button>
+            </DialogTrigger>
               <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>{editingId ? "Editar" : "Nova"} Transação</DialogTitle>
@@ -769,8 +753,23 @@ const Transacoes = () => {
                 </form>
               </DialogContent>
             </Dialog>
-          </div>
         </div>
+
+        {/* Advanced Filters */}
+        <AdvancedFilters
+          filters={filters}
+          onFiltersChange={(newFilters) => {
+            setFilters(newFilters);
+            setCurrentPage(1);
+          }}
+          categorias={categorias}
+          contas={contas}
+          showTipo
+          showCategoria
+          showConta
+          showFormaPagamento
+          showStatusPagamento
+        />
 
         <Card className="shadow-card">
           <CardContent className="p-0 overflow-x-auto">
