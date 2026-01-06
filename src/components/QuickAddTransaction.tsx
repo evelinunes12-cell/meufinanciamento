@@ -19,14 +19,14 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Plus } from "lucide-react";
-import { format } from "date-fns";
+import { format, addWeeks, addMonths, addYears } from "date-fns";
 import { toast } from "@/hooks/use-toast";
 import { formatCurrencyInput, parseCurrencyInput } from "@/lib/calculations";
 
 interface Conta {
   id: string;
   nome_conta: string;
+  tipo: string;
 }
 
 interface Categoria {
@@ -41,6 +41,14 @@ interface QuickAddTransactionProps {
   onOpenChange: (open: boolean) => void;
 }
 
+const recorrencias = [
+  { value: "nenhuma", label: "Nenhuma" },
+  { value: "semanal", label: "Semanal" },
+  { value: "mensal", label: "Mensal" },
+  { value: "anual", label: "Anual" },
+  { value: "fixa", label: "Recorrência Fixa" },
+];
+
 const QuickAddTransaction = ({ open, onOpenChange }: QuickAddTransactionProps) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -54,6 +62,9 @@ const QuickAddTransaction = ({ open, onOpenChange }: QuickAddTransactionProps) =
     conta_id: "",
     categoria_id: "",
     data: format(new Date(), "yyyy-MM-dd"),
+    forma_pagamento: "pix",
+    recorrencia: "nenhuma",
+    parcelas_total: "",
   });
 
   useEffect(() => {
@@ -64,7 +75,7 @@ const QuickAddTransaction = ({ open, onOpenChange }: QuickAddTransactionProps) =
 
   const fetchData = async () => {
     const [contasRes, categoriasRes] = await Promise.all([
-      supabase.from("contas").select("id, nome_conta"),
+      supabase.from("contas").select("id, nome_conta, tipo"),
       supabase.from("categorias").select("*").order("nome"),
     ]);
 
@@ -79,7 +90,23 @@ const QuickAddTransaction = ({ open, onOpenChange }: QuickAddTransactionProps) =
       conta_id: "",
       categoria_id: "",
       data: format(new Date(), "yyyy-MM-dd"),
+      forma_pagamento: "pix",
+      recorrencia: "nenhuma",
+      parcelas_total: "",
     });
+  };
+
+  const getNextDate = (baseDate: Date, recorrencia: string, index: number): Date => {
+    switch (recorrencia) {
+      case 'semanal':
+        return addWeeks(baseDate, index);
+      case 'mensal':
+        return addMonths(baseDate, index);
+      case 'anual':
+        return addYears(baseDate, index);
+      default:
+        return addMonths(baseDate, index);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -97,32 +124,96 @@ const QuickAddTransaction = ({ open, onOpenChange }: QuickAddTransactionProps) =
     }
 
     const parsedValor = parseCurrencyInput(formData.valor);
+    const parsedParcelas = formData.parcelas_total ? parseInt(formData.parcelas_total) : null;
+    const conta = contas.find(c => c.id === formData.conta_id);
+    const isCredito = conta?.tipo === "credito";
+    
+    // Check if needs installments (has recurrence and parcelas defined, not fixed)
+    const needsInstallments = formData.recorrencia !== 'nenhuma' && 
+      formData.recorrencia !== 'fixa' && 
+      parsedParcelas && parsedParcelas > 1;
 
-    const data = {
-      user_id: user?.id as string,
-      conta_id: formData.conta_id,
-      categoria_id: formData.categoria_id || null,
-      valor: parsedValor,
-      tipo: formData.tipo,
-      data: formData.data,
-      forma_pagamento: "pix",
-      recorrencia: "nenhuma",
-      is_pago_executado: true,
-    };
+    if (needsInstallments) {
+      // Create multiple installments
+      const baseDate = new Date(formData.data);
+      const transacoesToInsert = [];
 
-    const { error } = await supabase.from("transacoes").insert(data);
+      for (let i = 0; i < parsedParcelas; i++) {
+        const nextDate = getNextDate(baseDate, formData.recorrencia, i);
 
-    if (error) {
-      toast({
-        title: "Erro",
-        description: "Erro ao criar transação",
-        variant: "destructive",
-      });
-      setLoading(false);
-      return;
+        transacoesToInsert.push({
+          user_id: user?.id as string,
+          conta_id: formData.conta_id,
+          categoria_id: formData.categoria_id || null,
+          valor: parsedValor,
+          tipo: formData.tipo,
+          data: format(nextDate, 'yyyy-MM-dd'),
+          forma_pagamento: formData.forma_pagamento,
+          recorrencia: formData.recorrencia,
+          parcelas_total: parsedParcelas,
+          parcela_atual: i + 1,
+          // Credit is always "paid", non-credit: only first is paid
+          is_pago_executado: isCredito ? true : i === 0,
+        });
+      }
+
+      // Insert first transaction
+      const { data: firstTrans, error: firstError } = await supabase
+        .from("transacoes")
+        .insert(transacoesToInsert[0])
+        .select()
+        .single();
+
+      if (firstError) {
+        toast({ title: "Erro", description: "Erro ao criar transação", variant: "destructive" });
+        setLoading(false);
+        return;
+      }
+
+      // Insert remaining with transacao_origem_id
+      if (transacoesToInsert.length > 1) {
+        const remaining = transacoesToInsert.slice(1).map(t => ({
+          ...t,
+          transacao_origem_id: firstTrans.id,
+        }));
+
+        const { error } = await supabase.from("transacoes").insert(remaining);
+        if (error) {
+          toast({ title: "Erro", description: "Erro ao criar parcelas", variant: "destructive" });
+          setLoading(false);
+          return;
+        }
+      }
+
+      toast({ title: "Sucesso", description: `${parsedParcelas} parcelas criadas` });
+    } else {
+      // Single transaction
+      const data = {
+        user_id: user?.id as string,
+        conta_id: formData.conta_id,
+        categoria_id: formData.categoria_id || null,
+        valor: parsedValor,
+        tipo: formData.tipo,
+        data: formData.data,
+        forma_pagamento: formData.forma_pagamento,
+        recorrencia: formData.recorrencia,
+        is_pago_executado: true,
+      };
+
+      const { error } = await supabase.from("transacoes").insert(data);
+
+      if (error) {
+        toast({
+          title: "Erro",
+          description: "Erro ao criar transação",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      toast({ title: "Sucesso", description: "Transação criada" });
     }
-
-    toast({ title: "Sucesso", description: "Transação criada" });
 
     // Invalidate queries to refresh data
     queryClient.invalidateQueries({ queryKey: ["saldo-contas"] });
@@ -141,6 +232,7 @@ const QuickAddTransaction = ({ open, onOpenChange }: QuickAddTransactionProps) =
   };
 
   const categoriasFiltered = categorias.filter((c) => c.tipo === formData.tipo);
+  const showInstallmentFields = formData.recorrencia !== 'nenhuma' && formData.recorrencia !== 'fixa';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -243,6 +335,43 @@ const QuickAddTransaction = ({ open, onOpenChange }: QuickAddTransactionProps) =
               </SelectContent>
             </Select>
           </div>
+
+          <div className="space-y-2">
+            <Label>Recorrência</Label>
+            <Select
+              value={formData.recorrencia}
+              onValueChange={(v) => setFormData({ ...formData, recorrencia: v })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {recorrencias.map((r) => (
+                  <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {showInstallmentFields && (
+            <div className="space-y-2">
+              <Label>Número de Parcelas</Label>
+              <Input
+                type="number"
+                min="2"
+                max="360"
+                value={formData.parcelas_total}
+                onChange={(e) => setFormData({ ...formData, parcelas_total: e.target.value })}
+                placeholder="Ex: 12"
+              />
+            </div>
+          )}
+
+          {formData.recorrencia === 'fixa' && (
+            <p className="text-xs text-muted-foreground p-2 bg-muted/50 rounded">
+              ♾️ Recorrência fixa (sem limite de parcelas)
+            </p>
+          )}
 
           <Button
             type="submit"

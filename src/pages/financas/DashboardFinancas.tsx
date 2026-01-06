@@ -93,18 +93,39 @@ const DashboardFinancas = () => {
     t.is_pago_executado !== false
   );
 
-  const totalReceitas = transacoesValidas
+  // For balance calculation, also exclude credit card expenses (they go to invoice, not immediate balance)
+  const transacoesParaSaldo = transacoesValidas.filter(t => {
+    const conta = contas.find(c => c.id === t.conta_id);
+    // Exclude credit card expenses from balance until invoice is paid
+    if (conta?.tipo === "credito" && t.tipo === "despesa") return false;
+    return true;
+  });
+
+  const totalReceitas = transacoesParaSaldo
     .filter(t => t.tipo === "receita")
     .reduce((acc, t) => acc + Number(t.valor), 0);
   
-  const totalDespesas = transacoesValidas
+  const totalDespesas = transacoesParaSaldo
     .filter(t => t.tipo === "despesa")
     .reduce((acc, t) => acc + Number(t.valor), 0);
   
   const saldoMes = totalReceitas - totalDespesas;
 
+  // Calculate "Economia" - entries/transfers to savings accounts (poupanca)
+  const contasPoupanca = contas.filter(c => c.tipo === "poupanca");
+  const economiaTotal = transacoesFiltradas
+    .filter(t => {
+      // Check if this is a transfer to savings or direct income to savings
+      const isEntradaPoupanca = contasPoupanca.some(cp => cp.id === t.conta_id) && t.tipo === "receita";
+      return isEntradaPoupanca && t.is_pago_executado !== false;
+    })
+    .reduce((acc, t) => acc + Number(t.valor), 0);
+
   // Calculate total account balance (using all transactions, not just filtered period)
   const saldoContas = contas.reduce((acc, conta) => {
+    // For credit cards, don't include in general balance
+    if (conta.tipo === "credito") return acc;
+    
     const transacoesConta = transacoesValidas.filter(t => t.conta_id === conta.id);
     const receitas = transacoesConta.filter(t => t.tipo === "receita").reduce((a, t) => a + Number(t.valor), 0);
     const despesas = transacoesConta.filter(t => t.tipo === "despesa").reduce((a, t) => a + Number(t.valor), 0);
@@ -215,9 +236,9 @@ const DashboardFinancas = () => {
                   <PiggyBank className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Economia</p>
-                  <p className={`text-lg font-bold ${saldoMes >= 0 ? "text-success" : "text-destructive"}`}>
-                    {saldoMes > 0 ? formatCurrency(saldoMes) : "R$ 0,00"}
+                  <p className="text-xs text-muted-foreground">Economia (Poupança)</p>
+                  <p className={`text-lg font-bold ${economiaTotal > 0 ? "text-success" : "text-muted-foreground"}`}>
+                    {formatCurrency(economiaTotal)}
                   </p>
                 </div>
               </div>
