@@ -1,20 +1,23 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { CreditCard, Calendar, AlertTriangle } from "lucide-react";
+import { CreditCard, Calendar, AlertTriangle, Banknote } from "lucide-react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Link } from "react-router-dom";
+import PagarFaturaModal from "@/components/PagarFaturaModal";
 
 interface Conta {
   id: string;
   nome_conta: string;
   cor: string;
+  tipo: string;
   limite: number | null;
   dia_fechamento: number | null;
   dia_vencimento: number | null;
@@ -28,48 +31,78 @@ interface Transacao {
   data: string;
 }
 
+async function fetchCartoesData(userId: string | undefined) {
+  if (!userId) return null;
+
+  const now = new Date();
+  const start = startOfMonth(now);
+  const end = endOfMonth(now);
+
+  const [cartoesRes, transacoesRes, contasRes] = await Promise.all([
+    supabase.from("contas").select("*").eq("tipo", "credito"),
+    supabase
+      .from("transacoes")
+      .select("*")
+      .gte("data", format(start, "yyyy-MM-dd"))
+      .lte("data", format(end, "yyyy-MM-dd")),
+    supabase.from("contas").select("*"),
+  ]);
+
+  return {
+    cartoes: (cartoesRes.data || []) as Conta[],
+    transacoes: (transacoesRes.data || []) as Transacao[],
+    todasContas: (contasRes.data || []) as Conta[],
+  };
+}
+
 const Cartoes = () => {
   const { user } = useAuth();
-  const [cartoes, setCartoes] = useState<Conta[]>([]);
-  const [transacoes, setTransacoes] = useState<Transacao[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [faturaModal, setFaturaModal] = useState<{
+    open: boolean;
+    cartaoId: string;
+    cartaoNome: string;
+    valorFatura: number;
+  }>({ open: false, cartaoId: "", cartaoNome: "", valorFatura: 0 });
 
-  useEffect(() => {
-    if (user) fetchData();
-  }, [user]);
+  const { data, isLoading } = useQuery({
+    queryKey: ["cartoes", user?.id],
+    queryFn: () => fetchCartoesData(user?.id),
+    enabled: !!user?.id,
+    staleTime: 5 * 60 * 1000,
+  });
 
-  const fetchData = async () => {
-    setLoading(true);
-    const now = new Date();
-    const start = startOfMonth(now);
-    const end = endOfMonth(now);
-
-    const [cartoesRes, transacoesRes] = await Promise.all([
-      supabase.from("contas").select("*").eq("tipo", "credito"),
-      supabase
-        .from("transacoes")
-        .select("*")
-        .eq("tipo", "despesa")
-        .gte("data", format(start, "yyyy-MM-dd"))
-        .lte("data", format(end, "yyyy-MM-dd")),
-    ]);
-
-    if (cartoesRes.data) setCartoes(cartoesRes.data);
-    if (transacoesRes.data) setTransacoes(transacoesRes.data);
-    setLoading(false);
-  };
+  const cartoes = data?.cartoes || [];
+  const transacoes = data?.transacoes || [];
+  const todasContas = data?.todasContas || [];
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
   };
 
   const getGastosCartao = (cartaoId: string) => {
-    return transacoes
-      .filter(t => t.conta_id === cartaoId)
+    // Calculate: expenses - incomes (invoices paid are income to the card)
+    const despesas = transacoes
+      .filter(t => t.conta_id === cartaoId && t.tipo === "despesa")
       .reduce((acc, t) => acc + Number(t.valor), 0);
+    
+    const receitas = transacoes
+      .filter(t => t.conta_id === cartaoId && t.tipo === "receita")
+      .reduce((acc, t) => acc + Number(t.valor), 0);
+
+    return despesas - receitas;
   };
 
-  if (loading) {
+  const handlePagarFatura = (cartao: Conta) => {
+    const valorFatura = getGastosCartao(cartao.id);
+    setFaturaModal({
+      open: true,
+      cartaoId: cartao.id,
+      cartaoNome: cartao.nome_conta,
+      valorFatura: Math.max(0, valorFatura),
+    });
+  };
+
+  if (isLoading) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center min-h-[50vh]">
@@ -112,8 +145,8 @@ const Cartoes = () => {
             {cartoes.map((cartao) => {
               const gastos = getGastosCartao(cartao.id);
               const limite = Number(cartao.limite) || 0;
-              const percentualUsado = limite > 0 ? (gastos / limite) * 100 : 0;
-              const disponivel = limite - gastos;
+              const percentualUsado = limite > 0 ? (Math.max(0, gastos) / limite) * 100 : 0;
+              const disponivel = limite - Math.max(0, gastos);
 
               return (
                 <Card key={cartao.id} className="shadow-card overflow-hidden">
@@ -147,7 +180,9 @@ const Cartoes = () => {
                     <div>
                       <div className="flex justify-between text-sm mb-2">
                         <span className="text-muted-foreground">Fatura Atual</span>
-                        <span className="font-medium text-foreground">{formatCurrency(gastos)}</span>
+                        <span className="font-medium text-foreground">
+                          {formatCurrency(Math.max(0, gastos))}
+                        </span>
                       </div>
                       <Progress 
                         value={Math.min(percentualUsado, 100)} 
@@ -171,6 +206,18 @@ const Cartoes = () => {
                         <p className="text-lg font-bold text-foreground">{formatCurrency(limite)}</p>
                       </div>
                     </div>
+
+                    {/* Pay Invoice Button */}
+                    {gastos > 0 && (
+                      <Button
+                        variant="outline"
+                        className="w-full gap-2"
+                        onClick={() => handlePagarFatura(cartao)}
+                      >
+                        <Banknote className="h-4 w-4" />
+                        Pagar Fatura
+                      </Button>
+                    )}
                   </CardContent>
                 </Card>
               );
@@ -178,6 +225,15 @@ const Cartoes = () => {
           </div>
         )}
       </div>
+
+      <PagarFaturaModal
+        open={faturaModal.open}
+        onOpenChange={(open) => setFaturaModal((prev) => ({ ...prev, open }))}
+        cartaoId={faturaModal.cartaoId}
+        cartaoNome={faturaModal.cartaoNome}
+        valorFatura={faturaModal.valorFatura}
+        contasDisponiveis={todasContas}
+      />
     </AppLayout>
   );
 };
