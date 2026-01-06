@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -17,6 +18,8 @@ import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
 import { formatCurrencyInput, parseCurrencyInput } from "@/lib/calculations";
 import { AdvancedFilters, FilterState, getDateRangeFromFilters, getInitialFilterState } from "@/components/AdvancedFilters";
+import ConfirmPaymentModal from "@/components/ConfirmPaymentModal";
+import DeleteSeriesDialog from "@/components/DeleteSeriesDialog";
 
 interface Transacao {
   id: string;
@@ -63,6 +66,7 @@ const recorrencias = [
   { value: "semanal", label: "Semanal" },
   { value: "mensal", label: "Mensal" },
   { value: "anual", label: "Anual" },
+  { value: "fixa", label: "Recorrência Fixa (Ilimitada)" },
 ];
 
 const cores = [
@@ -125,8 +129,23 @@ const Transacoes = () => {
     descricao: "",
     parcelas_total: "",
     conta_destino_id: "",
-    is_parcelas_ilimitadas: false,
   });
+
+  // Modal states
+  const [confirmPaymentModal, setConfirmPaymentModal] = useState<{
+    open: boolean;
+    transacaoId: string;
+    valorPrevisto: number;
+    descricao: string | null;
+  }>({ open: false, transacaoId: "", valorPrevisto: 0, descricao: null });
+
+  const [deleteSeriesDialog, setDeleteSeriesDialog] = useState<{
+    open: boolean;
+    transacaoId: string;
+    transacaoOrigemId: string | null;
+    transacaoData: string;
+    descricao: string | null;
+  }>({ open: false, transacaoId: "", transacaoOrigemId: null, transacaoData: "", descricao: null });
 
   // Calculate date range based on filters
   const { startDate, endDate } = getDateRangeFromFilters(filters);
@@ -161,7 +180,6 @@ const Transacoes = () => {
       descricao: "",
       parcelas_total: "",
       conta_destino_id: "",
-      is_parcelas_ilimitadas: false,
     });
     setEditingId(null);
     setCategorySearch("");
@@ -261,7 +279,9 @@ const Transacoes = () => {
     }
 
     // Standard transaction or installment/recurrence logic
-    const needsInstallments = (formData.forma_pagamento === 'credito' || formData.recorrencia !== 'nenhuma')
+    // Check if it's fixed recurrence (unlimited) or has installments
+    const isFixedRecurrence = formData.recorrencia === 'fixa';
+    const needsInstallments = (formData.forma_pagamento === 'credito' || (formData.recorrencia !== 'nenhuma' && formData.recorrencia !== 'fixa'))
       && parsedParcelas && parsedParcelas > 1 && !editingId;
 
     if (needsInstallments) {
@@ -286,7 +306,8 @@ const Transacoes = () => {
           descricao: formData.descricao || null,
           parcelas_total: parsedParcelas,
           parcela_atual: i + 1,
-          is_pago_executado: formData.forma_pagamento === 'credito' ? true : i === 0, // Credit is always paid, recurrence first is paid
+          // Credit is always "paid" (will go to invoice), non-credit recurrence: only first is paid
+          is_pago_executado: formData.forma_pagamento === 'credito' ? true : i === 0,
         });
       }
 
@@ -368,37 +389,28 @@ const Transacoes = () => {
       descricao: transacao.descricao || "",
       parcelas_total: transacao.parcelas_total?.toString() || "",
       conta_destino_id: transacao.conta_destino_id || "",
-      is_parcelas_ilimitadas: false,
     });
     setEditingId(transacao.id);
     setDialogOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-    const { error } = await supabase.from("transacoes").delete().eq("id", id);
-    if (error) {
-      toast({ title: "Erro", description: "Erro ao excluir transação", variant: "destructive" });
-      return;
-    }
-    toast({ title: "Sucesso", description: "Transação excluída" });
-    invalidateQueries();
+  const handleDelete = (transacao: Transacao) => {
+    setDeleteSeriesDialog({
+      open: true,
+      transacaoId: transacao.id,
+      transacaoOrigemId: transacao.transacao_origem_id,
+      transacaoData: transacao.data,
+      descricao: transacao.descricao,
+    });
   };
 
-  const handleConfirmPayment = async (id: string) => {
-    const { error } = await supabase
-      .from("transacoes")
-      .update({
-        is_pago_executado: true,
-        data_execucao_pagamento: format(new Date(), 'yyyy-MM-dd')
-      })
-      .eq("id", id);
-
-    if (error) {
-      toast({ title: "Erro", description: "Erro ao confirmar pagamento", variant: "destructive" });
-      return;
-    }
-    toast({ title: "Sucesso", description: "Pagamento confirmado" });
-    invalidateQueries();
+  const handleConfirmPayment = (transacao: Transacao) => {
+    setConfirmPaymentModal({
+      open: true,
+      transacaoId: transacao.id,
+      valorPrevisto: Number(transacao.valor),
+      descricao: transacao.descricao,
+    });
   };
 
   const handleCreateCategory = async () => {
@@ -716,8 +728,8 @@ const Transacoes = () => {
                     </div>
                   )}
 
-                  {/* Installment fields */}
-                  {showInstallmentFields && !showTransferFields && !editingId && (
+                  {/* Installment fields - hide for fixed recurrence */}
+                  {showInstallmentFields && !showTransferFields && !editingId && formData.recorrencia !== 'fixa' && (
                     <div className="space-y-2 p-3 bg-muted/50 rounded-lg">
                       <Label>Número de Parcelas</Label>
                       <Input
@@ -727,13 +739,21 @@ const Transacoes = () => {
                         value={formData.parcelas_total}
                         onChange={(e) => setFormData({ ...formData, parcelas_total: e.target.value })}
                         placeholder="Ex: 12"
-                        disabled={formData.is_parcelas_ilimitadas}
                       />
                       <p className="text-xs text-muted-foreground">
                         {formData.forma_pagamento === 'credito'
                           ? "Parcelas mensais do cartão de crédito"
                           : `Quantas vezes a ${formData.recorrencia === 'semanal' ? 'semana' : formData.recorrencia === 'mensal' ? 'mês' : 'ano'} será repetida`
                         }
+                      </p>
+                    </div>
+                  )}
+                  
+                  {formData.recorrencia === 'fixa' && (
+                    <div className="p-3 bg-muted/50 rounded-lg">
+                      <p className="text-sm text-muted-foreground">
+                        ♾️ Esta transação será criada como recorrência fixa (sem limite de parcelas). 
+                        Novas ocorrências serão criadas automaticamente.
                       </p>
                     </div>
                   )}
@@ -855,7 +875,7 @@ const Transacoes = () => {
                             variant="ghost"
                             size="icon"
                             className="text-success"
-                            onClick={() => handleConfirmPayment(transacao.id)}
+                            onClick={() => handleConfirmPayment(transacao)}
                             title="Confirmar pagamento"
                           >
                             <Check className="h-4 w-4" />
@@ -864,7 +884,7 @@ const Transacoes = () => {
                         <Button variant="ghost" size="icon" onClick={() => handleEdit(transacao)}>
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(transacao.id)}>
+                        <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(transacao)}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
@@ -937,6 +957,25 @@ const Transacoes = () => {
           </div>
         )}
       </div>
+
+      {/* Confirm Payment Modal */}
+      <ConfirmPaymentModal
+        open={confirmPaymentModal.open}
+        onOpenChange={(open) => setConfirmPaymentModal((prev) => ({ ...prev, open }))}
+        transacaoId={confirmPaymentModal.transacaoId}
+        valorPrevisto={confirmPaymentModal.valorPrevisto}
+        descricao={confirmPaymentModal.descricao}
+      />
+
+      {/* Delete Series Dialog */}
+      <DeleteSeriesDialog
+        open={deleteSeriesDialog.open}
+        onOpenChange={(open) => setDeleteSeriesDialog((prev) => ({ ...prev, open }))}
+        transacaoId={deleteSeriesDialog.transacaoId}
+        transacaoOrigemId={deleteSeriesDialog.transacaoOrigemId}
+        transacaoData={deleteSeriesDialog.transacaoData}
+        descricao={deleteSeriesDialog.descricao}
+      />
     </AppLayout>
   );
 };
