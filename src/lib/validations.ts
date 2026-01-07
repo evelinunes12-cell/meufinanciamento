@@ -10,7 +10,7 @@ export const transacaoSchema = z.object({
   tipo: z.enum(['receita', 'despesa'], { message: "Tipo deve ser receita ou despesa" }),
   data: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: "Data inválida" }),
   forma_pagamento: z.enum(['pix', 'debito', 'credito', 'dinheiro', 'transferencia', 'outro'], { message: "Forma de pagamento inválida" }),
-  recorrencia: z.enum(['nenhuma', 'semanal', 'mensal', 'anual'], { message: "Recorrência inválida" }),
+  recorrencia: z.enum(['nenhuma', 'semanal', 'mensal', 'anual', 'fixa'], { message: "Recorrência inválida" }),
   descricao: z.string().max(500, { message: "Descrição muito longa" }).nullable().optional(),
   // New fields for advanced management
   parcelas_total: z.number({ invalid_type_error: "Número de parcelas deve ser um número" })

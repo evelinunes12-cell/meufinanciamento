@@ -145,7 +145,8 @@ const Transacoes = () => {
     transacaoOrigemId: string | null;
     transacaoData: string;
     descricao: string | null;
-  }>({ open: false, transacaoId: "", transacaoOrigemId: null, transacaoData: "", descricao: null });
+    parcelasTotal: number | null;
+  }>({ open: false, transacaoId: "", transacaoOrigemId: null, transacaoData: "", descricao: null, parcelasTotal: null });
 
   // Calculate date range based on filters
   const { startDate, endDate } = getDateRangeFromFilters(filters);
@@ -306,8 +307,8 @@ const Transacoes = () => {
           descricao: formData.descricao || null,
           parcelas_total: parsedParcelas,
           parcela_atual: i + 1,
-          // Credit is always "paid" (will go to invoice), non-credit recurrence: only first is paid
-          is_pago_executado: formData.forma_pagamento === 'credito' ? true : i === 0,
+          // Credit goes to invoice (always "paid"), non-credit: ALL start as unpaid for manual confirmation
+          is_pago_executado: formData.forma_pagamento === 'credito',
         });
       }
 
@@ -401,6 +402,7 @@ const Transacoes = () => {
       transacaoOrigemId: transacao.transacao_origem_id,
       transacaoData: transacao.data,
       descricao: transacao.descricao,
+      parcelasTotal: transacao.parcelas_total,
     });
   };
 
@@ -975,6 +977,7 @@ const Transacoes = () => {
         transacaoOrigemId={deleteSeriesDialog.transacaoOrigemId}
         transacaoData={deleteSeriesDialog.transacaoData}
         descricao={deleteSeriesDialog.descricao}
+        parcelasTotal={deleteSeriesDialog.parcelasTotal}
       />
     </AppLayout>
   );
