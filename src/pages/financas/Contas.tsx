@@ -86,14 +86,16 @@ const Contas = () => {
     }
 
     // Validate input data with zod
+    // Para cartões de crédito, saldo_inicial é sempre 0
+    const isCredito = formData.tipo === "credito";
     const validationData = {
       nome_conta: formData.nome_conta.trim(),
       tipo: formData.tipo as 'corrente' | 'poupanca' | 'carteira' | 'investimento' | 'credito',
-      saldo_inicial: parseFloat(formData.saldo_inicial) || 0,
+      saldo_inicial: isCredito ? 0 : (parseFloat(formData.saldo_inicial) || 0),
       cor: formData.cor,
-      limite: formData.tipo === "credito" && formData.limite ? parseFloat(formData.limite) : null,
-      dia_fechamento: formData.tipo === "credito" && formData.dia_fechamento ? parseInt(formData.dia_fechamento) : null,
-      dia_vencimento: formData.tipo === "credito" && formData.dia_vencimento ? parseInt(formData.dia_vencimento) : null,
+      limite: isCredito && formData.limite ? parseFloat(formData.limite) : null,
+      dia_fechamento: isCredito && formData.dia_fechamento ? parseInt(formData.dia_fechamento) : null,
+      dia_vencimento: isCredito && formData.dia_vencimento ? parseInt(formData.dia_vencimento) : null,
     };
 
     const validationResult = contaSchema.safeParse(validationData);
@@ -225,32 +227,35 @@ const Contas = () => {
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Saldo Inicial</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={formData.saldo_inicial}
-                    onChange={(e) => setFormData({ ...formData, saldo_inicial: e.target.value })}
-                    placeholder="0,00"
-                  />
-                </div>
+                {formData.tipo !== "credito" && (
+                  <div className="space-y-2">
+                    <Label>Saldo Inicial</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={formData.saldo_inicial}
+                      onChange={(e) => setFormData({ ...formData, saldo_inicial: e.target.value })}
+                      placeholder="0,00"
+                    />
+                  </div>
+                )}
 
                 {formData.tipo === "credito" && (
                   <>
                     <div className="space-y-2">
-                      <Label>Limite do Cartão</Label>
+                      <Label>Limite do Cartão *</Label>
                       <Input
                         type="number"
                         step="0.01"
                         value={formData.limite}
                         onChange={(e) => setFormData({ ...formData, limite: e.target.value })}
                         placeholder="0,00"
+                        required
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label>Dia Fechamento</Label>
+                        <Label>Dia Fechamento *</Label>
                         <Input
                           type="number"
                           min="1"
@@ -258,10 +263,11 @@ const Contas = () => {
                           value={formData.dia_fechamento}
                           onChange={(e) => setFormData({ ...formData, dia_fechamento: e.target.value })}
                           placeholder="Ex: 15"
+                          required
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>Dia Vencimento</Label>
+                        <Label>Dia Vencimento *</Label>
                         <Input
                           type="number"
                           min="1"
@@ -269,6 +275,7 @@ const Contas = () => {
                           value={formData.dia_vencimento}
                           onChange={(e) => setFormData({ ...formData, dia_vencimento: e.target.value })}
                           placeholder="Ex: 25"
+                          required
                         />
                       </div>
                     </div>
@@ -329,16 +336,23 @@ const Contas = () => {
                     </Button>
                   </div>
                 </div>
-                <div className="mt-4">
-                  <p className="text-sm text-muted-foreground">Saldo Inicial</p>
-                  <p className="text-xl font-bold text-foreground">{formatCurrency(Number(conta.saldo_inicial))}</p>
-                </div>
+                {conta.tipo !== "credito" && (
+                  <div className="mt-4">
+                    <p className="text-sm text-muted-foreground">Saldo Inicial</p>
+                    <p className="text-xl font-bold text-foreground">{formatCurrency(Number(conta.saldo_inicial))}</p>
+                  </div>
+                )}
                 {conta.tipo === "credito" && conta.limite && (
+                  <div className="mt-4">
+                    <p className="text-sm text-muted-foreground">Limite Disponível</p>
+                    <p className="text-xl font-bold text-foreground">{formatCurrency(Number(conta.limite))}</p>
+                  </div>
+                )}
+                {conta.tipo === "credito" && (
                   <div className="mt-2 pt-2 border-t border-border">
                     <p className="text-xs text-muted-foreground">
-                      Limite: {formatCurrency(Number(conta.limite))} | 
-                      Fecha: {conta.dia_fechamento} | 
-                      Vence: {conta.dia_vencimento}
+                      Fecha: dia {conta.dia_fechamento} | 
+                      Vence: dia {conta.dia_vencimento}
                     </p>
                   </div>
                 )}

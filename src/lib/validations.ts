@@ -54,7 +54,8 @@ export const contaSchema = z.object({
   tipo: z.enum(['corrente', 'poupanca', 'carteira', 'investimento', 'credito'], { message: "Tipo de conta inválido" }),
   saldo_inicial: z.number({ invalid_type_error: "Saldo deve ser um número" })
     .min(-999999999.99, { message: "Valor mínimo excedido" })
-    .max(999999999.99, { message: "Valor máximo excedido" }),
+    .max(999999999.99, { message: "Valor máximo excedido" })
+    .default(0),
   cor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, { message: "Cor inválida" }),
   limite: z.number({ invalid_type_error: "Limite deve ser um número" })
     .min(0, { message: "Limite deve ser positivo" })
@@ -73,6 +74,17 @@ export const contaSchema = z.object({
     .max(31, { message: "Dia deve ser entre 1 e 31" })
     .nullable()
     .optional(),
+}).refine((data) => {
+  // Cartões de crédito devem ter limite, fechamento e vencimento
+  if (data.tipo === 'credito') {
+    if (!data.limite || data.limite <= 0) return false;
+    if (!data.dia_fechamento) return false;
+    if (!data.dia_vencimento) return false;
+  }
+  return true;
+}, {
+  message: "Cartões de crédito exigem limite, dia de fechamento e dia de vencimento",
+  path: ["limite"],
 });
 
 // Financiamento validation schema
