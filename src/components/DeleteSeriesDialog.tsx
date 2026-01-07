@@ -22,6 +22,7 @@ interface DeleteSeriesDialogProps {
   transacaoOrigemId: string | null;
   transacaoData: string;
   descricao?: string | null;
+  parcelasTotal?: number | null;
 }
 
 const DeleteSeriesDialog = ({
@@ -31,12 +32,17 @@ const DeleteSeriesDialog = ({
   transacaoOrigemId,
   transacaoData,
   descricao,
+  parcelasTotal,
 }: DeleteSeriesDialogProps) => {
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
 
-  // Check if this is part of a series
-  const isSeries = !!transacaoOrigemId;
+  // Check if this is part of a series:
+  // - Either it has a transacao_origem_id (it's a child)
+  // - Or it has parcelas_total > 1 and no transacao_origem_id (it's the parent/origin)
+  const isChildOfSeries = !!transacaoOrigemId;
+  const isParentOfSeries = !transacaoOrigemId && parcelasTotal && parcelasTotal > 1;
+  const isSeries = isChildOfSeries || isParentOfSeries;
 
   const invalidateQueries = () => {
     queryClient.invalidateQueries({ queryKey: ["transacoes"] });
@@ -72,16 +78,23 @@ const DeleteSeriesDialog = ({
   };
 
   const handleDeleteAllFuture = async () => {
-    if (!transacaoOrigemId) return;
-
     setLoading(true);
     try {
-      // Delete this transaction and all future ones from the same series
-      // First, get all transactions from this series with date >= current transaction date
+      // Determine the origin ID for the series
+      // If this is a child, use transacaoOrigemId
+      // If this is the parent, use transacaoId
+      const seriesOriginId = isChildOfSeries ? transacaoOrigemId : transacaoId;
+
+      if (!seriesOriginId) {
+        throw new Error("Could not determine series origin");
+      }
+
+      // Get all transactions from this series with date >= current transaction date
+      // This includes both the origin (if date matches) and all children
       const { data: toDelete, error: fetchError } = await supabase
         .from("transacoes")
         .select("id")
-        .or(`id.eq.${transacaoOrigemId},transacao_origem_id.eq.${transacaoOrigemId}`)
+        .or(`id.eq.${seriesOriginId},transacao_origem_id.eq.${seriesOriginId}`)
         .gte("data", transacaoData);
 
       if (fetchError) throw fetchError;

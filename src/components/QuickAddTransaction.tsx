@@ -152,8 +152,8 @@ const QuickAddTransaction = ({ open, onOpenChange }: QuickAddTransactionProps) =
           recorrencia: formData.recorrencia,
           parcelas_total: parsedParcelas,
           parcela_atual: i + 1,
-          // Credit is always "paid", non-credit: only first is paid
-          is_pago_executado: isCredito ? true : i === 0,
+          // Credit goes to invoice (always "paid"), non-credit: ALL start as unpaid for manual confirmation
+          is_pago_executado: isCredito,
         });
       }
 
