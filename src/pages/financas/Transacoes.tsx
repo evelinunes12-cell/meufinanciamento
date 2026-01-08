@@ -50,6 +50,7 @@ interface Categoria {
   nome: string;
   tipo: string;
   cor: string;
+  categoria_pai_id: string | null;
 }
 
 const formasPagamento = [
@@ -456,10 +457,26 @@ const Transacoes = () => {
   const getCategoriaNome = (id: string | null) => id ? categorias.find(c => c.id === id)?.nome || "-" : "-";
   const getCategoriaCor = (id: string | null) => id ? categorias.find(c => c.id === id)?.cor || "#888" : "#888";
 
-  // Filter categories by tipo
+  // Filter categories by tipo and organize hierarchically
   const categoriasFiltered = categorias
     .filter(c => c.tipo === formData.tipo)
     .filter(c => c.nome.toLowerCase().includes(categorySearch.toLowerCase()));
+
+  // Organize categories: main categories first, then subcategories grouped under them
+  const mainCategorias = categoriasFiltered.filter(c => !c.categoria_pai_id);
+  const getSubcategorias = (parentId: string) => categoriasFiltered.filter(c => c.categoria_pai_id === parentId);
+  
+  // Build hierarchical list for display
+  const categoriaHierarchy = mainCategorias.flatMap(main => {
+    const subs = getSubcategorias(main.id);
+    return [
+      { ...main, isMain: true, level: 0 },
+      ...subs.map(sub => ({ ...sub, isMain: false, level: 1 }))
+    ];
+  });
+  // Include orphan subcategories (parent might be filtered out by search)
+  const orphanSubs = categoriasFiltered.filter(c => c.categoria_pai_id && !mainCategorias.some(m => m.id === c.categoria_pai_id));
+  const finalCategoriaList = [...categoriaHierarchy, ...orphanSubs.map(s => ({ ...s, isMain: false, level: 1 }))];
 
   // Show installment fields when credit or has recurrence
   const showInstallmentFields = formData.forma_pagamento === 'credito' || formData.recorrencia !== 'nenhuma';
@@ -660,16 +677,18 @@ const Transacoes = () => {
                           <SelectValue placeholder="Selecione uma categoria" />
                         </SelectTrigger>
                         <SelectContent>
-                          {categoriasFiltered.length === 0 ? (
+                          {finalCategoriaList.length === 0 ? (
                             <div className="p-2 text-center text-muted-foreground text-sm">
                               Nenhuma categoria encontrada
                             </div>
                           ) : (
-                            categoriasFiltered.map((cat) => (
+                            finalCategoriaList.map((cat) => (
                               <SelectItem key={cat.id} value={cat.id}>
-                                <div className="flex items-center gap-2">
+                                <div className={`flex items-center gap-2 ${cat.level === 1 ? "pl-4" : ""}`}>
                                   <div className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.cor }} />
-                                  {cat.nome}
+                                  <span className={cat.isMain ? "font-semibold" : ""}>
+                                    {cat.level === 1 ? "↳ " : ""}{cat.nome}
+                                  </span>
                                 </div>
                               </SelectItem>
                             ))

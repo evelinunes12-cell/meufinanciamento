@@ -33,6 +33,7 @@ interface Categoria {
   nome: string;
   tipo: string;
   cor: string;
+  categoria_pai_id: string | null;
 }
 
 const COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16'];
@@ -137,11 +138,16 @@ const DashboardFinancas = () => {
     return conta?.tipo === "credito" && t.tipo === "despesa";
   }).reduce((acc, t) => acc + Number(t.valor), 0);
 
-  const despesasPorCategoria = categorias
-    .filter(c => c.tipo === "despesa")
+  // Aggregate expenses by main category (including subcategories)
+  const mainCategoriasDesp = categorias.filter(c => c.tipo === "despesa" && !c.categoria_pai_id);
+  const getSubcategoriaIds = (mainId: string) => categorias.filter(c => c.categoria_pai_id === mainId).map(c => c.id);
+
+  const despesasPorCategoria = mainCategoriasDesp
     .map(cat => {
+      const subcatIds = getSubcategoriaIds(cat.id);
+      const allCategoryIds = [cat.id, ...subcatIds];
       const total = transacoesValidas
-        .filter(t => t.categoria_id === cat.id && t.tipo === "despesa")
+        .filter(t => t.categoria_id && allCategoryIds.includes(t.categoria_id) && t.tipo === "despesa")
         .reduce((acc, t) => acc + Number(t.valor), 0);
       return { name: cat.nome, value: total, color: cat.cor };
     })

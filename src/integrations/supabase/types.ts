@@ -16,33 +16,47 @@ export type Database = {
     Tables: {
       categorias: {
         Row: {
+          categoria_pai_id: string | null
           cor: string
           created_at: string
           icone: string | null
           id: string
+          is_default: boolean
           nome: string
           tipo: string
           user_id: string
         }
         Insert: {
+          categoria_pai_id?: string | null
           cor?: string
           created_at?: string
           icone?: string | null
           id?: string
+          is_default?: boolean
           nome: string
           tipo: string
           user_id: string
         }
         Update: {
+          categoria_pai_id?: string | null
           cor?: string
           created_at?: string
           icone?: string | null
           id?: string
+          is_default?: boolean
           nome?: string
           tipo?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "categorias_categoria_pai_id_fkey"
+            columns: ["categoria_pai_id"]
+            isOneToOne: false
+            referencedRelation: "categorias"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       contas: {
         Row: {
