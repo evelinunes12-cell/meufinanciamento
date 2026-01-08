@@ -28,6 +28,7 @@ interface Categoria {
   nome: string;
   tipo: string;
   cor: string;
+  categoria_pai_id: string | null;
 }
 
 interface Transacao {
@@ -161,17 +162,29 @@ const Orcamento = () => {
   const getCategoriaCor = (id: string) => categorias.find(c => c.id === id)?.cor || "#888";
 
   // Filter valid transactions: exclude transfers and non-executed payments
+  // Include subcategory expenses in main category total
+  const getSubcategoriaIds = (mainCategoriaId: string) => 
+    categorias.filter(c => c.categoria_pai_id === mainCategoriaId).map(c => c.id);
+
   const getGastosCategoria = (categoriaId: string) => {
+    const subcatIds = getSubcategoriaIds(categoriaId);
+    const allCategoryIds = [categoriaId, ...subcatIds];
+    
     return transacoes
       .filter(t => 
-        t.categoria_id === categoriaId && 
+        t.categoria_id && 
+        allCategoryIds.includes(t.categoria_id) && 
         t.forma_pagamento !== "transferencia" &&
         t.is_pago_executado !== false
       )
       .reduce((acc, t) => acc + Number(t.valor), 0);
   };
 
-  const categoriasDisponiveis = categorias.filter(
+  // For budget, only allow main categories (not subcategories)
+  const mainCategorias = categorias.filter(c => !c.categoria_pai_id);
+
+  // Available categories for budget: only main categories that don't have a budget yet
+  const categoriasDisponiveis = mainCategorias.filter(
     c => !orcamentos.some(o => o.categoria_id === c.id) || (editingId && orcamentos.find(o => o.id === editingId)?.categoria_id === c.id)
   );
 

@@ -20,6 +20,8 @@ interface Categoria {
   tipo: string;
   icone: string;
   cor: string;
+  categoria_pai_id: string | null;
+  is_default: boolean;
 }
 
 const cores = [
@@ -54,6 +56,7 @@ const Categorias = () => {
     nome: "",
     tipo: "despesa",
     cor: "#3B82F6",
+    categoria_pai_id: "",
   });
 
   const { data: categorias = [], isLoading } = useQuery({
@@ -74,7 +77,7 @@ const Categorias = () => {
   };
 
   const resetForm = () => {
-    setFormData({ nome: "", tipo: activeTab, cor: "#3B82F6" });
+    setFormData({ nome: "", tipo: activeTab, cor: "#3B82F6", categoria_pai_id: "" });
     setEditingId(null);
   };
 
@@ -86,6 +89,7 @@ const Categorias = () => {
       nome: formData.nome.trim(),
       tipo: formData.tipo as 'receita' | 'despesa',
       cor: formData.cor,
+      categoria_pai_id: formData.categoria_pai_id || null,
     };
 
     const result = categoriaSchema.safeParse(validationData);
@@ -101,6 +105,7 @@ const Categorias = () => {
       nome: validated.nome,
       tipo: validated.tipo,
       cor: validated.cor,
+      categoria_pai_id: validated.categoria_pai_id || null,
     };
 
     if (editingId) {
@@ -129,6 +134,7 @@ const Categorias = () => {
       nome: categoria.nome,
       tipo: categoria.tipo,
       cor: categoria.cor,
+      categoria_pai_id: categoria.categoria_pai_id || "",
     });
     setEditingId(categoria.id);
     setDialogOpen(true);
@@ -144,6 +150,7 @@ const Categorias = () => {
     invalidateQueries();
   };
 
+  // Separate main categories (no parent) and subcategories
   const categoriasReceita = categorias
     .filter(c => c.tipo === "receita")
     .filter(c => c.nome.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -152,20 +159,43 @@ const Categorias = () => {
     .filter(c => c.tipo === "despesa")
     .filter(c => c.nome.toLowerCase().includes(searchTerm.toLowerCase()));
 
-  const currentCategorias = activeTab === "receita" ? categoriasReceita : categoriasDespesa;
-  const totalPages = Math.ceil(currentCategorias.length / ITEMS_PER_PAGE);
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const paginatedCategorias = currentCategorias.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  // Get only main categories (no parent) for the current tab
+  const currentAllCategorias = activeTab === "receita" ? categoriasReceita : categoriasDespesa;
+  const mainCategorias = currentAllCategorias.filter(c => !c.categoria_pai_id);
+  const getSubcategorias = (parentId: string) => currentAllCategorias.filter(c => c.categoria_pai_id === parentId);
 
-  const CategoriaCard = ({ categoria, index }: { categoria: Categoria; index: number }) => (
-    <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+  // Available parent categories for selection (exclude current editing category and its subcategories)
+  const availableParentCategorias = categorias
+    .filter(c => c.tipo === formData.tipo && !c.categoria_pai_id && c.id !== editingId);
+
+  const currentCategorias = activeTab === "receita" ? categoriasReceita : categoriasDespesa;
+  const totalPages = Math.ceil(mainCategorias.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const paginatedMainCategorias = mainCategorias.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+  const getParentName = (parentId: string | null) => {
+    if (!parentId) return null;
+    return categorias.find(c => c.id === parentId)?.nome || null;
+  };
+  const CategoriaCard = ({ categoria, index, isSubcategory = false }: { categoria: Categoria; index: number; isSubcategory?: boolean }) => (
+    <div className={`flex items-center justify-between p-3 rounded-lg bg-muted/50 ${isSubcategory ? "ml-6 border-l-2 border-primary/30" : ""}`}>
       <div className="flex items-center gap-3">
-        <span className="text-muted-foreground font-mono text-sm w-6">{startIndex + index + 1}</span>
+        {!isSubcategory && (
+          <span className="text-muted-foreground font-mono text-sm w-6">{startIndex + index + 1}</span>
+        )}
+        {isSubcategory && (
+          <span className="text-muted-foreground text-sm w-6">↳</span>
+        )}
         <div 
           className="w-4 h-4 rounded-full"
           style={{ backgroundColor: categoria.cor }}
         />
-        <span className="font-medium text-foreground">{categoria.nome}</span>
+        <div className="flex flex-col">
+          <span className={`font-medium text-foreground ${!isSubcategory ? "font-semibold" : ""}`}>{categoria.nome}</span>
+          {isSubcategory && categoria.categoria_pai_id && (
+            <span className="text-xs text-muted-foreground">Subcategoria</span>
+          )}
+        </div>
       </div>
       <div className="flex gap-1">
         <Button variant="ghost" size="icon" onClick={() => handleEdit(categoria)}>
@@ -177,6 +207,18 @@ const Categorias = () => {
       </div>
     </div>
   );
+
+  const renderCategoriaWithSubcategorias = (mainCat: Categoria, index: number) => {
+    const subcats = getSubcategorias(mainCat.id);
+    return (
+      <div key={mainCat.id} className="space-y-1">
+        <CategoriaCard categoria={mainCat} index={index} />
+        {subcats.map((sub) => (
+          <CategoriaCard key={sub.id} categoria={sub} index={0} isSubcategory />
+        ))}
+      </div>
+    );
+  };
 
   if (isLoading) {
     return (
@@ -248,6 +290,32 @@ const Categorias = () => {
                   </div>
                 </div>
 
+                <div className="space-y-2">
+                  <Label>Categoria Pai (opcional)</Label>
+                  <Select 
+                    value={formData.categoria_pai_id} 
+                    onValueChange={(v) => setFormData({ ...formData, categoria_pai_id: v === "_none_" ? "" : v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Nenhuma (categoria principal)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_none_">Nenhuma (categoria principal)</SelectItem>
+                      {availableParentCategorias.map((cat) => (
+                        <SelectItem key={cat.id} value={cat.id}>
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.cor }} />
+                            {cat.nome}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Selecione uma categoria pai para criar uma subcategoria
+                  </p>
+                </div>
+
                 <Button type="submit" className="w-full gradient-primary text-primary-foreground">
                   {editingId ? "Atualizar" : "Criar"} Categoria
                 </Button>
@@ -282,8 +350,8 @@ const Categorias = () => {
           <TabsContent value="despesa" className="mt-4">
             <Card className="shadow-card">
               <CardContent className="p-4 space-y-2">
-                {paginatedCategorias.map((cat, index) => (
-                  <CategoriaCard key={cat.id} categoria={cat} index={index} />
+                {paginatedMainCategorias.map((cat, index) => (
+                  renderCategoriaWithSubcategorias(cat, index)
                 ))}
                 {categoriasDespesa.length === 0 && (
                   <p className="text-center py-8 text-muted-foreground">
@@ -297,8 +365,8 @@ const Categorias = () => {
           <TabsContent value="receita" className="mt-4">
             <Card className="shadow-card">
               <CardContent className="p-4 space-y-2">
-                {paginatedCategorias.map((cat, index) => (
-                  <CategoriaCard key={cat.id} categoria={cat} index={index} />
+                {paginatedMainCategorias.map((cat, index) => (
+                  renderCategoriaWithSubcategorias(cat, index)
                 ))}
                 {categoriasReceita.length === 0 && (
                   <p className="text-center py-8 text-muted-foreground">
@@ -314,7 +382,7 @@ const Categorias = () => {
         {totalPages > 1 && (
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
-              Mostrando {startIndex + 1} - {Math.min(startIndex + ITEMS_PER_PAGE, currentCategorias.length)} de {currentCategorias.length}
+              Mostrando {startIndex + 1} - {Math.min(startIndex + ITEMS_PER_PAGE, mainCategorias.length)} de {mainCategorias.length} categorias principais
             </p>
             <div className="flex items-center gap-2">
               <Button
