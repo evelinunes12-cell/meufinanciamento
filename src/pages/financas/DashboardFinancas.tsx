@@ -4,10 +4,13 @@ import { useQuery } from "@tanstack/react-query";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrendingUp, TrendingDown, Wallet, PiggyBank, CreditCard, ArrowUpDown } from "lucide-react";
-import { format } from "date-fns";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import { useState } from "react";
 import { AdvancedFilters, FilterState, getInitialFilterState, getDateRangeFromFilters } from "@/components/AdvancedFilters";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CustomizeDashboardModal, useWidgetVisibility } from "@/components/dashboard/DashboardWidgets";
+import { UltimasTransacoesWidget } from "@/components/dashboard/UltimasTransacoesWidget";
+import { ContasConfirmarWidget } from "@/components/dashboard/ContasConfirmarWidget";
 
 interface Transacao {
   id: string;
@@ -18,6 +21,7 @@ interface Transacao {
   conta_id: string;
   forma_pagamento: string;
   is_pago_executado: boolean | null;
+  descricao: string | null;
 }
 
 interface Conta {
@@ -61,8 +65,9 @@ async function fetchDashboardData(userId: string | undefined, startDate: string,
 
 const DashboardFinancas = () => {
   const { user } = useAuth();
-  
+  const { visibility, setVisibility } = useWidgetVisibility();
   const [filters, setFilters] = useState<FilterState>(getInitialFilterState);
+  const [categoryViewMode, setCategoryViewMode] = useState<"main" | "all">("main");
 
   const { startDate, endDate } = getDateRangeFromFilters(filters);
 
@@ -97,7 +102,6 @@ const DashboardFinancas = () => {
   // For balance calculation, also exclude credit card expenses (they go to invoice, not immediate balance)
   const transacoesParaSaldo = transacoesValidas.filter(t => {
     const conta = contas.find(c => c.id === t.conta_id);
-    // Exclude credit card expenses from balance until invoice is paid
     if (conta?.tipo === "credito" && t.tipo === "despesa") return false;
     return true;
   });
@@ -116,15 +120,13 @@ const DashboardFinancas = () => {
   const contasPoupanca = contas.filter(c => c.tipo === "poupanca");
   const economiaTotal = transacoesFiltradas
     .filter(t => {
-      // Check if this is a transfer to savings or direct income to savings
       const isEntradaPoupanca = contasPoupanca.some(cp => cp.id === t.conta_id) && t.tipo === "receita";
       return isEntradaPoupanca && t.is_pago_executado !== false;
     })
     .reduce((acc, t) => acc + Number(t.valor), 0);
 
-  // Calculate total account balance (using all transactions, not just filtered period)
+  // Calculate total account balance
   const saldoContas = contas.reduce((acc, conta) => {
-    // For credit cards, don't include in general balance
     if (conta.tipo === "credito") return acc;
     
     const transacoesConta = transacoesValidas.filter(t => t.conta_id === conta.id);
@@ -138,20 +140,35 @@ const DashboardFinancas = () => {
     return conta?.tipo === "credito" && t.tipo === "despesa";
   }).reduce((acc, t) => acc + Number(t.valor), 0);
 
-  // Aggregate expenses by main category (including subcategories)
+  // Category aggregation helpers
   const mainCategoriasDesp = categorias.filter(c => c.tipo === "despesa" && !c.categoria_pai_id);
   const getSubcategoriaIds = (mainId: string) => categorias.filter(c => c.categoria_pai_id === mainId).map(c => c.id);
 
-  const despesasPorCategoria = mainCategoriasDesp
-    .map(cat => {
-      const subcatIds = getSubcategoriaIds(cat.id);
-      const allCategoryIds = [cat.id, ...subcatIds];
-      const total = transacoesValidas
-        .filter(t => t.categoria_id && allCategoryIds.includes(t.categoria_id) && t.tipo === "despesa")
-        .reduce((acc, t) => acc + Number(t.valor), 0);
-      return { name: cat.nome, value: total, color: cat.cor };
-    })
-    .filter(item => item.value > 0);
+  // Pie chart data based on view mode
+  const despesasPorCategoria = categoryViewMode === "main"
+    ? mainCategoriasDesp
+        .map(cat => {
+          const subcatIds = getSubcategoriaIds(cat.id);
+          const allCategoryIds = [cat.id, ...subcatIds];
+          const total = transacoesValidas
+            .filter(t => t.categoria_id && allCategoryIds.includes(t.categoria_id) && t.tipo === "despesa")
+            .reduce((acc, t) => acc + Number(t.valor), 0);
+          return { name: cat.nome, value: total, color: cat.cor };
+        })
+        .filter(item => item.value > 0)
+    : categorias
+        .filter(c => c.tipo === "despesa")
+        .map(cat => {
+          const total = transacoesValidas
+            .filter(t => t.categoria_id === cat.id && t.tipo === "despesa")
+            .reduce((acc, t) => acc + Number(t.valor), 0);
+          const parentCat = cat.categoria_pai_id 
+            ? categorias.find(c => c.id === cat.categoria_pai_id) 
+            : null;
+          const displayName = parentCat ? `${parentCat.nome} > ${cat.nome}` : cat.nome;
+          return { name: displayName, value: total, color: cat.cor };
+        })
+        .filter(item => item.value > 0);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
@@ -171,9 +188,12 @@ const DashboardFinancas = () => {
     <AppLayout>
       <div className="space-y-6">
         <div className="flex flex-col gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Dashboard Financeiro</h1>
-            <p className="text-muted-foreground">Visão geral das suas finanças</p>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">Dashboard Financeiro</h1>
+              <p className="text-muted-foreground">Visão geral das suas finanças</p>
+            </div>
+            <CustomizeDashboardModal visibility={visibility} onVisibilityChange={setVisibility} />
           </div>
           
           <AdvancedFilters
@@ -190,169 +210,200 @@ const DashboardFinancas = () => {
         </div>
 
         {/* KPIs */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-          <Card className="shadow-card">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-success/10">
-                  <TrendingUp className="h-5 w-5 text-success" />
+        {visibility.kpis && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+            <Card className="shadow-card">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-success/10">
+                    <TrendingUp className="h-5 w-5 text-success" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Receitas</p>
+                    <p className="text-lg font-bold text-success">{formatCurrency(totalReceitas)}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Receitas</p>
-                  <p className="text-lg font-bold text-success">{formatCurrency(totalReceitas)}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
-          <Card className="shadow-card">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-destructive/10">
-                  <TrendingDown className="h-5 w-5 text-destructive" />
+            <Card className="shadow-card">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-destructive/10">
+                    <TrendingDown className="h-5 w-5 text-destructive" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Despesas</p>
+                    <p className="text-lg font-bold text-destructive">{formatCurrency(totalDespesas)}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Despesas</p>
-                  <p className="text-lg font-bold text-destructive">{formatCurrency(totalDespesas)}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
-          <Card className="shadow-card">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <ArrowUpDown className="h-5 w-5 text-primary" />
+            <Card className="shadow-card">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <ArrowUpDown className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Saldo do Período</p>
+                    <p className={`text-lg font-bold ${saldoMes >= 0 ? "text-success" : "text-destructive"}`}>
+                      {formatCurrency(saldoMes)}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Saldo do Período</p>
-                  <p className={`text-lg font-bold ${saldoMes >= 0 ? "text-success" : "text-destructive"}`}>
-                    {formatCurrency(saldoMes)}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
-          <Card className="shadow-card">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <PiggyBank className="h-5 w-5 text-primary" />
+            <Card className="shadow-card">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <PiggyBank className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Economia (Poupança)</p>
+                    <p className={`text-lg font-bold ${economiaTotal > 0 ? "text-success" : "text-muted-foreground"}`}>
+                      {formatCurrency(economiaTotal)}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Economia (Poupança)</p>
-                  <p className={`text-lg font-bold ${economiaTotal > 0 ? "text-success" : "text-muted-foreground"}`}>
-                    {formatCurrency(economiaTotal)}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
-          <Card className="shadow-card">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <Wallet className="h-5 w-5 text-primary" />
+            <Card className="shadow-card">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <Wallet className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Saldo Contas</p>
+                    <p className="text-lg font-bold text-foreground">{formatCurrency(saldoContas)}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Saldo Contas</p>
-                  <p className="text-lg font-bold text-foreground">{formatCurrency(saldoContas)}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
-          <Card className="shadow-card">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-warning/10">
-                  <CreditCard className="h-5 w-5 text-warning" />
+            <Card className="shadow-card">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-warning/10">
+                    <CreditCard className="h-5 w-5 text-warning" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Cartão</p>
+                    <p className="text-lg font-bold text-warning">{formatCurrency(gastosCartao)}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Cartão</p>
-                  <p className="text-lg font-bold text-warning">{formatCurrency(gastosCartao)}</p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Charts Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {visibility.graficoCategoria && (
+            <Card className="shadow-card">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between gap-4">
+                  <CardTitle className="text-base">Despesas por Categoria</CardTitle>
+                  <Select value={categoryViewMode} onValueChange={(v) => setCategoryViewMode(v as "main" | "all")}>
+                    <SelectTrigger className="w-[180px] h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="main">Categorias Principais</SelectItem>
+                      <SelectItem value="all">Todas as Categorias</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardHeader>
+              <CardContent>
+                {despesasPorCategoria.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie
+                        data={despesasPorCategoria}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={100}
+                        paddingAngle={2}
+                        dataKey="value"
+                      >
+                        {despesasPorCategoria.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color || COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+                    Sem despesas no período
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {visibility.saldoContas && (
+            <Card className="shadow-card">
+              <CardHeader>
+                <CardTitle className="text-base">Saldo por Conta</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {contas.map((conta) => {
+                    const transacoesConta = transacoesValidas.filter(t => t.conta_id === conta.id);
+                    const receitas = transacoesConta.filter(t => t.tipo === "receita").reduce((a, t) => a + Number(t.valor), 0);
+                    const despesas = transacoesConta.filter(t => t.tipo === "despesa").reduce((a, t) => a + Number(t.valor), 0);
+                    const saldo = Number(conta.saldo_inicial) + receitas - despesas;
+
+                    return (
+                      <div key={conta.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                        <div className="flex items-center gap-3">
+                          <div 
+                            className="w-3 h-3 rounded-full" 
+                            style={{ backgroundColor: conta.cor }}
+                          />
+                          <div>
+                            <p className="font-medium text-foreground">{conta.nome_conta}</p>
+                            <p className="text-xs text-muted-foreground capitalize">{conta.tipo}</p>
+                          </div>
+                        </div>
+                        <p className={`font-bold ${saldo >= 0 ? "text-success" : "text-destructive"}`}>
+                          {formatCurrency(saldo)}
+                        </p>
+                      </div>
+                    );
+                  })}
+                  {contas.length === 0 && (
+                    <p className="text-center text-muted-foreground py-8">
+                      Nenhuma conta cadastrada
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
-        {/* Charts */}
+        {/* New Widgets Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card className="shadow-card">
-            <CardHeader>
-              <CardTitle className="text-base">Despesas por Categoria</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {despesasPorCategoria.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={despesasPorCategoria}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={100}
-                      paddingAngle={2}
-                      dataKey="value"
-                    >
-                      {despesasPorCategoria.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color || COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value: number) => formatCurrency(value)} />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex items-center justify-center h-[300px] text-muted-foreground">
-                  Sem despesas no período
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          {visibility.ultimasTransacoes && (
+            <UltimasTransacoesWidget 
+              transacoes={transacoesFiltradas} 
+              categorias={categorias} 
+            />
+          )}
 
-          <Card className="shadow-card">
-            <CardHeader>
-              <CardTitle className="text-base">Saldo por Conta</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {contas.map((conta) => {
-                  const transacoesConta = transacoesValidas.filter(t => t.conta_id === conta.id);
-                  const receitas = transacoesConta.filter(t => t.tipo === "receita").reduce((a, t) => a + Number(t.valor), 0);
-                  const despesas = transacoesConta.filter(t => t.tipo === "despesa").reduce((a, t) => a + Number(t.valor), 0);
-                  const saldo = Number(conta.saldo_inicial) + receitas - despesas;
-
-                  return (
-                    <div key={conta.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                      <div className="flex items-center gap-3">
-                        <div 
-                          className="w-3 h-3 rounded-full" 
-                          style={{ backgroundColor: conta.cor }}
-                        />
-                        <div>
-                          <p className="font-medium text-foreground">{conta.nome_conta}</p>
-                          <p className="text-xs text-muted-foreground capitalize">{conta.tipo}</p>
-                        </div>
-                      </div>
-                      <p className={`font-bold ${saldo >= 0 ? "text-success" : "text-destructive"}`}>
-                        {formatCurrency(saldo)}
-                      </p>
-                    </div>
-                  );
-                })}
-                {contas.length === 0 && (
-                  <p className="text-center text-muted-foreground py-8">
-                    Nenhuma conta cadastrada
-                  </p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+          {visibility.contasConfirmar && (
+            <ContasConfirmarWidget transacoes={transacoesFiltradas} />
+          )}
         </div>
       </div>
     </AppLayout>
