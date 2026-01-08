@@ -162,13 +162,19 @@ const Orcamento = () => {
   const getCategoriaCor = (id: string) => categorias.find(c => c.id === id)?.cor || "#888";
 
   // Filter valid transactions: exclude transfers and non-executed payments
-  // Include subcategory expenses in main category total
-  const getSubcategoriaIds = (mainCategoriaId: string) => 
-    categorias.filter(c => c.categoria_pai_id === mainCategoriaId).map(c => c.id);
+  // Include subcategory expenses in main category total (recursive for nested subcategories)
+  const getAllSubcategoriaIds = (mainCategoriaId: string): string[] => {
+    const directChildren = categorias.filter(c => c.categoria_pai_id === mainCategoriaId);
+    const directIds = directChildren.map(c => c.id);
+    // Recursively get children of children
+    const nestedIds = directChildren.flatMap(child => getAllSubcategoriaIds(child.id));
+    return [...directIds, ...nestedIds];
+  };
 
   const getGastosCategoria = (categoriaId: string) => {
-    const subcatIds = getSubcategoriaIds(categoriaId);
-    const allCategoryIds = [categoriaId, ...subcatIds];
+    // Get all subcategory IDs recursively
+    const allSubcatIds = getAllSubcategoriaIds(categoriaId);
+    const allCategoryIds = [categoriaId, ...allSubcatIds];
     
     return transacoes
       .filter(t => 
