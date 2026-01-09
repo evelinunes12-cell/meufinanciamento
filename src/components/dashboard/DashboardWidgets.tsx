@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Settings2 } from "lucide-react";
+import { ExportSettingsButton } from "./ExportSettingsButton";
 
 export interface WidgetVisibility {
   kpis: boolean;
@@ -11,6 +12,7 @@ export interface WidgetVisibility {
   saldoContas: boolean;
   ultimasTransacoes: boolean;
   contasConfirmar: boolean;
+  evolucaoMensal: boolean;
 }
 
 const STORAGE_KEY = "dashboard-widgets-visibility";
@@ -21,6 +23,7 @@ const defaultVisibility: WidgetVisibility = {
   saldoContas: true,
   ultimasTransacoes: true,
   contasConfirmar: true,
+  evolucaoMensal: true,
 };
 
 export function useWidgetVisibility() {
@@ -51,6 +54,7 @@ const widgetLabels: Record<keyof WidgetVisibility, string> = {
   saldoContas: "Saldos por Conta",
   ultimasTransacoes: "Últimas Transações",
   contasConfirmar: "Contas a Confirmar",
+  evolucaoMensal: "Evolução Mensal",
 };
 
 export function CustomizeDashboardModal({ visibility, onVisibilityChange }: CustomizeDashboardModalProps) {
@@ -92,9 +96,14 @@ export function CustomizeDashboardModal({ visibility, onVisibilityChange }: Cust
             </div>
           ))}
         </div>
-        <Button onClick={handleSave} className="w-full gradient-primary text-primary-foreground">
-          Salvar Preferências
-        </Button>
+        <div className="flex flex-col gap-3">
+          <Button onClick={handleSave} className="w-full gradient-primary text-primary-foreground">
+            Salvar Preferências
+          </Button>
+          <div className="flex justify-center">
+            <ExportSettingsButton />
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );

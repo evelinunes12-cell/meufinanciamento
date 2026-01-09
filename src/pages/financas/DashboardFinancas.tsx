@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CustomizeDashboardModal, useWidgetVisibility } from "@/components/dashboard/DashboardWidgets";
 import { UltimasTransacoesWidget } from "@/components/dashboard/UltimasTransacoesWidget";
 import { ContasConfirmarWidget } from "@/components/dashboard/ContasConfirmarWidget";
+import { EvolucaoMensalWidget } from "@/components/dashboard/EvolucaoMensalWidget";
 
 interface Transacao {
   id: string;
@@ -391,6 +392,11 @@ const DashboardFinancas = () => {
             </Card>
           )}
         </div>
+
+        {/* Monthly Evolution Widget */}
+        {visibility.evolucaoMensal && (
+          <EvolucaoMensalWidget transacoes={transacoes} />
+        )}
 
         {/* New Widgets Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
