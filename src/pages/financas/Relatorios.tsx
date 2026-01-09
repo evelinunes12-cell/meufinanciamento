@@ -8,10 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Download, FileText, TrendingUp, TrendingDown } from "lucide-react";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
 import { AdvancedFilters, FilterState, getDateRangeFromFilters, getInitialFilterState } from "@/components/AdvancedFilters";
+import { ProjecaoFluxoCaixaWidget } from "@/components/dashboard/ProjecaoFluxoCaixaWidget";
 
 interface Transacao {
   id: string;
@@ -23,11 +24,14 @@ interface Transacao {
   forma_pagamento: string;
   descricao: string | null;
   is_pago_executado: boolean | null;
+  recorrencia?: string | null;
 }
 
 interface Conta {
   id: string;
   nome_conta: string;
+  saldo_inicial: number;
+  tipo: string;
 }
 
 interface Categoria {
@@ -122,6 +126,22 @@ const Relatorios = () => {
   const totalDespesas = transacoesValidas.filter(t => t.tipo === "despesa").reduce((acc, t) => acc + Number(t.valor), 0);
   const saldo = totalReceitas - totalDespesas;
 
+  // Calculate current balance for projection (all time executed transactions)
+  const saldoAtual = useMemo(() => {
+    return contas.reduce((acc, conta) => {
+      if (conta.tipo === "credito") return acc;
+      
+      const transacoesConta = transacoes.filter(t => 
+        t.conta_id === conta.id && 
+        t.forma_pagamento !== "transferencia" &&
+        t.is_pago_executado !== false
+      );
+      const receitas = transacoesConta.filter(t => t.tipo === "receita").reduce((a, t) => a + Number(t.valor), 0);
+      const despesas = transacoesConta.filter(t => t.tipo === "despesa").reduce((a, t) => a + Number(t.valor), 0);
+      return acc + Number(conta.saldo_inicial) + receitas - despesas;
+    }, 0);
+  }, [contas, transacoes]);
+
   // Relatório por categoria
   const relatorioCategoria = categorias.map(cat => {
     const total = transacoesValidas
@@ -203,6 +223,7 @@ const Relatorios = () => {
                 <SelectItem value="categoria">Por Categoria</SelectItem>
                 <SelectItem value="conta">Por Conta</SelectItem>
                 <SelectItem value="pagamento">Por Pagamento</SelectItem>
+                <SelectItem value="projecao">Projeção</SelectItem>
               </SelectContent>
             </Select>
             <Button variant="outline" onClick={exportToCSV}>
@@ -383,13 +404,22 @@ const Relatorios = () => {
               </Table>
             )}
 
-            {filteredTransacoes.length === 0 && (
+            {tipoRelatorio !== "projecao" && filteredTransacoes.length === 0 && (
               <div className="text-center py-8 text-muted-foreground">
                 Nenhuma transação no período selecionado
               </div>
             )}
           </CardContent>
         </Card>
+
+        {/* Projeção Widget */}
+        {tipoRelatorio === "projecao" && (
+          <ProjecaoFluxoCaixaWidget 
+            transacoes={transacoes} 
+            contas={contas} 
+            saldoAtual={saldoAtual} 
+          />
+        )}
       </div>
     </AppLayout>
   );
