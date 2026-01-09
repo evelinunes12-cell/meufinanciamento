@@ -2,6 +2,7 @@ import { ReactNode, useState } from "react";
 import AppSidebar from "./AppSidebar";
 import QuickAddTransaction from "./QuickAddTransaction";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Wallet } from "lucide-react";
 import { useSaldo } from "@/contexts/SaldoContext";
 
@@ -14,6 +15,18 @@ const formatCurrency = (value: number) => {
     style: "currency",
     currency: "BRL",
   }).format(value);
+};
+
+const SaldoSkeleton = ({ size = "default" }: { size?: "compact" | "default" }) => {
+  if (size === "compact") {
+    return <Skeleton className="h-3 w-16" />;
+  }
+  return (
+    <div className="text-right">
+      <Skeleton className="h-2.5 w-12 mb-1 ml-auto" />
+      <Skeleton className="h-4 w-20" />
+    </div>
+  );
 };
 
 const AppLayout = ({ children }: AppLayoutProps) => {
@@ -29,9 +42,13 @@ const AppLayout = ({ children }: AppLayoutProps) => {
         <div className="flex items-center justify-end h-full px-4 pr-16">
           <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-muted/80 border border-border/50">
             <Wallet className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-            <span className={`text-xs font-semibold whitespace-nowrap ${saldoContas >= 0 ? "text-success" : "text-destructive"}`}>
-              {isLoading ? "..." : formatCurrency(saldoContas)}
-            </span>
+            {isLoading ? (
+              <SaldoSkeleton size="compact" />
+            ) : (
+              <span className={`text-xs font-semibold whitespace-nowrap ${saldoContas >= 0 ? "text-success" : "text-destructive"}`}>
+                {formatCurrency(saldoContas)}
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -44,12 +61,16 @@ const AppLayout = ({ children }: AppLayoutProps) => {
               <div className="p-1.5 rounded-lg bg-primary/10">
                 <Wallet className="h-4 w-4 text-primary" />
               </div>
-              <div className="text-right">
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground leading-none mb-0.5">Saldo Total</p>
-                <p className={`text-sm font-bold leading-none ${saldoContas >= 0 ? "text-success" : "text-destructive"}`}>
-                  {isLoading ? "..." : formatCurrency(saldoContas)}
-                </p>
-              </div>
+              {isLoading ? (
+                <SaldoSkeleton />
+              ) : (
+                <div className="text-right">
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground leading-none mb-0.5">Saldo Total</p>
+                  <p className={`text-sm font-bold leading-none ${saldoContas >= 0 ? "text-success" : "text-destructive"}`}>
+                    {formatCurrency(saldoContas)}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
