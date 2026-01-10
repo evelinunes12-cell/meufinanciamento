@@ -12,6 +12,7 @@ import { CustomizeDashboardModal, useWidgetVisibility } from "@/components/dashb
 import { UltimasTransacoesWidget } from "@/components/dashboard/UltimasTransacoesWidget";
 import { ContasConfirmarWidget } from "@/components/dashboard/ContasConfirmarWidget";
 import { EvolucaoMensalWidget } from "@/components/dashboard/EvolucaoMensalWidget";
+import { ProximosFechamentosWidget } from "@/components/dashboard/ProximosFechamentosWidget";
 
 interface Transacao {
   id: string;
@@ -31,6 +32,8 @@ interface Conta {
   saldo_inicial: number;
   tipo: string;
   cor: string;
+  dia_fechamento: number | null;
+  dia_vencimento: number | null;
 }
 
 interface Categoria {
@@ -411,6 +414,14 @@ const DashboardFinancas = () => {
             <ContasConfirmarWidget transacoes={transacoesFiltradas} />
           )}
         </div>
+
+        {/* Credit Card Widget */}
+        {visibility.proximosFechamentos && (
+          <ProximosFechamentosWidget 
+            contas={contas} 
+            transacoes={transacoes} 
+          />
+        )}
       </div>
     </AppLayout>
   );

@@ -17,6 +17,7 @@ import Categorias from "./pages/financas/Categorias";
 import Cartoes from "./pages/financas/Cartoes";
 import Orcamento from "./pages/financas/Orcamento";
 import Relatorios from "./pages/financas/Relatorios";
+import Projecao from "./pages/financas/Projecao";
 
 // Financiamento
 import FinanciamentoConfig from "./pages/financiamento/FinanciamentoConfig";
@@ -100,6 +101,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Relatorios />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/financas/projecao"
+              element={
+                <ProtectedRoute>
+                  <Projecao />
                 </ProtectedRoute>
               }
             />

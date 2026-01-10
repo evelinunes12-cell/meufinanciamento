@@ -11,6 +11,7 @@ import {
   Car, 
   FileSpreadsheet, 
   BarChart3,
+  TrendingUp,
   ChevronDown,
   ChevronRight,
   LogOut,
@@ -46,6 +47,7 @@ const navGroups: NavGroup[] = [
       { path: "/financas/cartoes", label: "Cartões", icon: CreditCard },
       { path: "/financas/orcamento", label: "Orçamento", icon: Target },
       { path: "/financas/relatorios", label: "Relatórios", icon: FileText },
+      { path: "/financas/projecao", label: "Projeção", icon: TrendingUp },
     ],
   },
   {

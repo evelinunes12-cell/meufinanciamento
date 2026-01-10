@@ -13,6 +13,7 @@ export interface WidgetVisibility {
   ultimasTransacoes: boolean;
   contasConfirmar: boolean;
   evolucaoMensal: boolean;
+  proximosFechamentos: boolean;
 }
 
 const STORAGE_KEY = "dashboard-widgets-visibility";
@@ -24,6 +25,7 @@ const defaultVisibility: WidgetVisibility = {
   ultimasTransacoes: true,
   contasConfirmar: true,
   evolucaoMensal: true,
+  proximosFechamentos: true,
 };
 
 export function useWidgetVisibility() {
@@ -55,6 +57,7 @@ const widgetLabels: Record<keyof WidgetVisibility, string> = {
   ultimasTransacoes: "Últimas Transações",
   contasConfirmar: "Contas a Confirmar",
   evolucaoMensal: "Evolução Mensal",
+  proximosFechamentos: "Próximos Fechamentos",
 };
 
 export function CustomizeDashboardModal({ visibility, onVisibilityChange }: CustomizeDashboardModalProps) {

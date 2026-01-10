@@ -1,14 +1,37 @@
-import { ReactNode, useState } from "react";
+import { ReactNode, useState, useMemo } from "react";
 import AppSidebar from "./AppSidebar";
 import QuickAddTransaction from "./QuickAddTransaction";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Wallet } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Plus, Wallet, AlertTriangle } from "lucide-react";
 import { useSaldo } from "@/contexts/SaldoContext";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/useAuth";
 
 interface AppLayoutProps {
   children: ReactNode;
 }
+
+interface Conta {
+  id: string;
+  nome_conta: string;
+  saldo_inicial: number;
+  tipo: string;
+  cor: string;
+}
+
+interface Transacao {
+  id: string;
+  valor: number;
+  tipo: string;
+  conta_id: string;
+  forma_pagamento: string;
+  is_pago_executado: boolean | null;
+}
+
+const SALDO_MINIMO_ALERTA = 100; // Threshold for low balance alert
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat("pt-BR", {
@@ -32,6 +55,50 @@ const SaldoSkeleton = ({ size = "default" }: { size?: "compact" | "default" }) =
 const AppLayout = ({ children }: AppLayoutProps) => {
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const { saldoContas, isLoading } = useSaldo();
+  const { user } = useAuth();
+
+  // Fetch individual account balances for alert
+  const { data: contasData } = useQuery({
+    queryKey: ["contas-saldo-alert", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return { contas: [], transacoes: [] };
+      
+      const [contasRes, transacoesRes] = await Promise.all([
+        supabase.from("contas").select("*"),
+        supabase.from("transacoes").select("id, valor, tipo, conta_id, forma_pagamento, is_pago_executado"),
+      ]);
+
+      return {
+        contas: (contasRes.data || []) as Conta[],
+        transacoes: (transacoesRes.data || []) as Transacao[],
+      };
+    },
+    enabled: !!user?.id,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Calculate accounts with low balance
+  const contasBaixoSaldo = useMemo(() => {
+    if (!contasData) return [];
+    
+    const { contas, transacoes } = contasData;
+    const transacoesValidas = transacoes.filter(
+      t => t.forma_pagamento !== "transferencia" && t.is_pago_executado !== false
+    );
+
+    return contas
+      .filter(c => c.tipo !== "credito")
+      .map(conta => {
+        const transacoesConta = transacoesValidas.filter(t => t.conta_id === conta.id);
+        const receitas = transacoesConta.filter(t => t.tipo === "receita").reduce((a, t) => a + Number(t.valor), 0);
+        const despesas = transacoesConta.filter(t => t.tipo === "despesa").reduce((a, t) => a + Number(t.valor), 0);
+        const saldo = Number(conta.saldo_inicial) + receitas - despesas;
+        return { ...conta, saldo };
+      })
+      .filter(c => c.saldo < SALDO_MINIMO_ALERTA);
+  }, [contasData]);
+
+  const hasLowBalanceAlert = contasBaixoSaldo.length > 0;
 
   return (
     <div className="min-h-screen bg-background">
@@ -40,16 +107,40 @@ const AppLayout = ({ children }: AppLayoutProps) => {
       {/* Mobile Header Bar with saldo */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-40 h-14 bg-background/95 backdrop-blur-sm border-b border-border/50">
         <div className="flex items-center justify-end h-full px-4 pr-16">
-          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-muted/80 border border-border/50">
-            <Wallet className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-            {isLoading ? (
-              <SaldoSkeleton size="compact" />
-            ) : (
-              <span className={`text-xs font-semibold whitespace-nowrap ${saldoContas >= 0 ? "text-success" : "text-destructive"}`}>
-                {formatCurrency(saldoContas)}
-              </span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border ${
+                hasLowBalanceAlert 
+                  ? "bg-destructive/10 border-destructive/50" 
+                  : "bg-muted/80 border-border/50"
+              }`}>
+                {hasLowBalanceAlert ? (
+                  <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0" />
+                ) : (
+                  <Wallet className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                )}
+                {isLoading ? (
+                  <SaldoSkeleton size="compact" />
+                ) : (
+                  <span className={`text-xs font-semibold whitespace-nowrap ${saldoContas >= 0 ? "text-success" : "text-destructive"}`}>
+                    {formatCurrency(saldoContas)}
+                  </span>
+                )}
+              </div>
+            </TooltipTrigger>
+            {hasLowBalanceAlert && (
+              <TooltipContent side="bottom" className="max-w-xs">
+                <div className="space-y-1">
+                  <p className="font-medium text-destructive">Contas com saldo baixo:</p>
+                  {contasBaixoSaldo.map(c => (
+                    <p key={c.id} className="text-xs">
+                      {c.nome_conta}: {formatCurrency(c.saldo)}
+                    </p>
+                  ))}
+                </div>
+              </TooltipContent>
             )}
-          </div>
+          </Tooltip>
         </div>
       </div>
 
@@ -57,21 +148,47 @@ const AppLayout = ({ children }: AppLayoutProps) => {
         {/* Desktop Header with saldo */}
         <div className="hidden lg:block sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-border/30">
           <div className="flex items-center justify-end h-16 px-8">
-            <div className="flex items-center gap-3 px-4 py-2 rounded-xl bg-card border border-border shadow-sm">
-              <div className="p-1.5 rounded-lg bg-primary/10">
-                <Wallet className="h-4 w-4 text-primary" />
-              </div>
-              {isLoading ? (
-                <SaldoSkeleton />
-              ) : (
-                <div className="text-right">
-                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground leading-none mb-0.5">Saldo Total</p>
-                  <p className={`text-sm font-bold leading-none ${saldoContas >= 0 ? "text-success" : "text-destructive"}`}>
-                    {formatCurrency(saldoContas)}
-                  </p>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className={`flex items-center gap-3 px-4 py-2 rounded-xl border shadow-sm ${
+                  hasLowBalanceAlert 
+                    ? "bg-destructive/5 border-destructive/30" 
+                    : "bg-card border-border"
+                }`}>
+                  <div className={`p-1.5 rounded-lg ${hasLowBalanceAlert ? "bg-destructive/10" : "bg-primary/10"}`}>
+                    {hasLowBalanceAlert ? (
+                      <AlertTriangle className="h-4 w-4 text-destructive" />
+                    ) : (
+                      <Wallet className="h-4 w-4 text-primary" />
+                    )}
+                  </div>
+                  {isLoading ? (
+                    <SaldoSkeleton />
+                  ) : (
+                    <div className="text-right">
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground leading-none mb-0.5">
+                        Saldo Total {hasLowBalanceAlert && <span className="text-destructive">⚠</span>}
+                      </p>
+                      <p className={`text-sm font-bold leading-none ${saldoContas >= 0 ? "text-success" : "text-destructive"}`}>
+                        {formatCurrency(saldoContas)}
+                      </p>
+                    </div>
+                  )}
                 </div>
+              </TooltipTrigger>
+              {hasLowBalanceAlert && (
+                <TooltipContent side="bottom" className="max-w-xs">
+                  <div className="space-y-1">
+                    <p className="font-medium text-destructive">Contas com saldo abaixo de R$ {SALDO_MINIMO_ALERTA}:</p>
+                    {contasBaixoSaldo.map(c => (
+                      <p key={c.id} className="text-xs">
+                        {c.nome_conta}: {formatCurrency(c.saldo)}
+                      </p>
+                    ))}
+                  </div>
+                </TooltipContent>
               )}
-            </div>
+            </Tooltip>
           </div>
         </div>
 
