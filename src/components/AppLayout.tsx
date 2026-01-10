@@ -29,6 +29,7 @@ interface Transacao {
   conta_id: string;
   forma_pagamento: string;
   is_pago_executado: boolean | null;
+  data: string;
 }
 
 const SALDO_MINIMO_ALERTA = 100; // Threshold for low balance alert
@@ -65,7 +66,7 @@ const AppLayout = ({ children }: AppLayoutProps) => {
       
       const [contasRes, transacoesRes] = await Promise.all([
         supabase.from("contas").select("*"),
-        supabase.from("transacoes").select("id, valor, tipo, conta_id, forma_pagamento, is_pago_executado"),
+        supabase.from("transacoes").select("id, valor, tipo, conta_id, forma_pagamento, is_pago_executado, data"),
       ]);
 
       return {
@@ -77,16 +78,17 @@ const AppLayout = ({ children }: AppLayoutProps) => {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Calculate accounts with low balance
-  const contasBaixoSaldo = useMemo(() => {
-    if (!contasData) return [];
+  // Calculate accounts with low balance and predicted balance
+  const { contasBaixoSaldo, saldoPrevisto, totalPendente } = useMemo(() => {
+    if (!contasData) return { contasBaixoSaldo: [], saldoPrevisto: 0, totalPendente: 0 };
     
     const { contas, transacoes } = contasData;
     const transacoesValidas = transacoes.filter(
       t => t.forma_pagamento !== "transferencia" && t.is_pago_executado !== false
     );
 
-    return contas
+    // Calculate low balance accounts
+    const contasBaixo = contas
       .filter(c => c.tipo !== "credito")
       .map(conta => {
         const transacoesConta = transacoesValidas.filter(t => t.conta_id === conta.id);
@@ -96,8 +98,36 @@ const AppLayout = ({ children }: AppLayoutProps) => {
         return { ...conta, saldo };
       })
       .filter(c => c.saldo < SALDO_MINIMO_ALERTA);
+
+    // Calculate pending transactions for current month (not executed yet)
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    
+    const transacoesPendentes = transacoes.filter(t => {
+      if (t.is_pago_executado !== false) return false;
+      if (t.forma_pagamento === "transferencia") return false;
+      const dataT = new Date(t.data);
+      return dataT.getMonth() === currentMonth && dataT.getFullYear() === currentYear;
+    });
+
+    const receitasPendentes = transacoesPendentes
+      .filter(t => t.tipo === "receita")
+      .reduce((a, t) => a + Number(t.valor), 0);
+    const despesasPendentes = transacoesPendentes
+      .filter(t => t.tipo === "despesa")
+      .reduce((a, t) => a + Number(t.valor), 0);
+
+    const pendente = despesasPendentes - receitasPendentes;
+
+    return { 
+      contasBaixoSaldo: contasBaixo, 
+      saldoPrevisto: 0, // Will be calculated using saldoContas
+      totalPendente: pendente
+    };
   }, [contasData]);
 
+  const saldoPrevistoFinal = saldoContas - totalPendente;
   const hasLowBalanceAlert = contasBaixoSaldo.length > 0;
 
   return (
@@ -122,9 +152,16 @@ const AppLayout = ({ children }: AppLayoutProps) => {
                 {isLoading ? (
                   <SaldoSkeleton size="compact" />
                 ) : (
-                  <span className={`text-xs font-semibold whitespace-nowrap ${saldoContas >= 0 ? "text-success" : "text-destructive"}`}>
-                    {formatCurrency(saldoContas)}
-                  </span>
+                  <div className="flex flex-col items-end">
+                    <span className={`text-xs font-semibold whitespace-nowrap ${saldoContas >= 0 ? "text-success" : "text-destructive"}`}>
+                      {formatCurrency(saldoContas)}
+                    </span>
+                    {totalPendente !== 0 && (
+                      <span className={`text-[9px] whitespace-nowrap ${saldoPrevistoFinal >= 0 ? "text-muted-foreground" : "text-destructive"}`}>
+                        Prev: {formatCurrency(saldoPrevistoFinal)}
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
             </TooltipTrigger>
@@ -172,6 +209,11 @@ const AppLayout = ({ children }: AppLayoutProps) => {
                       <p className={`text-sm font-bold leading-none ${saldoContas >= 0 ? "text-success" : "text-destructive"}`}>
                         {formatCurrency(saldoContas)}
                       </p>
+                      {totalPendente !== 0 && (
+                        <p className={`text-[10px] mt-0.5 leading-none ${saldoPrevistoFinal >= 0 ? "text-muted-foreground" : "text-destructive"}`}>
+                          Previsto: {formatCurrency(saldoPrevistoFinal)}
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>
