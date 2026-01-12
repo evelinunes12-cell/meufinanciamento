@@ -58,6 +58,24 @@ const ChartContainer = React.forwardRef<
 });
 ChartContainer.displayName = "Chart";
 
+// Validate color format to prevent CSS injection
+const isValidColor = (color: string): boolean => {
+  // Allow hex colors, hsl/hsla, rgb/rgba, and CSS variable references
+  const hexPattern = /^#[0-9A-Fa-f]{3,8}$/;
+  const hslPattern = /^hsla?\(\s*\d+\s*,\s*\d+%?\s*,\s*\d+%?\s*(,\s*[\d.]+)?\s*\)$/;
+  const rgbPattern = /^rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*(,\s*[\d.]+)?\s*\)$/;
+  const cssVarPattern = /^var\(--[\w-]+\)$/;
+  
+  return hexPattern.test(color) || hslPattern.test(color) || rgbPattern.test(color) || cssVarPattern.test(color);
+};
+
+const sanitizeColor = (color: string | undefined): string | null => {
+  if (!color) return null;
+  // Remove any potentially dangerous characters
+  const sanitized = color.replace(/[<>"'`;{}()]/g, '').trim();
+  return isValidColor(sanitized) ? sanitized : null;
+};
+
 const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
   const colorConfig = Object.entries(config).filter(([_, config]) => config.theme || config.color);
 
@@ -65,23 +83,29 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
     return null;
   }
 
+  // Sanitize the id to prevent injection
+  const safeId = id.replace(/[^a-zA-Z0-9-_]/g, '');
+
+  const cssContent = Object.entries(THEMES)
+    .map(([theme, prefix]) => {
+      const colorVars = colorConfig
+        .map(([key, itemConfig]) => {
+          const rawColor = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
+          const safeColor = sanitizeColor(rawColor);
+          const safeKey = key.replace(/[^a-zA-Z0-9-_]/g, '');
+          return safeColor ? `  --color-${safeKey}: ${safeColor};` : null;
+        })
+        .filter(Boolean)
+        .join("\n");
+      
+      return `${prefix} [data-chart=${safeId}] {\n${colorVars}\n}`;
+    })
+    .join("\n");
+
   return (
     <style
       dangerouslySetInnerHTML={{
-        __html: Object.entries(THEMES)
-          .map(
-            ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
-${colorConfig
-  .map(([key, itemConfig]) => {
-    const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
-    return color ? `  --color-${key}: ${color};` : null;
-  })
-  .join("\n")}
-}
-`,
-          )
-          .join("\n"),
+        __html: cssContent,
       }}
     />
   );

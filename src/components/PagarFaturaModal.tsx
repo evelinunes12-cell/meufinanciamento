@@ -131,7 +131,9 @@ const PagarFaturaModal = ({
       setContaOrigem("");
       onOpenChange(false);
     } catch (error) {
-      console.error("Error paying invoice:", error);
+      if (import.meta.env.DEV) {
+        console.error("Error paying invoice:", error);
+      }
       toast({
         title: "Erro",
         description: "Erro ao pagar fatura",
