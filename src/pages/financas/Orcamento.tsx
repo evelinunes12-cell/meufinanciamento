@@ -277,7 +277,7 @@ const Orcamento = () => {
               const limite = Number(orcamento.valor_limite);
               const percentual = (gastos / limite) * 100;
               const restante = limite - gastos;
-              const status = percentual >= 100 ? "excedido" : percentual >= 80 ? "alerta" : "ok";
+              const status = percentual >= 100 ? "excedido" : percentual >= 90 ? "alerta" : "ok";
 
               return (
                 <Card key={orcamento.id} className="shadow-card overflow-hidden">
