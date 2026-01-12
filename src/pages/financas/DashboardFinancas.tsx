@@ -5,7 +5,7 @@ import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrendingUp, TrendingDown, Wallet, PiggyBank, CreditCard, ArrowUpDown } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { AdvancedFilters, FilterState, getInitialFilterState, getDateRangeFromFilters } from "@/components/AdvancedFilters";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CustomizeDashboardModal, useWidgetVisibility } from "@/components/dashboard/DashboardWidgets";
@@ -13,6 +13,8 @@ import { UltimasTransacoesWidget } from "@/components/dashboard/UltimasTransacoe
 import { ContasConfirmarWidget } from "@/components/dashboard/ContasConfirmarWidget";
 import { EvolucaoMensalWidget } from "@/components/dashboard/EvolucaoMensalWidget";
 import { ProximosFechamentosWidget } from "@/components/dashboard/ProximosFechamentosWidget";
+import { Badge } from "@/components/ui/badge";
+import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
 
 interface Transacao {
   id: string;
@@ -49,7 +51,11 @@ const COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'
 async function fetchDashboardData(userId: string | undefined, startDate: string, endDate: string) {
   if (!userId) return null;
 
-  const [transacoesRes, contasRes, categoriasRes] = await Promise.all([
+  // Also fetch previous month data for comparison
+  const prevMonthStart = format(startOfMonth(subMonths(new Date(), 1)), "yyyy-MM-dd");
+  const prevMonthEnd = format(endOfMonth(subMonths(new Date(), 1)), "yyyy-MM-dd");
+
+  const [transacoesRes, contasRes, categoriasRes, prevMonthRes] = await Promise.all([
     supabase
       .from("transacoes")
       .select("*")
@@ -58,12 +64,18 @@ async function fetchDashboardData(userId: string | undefined, startDate: string,
       .order("data", { ascending: false }),
     supabase.from("contas").select("*"),
     supabase.from("categorias").select("*"),
+    supabase
+      .from("transacoes")
+      .select("*")
+      .gte("data", prevMonthStart)
+      .lte("data", prevMonthEnd),
   ]);
 
   return {
     transacoes: (transacoesRes.data || []) as Transacao[],
     contas: (contasRes.data || []) as Conta[],
     categorias: (categoriasRes.data || []) as Categoria[],
+    transacoesMesAnterior: (prevMonthRes.data || []) as Transacao[],
   };
 }
 
@@ -85,6 +97,7 @@ const DashboardFinancas = () => {
   const transacoes = data?.transacoes || [];
   const contas = data?.contas || [];
   const categorias = data?.categorias || [];
+  const transacoesMesAnterior = data?.transacoesMesAnterior || [];
 
   // Apply client-side filters
   const transacoesFiltradas = transacoes.filter((t) => {
@@ -143,6 +156,25 @@ const DashboardFinancas = () => {
     const conta = contas.find(c => c.id === t.conta_id);
     return conta?.tipo === "credito" && t.tipo === "despesa";
   }).reduce((acc, t) => acc + Number(t.valor), 0);
+
+  // Calculate previous month balance for comparison
+  const variacaoPatrimonial = useMemo(() => {
+    const transacoesMesAnteriorValidas = transacoesMesAnterior.filter(t => 
+      t.forma_pagamento !== "transferencia" && t.is_pago_executado !== false
+    );
+
+    const saldoMesAnterior = contas.reduce((acc, conta) => {
+      if (conta.tipo === "credito") return acc;
+      const transacoesConta = transacoesMesAnteriorValidas.filter(t => t.conta_id === conta.id);
+      const receitas = transacoesConta.filter(t => t.tipo === "receita").reduce((a, t) => a + Number(t.valor), 0);
+      const despesas = transacoesConta.filter(t => t.tipo === "despesa").reduce((a, t) => a + Number(t.valor), 0);
+      return acc + Number(conta.saldo_inicial) + receitas - despesas;
+    }, 0);
+
+    if (saldoMesAnterior === 0) return null;
+    const variacao = ((saldoContas - saldoMesAnterior) / Math.abs(saldoMesAnterior)) * 100;
+    return variacao;
+  }, [saldoContas, contas, transacoesMesAnterior]);
 
   // Category aggregation helpers
   const mainCategoriasDesp = categorias.filter(c => c.tipo === "despesa" && !c.categoria_pai_id);
@@ -282,8 +314,22 @@ const DashboardFinancas = () => {
                   <div className="p-2 rounded-lg bg-primary/10">
                     <Wallet className="h-5 w-5 text-primary" />
                   </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Saldo Contas</p>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs text-muted-foreground">Saldo Contas</p>
+                      {variacaoPatrimonial !== null && (
+                        <Badge 
+                          variant="outline" 
+                          className={`text-[10px] px-1.5 py-0 h-4 ${
+                            variacaoPatrimonial >= 0 
+                              ? "border-success/50 text-success bg-success/10" 
+                              : "border-destructive/50 text-destructive bg-destructive/10"
+                          }`}
+                        >
+                          {variacaoPatrimonial >= 0 ? "+" : ""}{variacaoPatrimonial.toFixed(1)}%
+                        </Badge>
+                      )}
+                    </div>
                     <p className="text-lg font-bold text-foreground">{formatCurrency(saldoContas)}</p>
                   </div>
                 </div>

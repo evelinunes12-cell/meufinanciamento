@@ -49,6 +49,8 @@ const recorrencias = [
   { value: "fixa", label: "Recorrência Fixa" },
 ];
 
+const DRAFT_KEY = "quick-add-transaction-draft";
+
 const QuickAddTransaction = ({ open, onOpenChange }: QuickAddTransactionProps) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -56,16 +58,37 @@ const QuickAddTransaction = ({ open, onOpenChange }: QuickAddTransactionProps) =
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const [formData, setFormData] = useState({
-    valor: "",
-    tipo: "despesa",
-    conta_id: "",
-    categoria_id: "",
-    data: format(new Date(), "yyyy-MM-dd"),
-    forma_pagamento: "pix",
-    recorrencia: "nenhuma",
-    parcelas_total: "",
-  });
+  const getInitialFormData = () => {
+    const defaultData = {
+      valor: "",
+      tipo: "despesa",
+      conta_id: "",
+      categoria_id: "",
+      data: format(new Date(), "yyyy-MM-dd"),
+      forma_pagamento: "pix",
+      recorrencia: "nenhuma",
+      parcelas_total: "",
+    };
+
+    try {
+      const saved = localStorage.getItem(DRAFT_KEY);
+      if (saved) {
+        return { ...defaultData, ...JSON.parse(saved) };
+      }
+    } catch {
+      // ignore parse errors
+    }
+    return defaultData;
+  };
+
+  const [formData, setFormData] = useState(getInitialFormData);
+
+  // Save draft to localStorage on form changes
+  useEffect(() => {
+    if (formData.valor || formData.conta_id || formData.categoria_id) {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(formData));
+    }
+  }, [formData]);
 
   useEffect(() => {
     if (open && user) {
@@ -214,6 +237,9 @@ const QuickAddTransaction = ({ open, onOpenChange }: QuickAddTransactionProps) =
 
       toast({ title: "Sucesso", description: "Transação criada" });
     }
+
+    // Clear draft after successful submit
+    localStorage.removeItem(DRAFT_KEY);
 
     // Invalidate queries to refresh data
     queryClient.invalidateQueries({ queryKey: ["saldo-contas"] });
