@@ -16,7 +16,8 @@ import {
   ChevronRight,
   LogOut,
   Menu,
-  X
+  X,
+  Settings
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -146,7 +147,20 @@ const AppSidebar = () => {
         ))}
       </nav>
 
-      <div className="p-4 border-t border-border">
+      <div className="p-4 border-t border-border space-y-2">
+        <Link
+          to="/financas/configuracoes"
+          onClick={() => setIsMobileOpen(false)}
+          className={cn(
+            "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 w-full",
+            isActive("/financas/configuracoes")
+              ? "bg-primary text-primary-foreground shadow-soft"
+              : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+          )}
+        >
+          <Settings className="h-4 w-4" />
+          <span>Configurações</span>
+        </Link>
         <Button
           variant="ghost"
           onClick={handleSignOut}

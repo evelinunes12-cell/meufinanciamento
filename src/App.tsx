@@ -18,6 +18,7 @@ import Cartoes from "./pages/financas/Cartoes";
 import Orcamento from "./pages/financas/Orcamento";
 import Relatorios from "./pages/financas/Relatorios";
 import Projecao from "./pages/financas/Projecao";
+import Configuracoes from "./pages/financas/Configuracoes";
 
 // Financiamento
 import FinanciamentoConfig from "./pages/financiamento/FinanciamentoConfig";
@@ -109,6 +110,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Projecao />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/financas/configuracoes"
+              element={
+                <ProtectedRoute>
+                  <Configuracoes />
                 </ProtectedRoute>
               }
             />
