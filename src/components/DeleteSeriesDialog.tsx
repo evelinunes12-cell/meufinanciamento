@@ -66,7 +66,9 @@ const DeleteSeriesDialog = ({
       invalidateQueries();
       onOpenChange(false);
     } catch (error) {
-      console.error("Error deleting transaction:", error);
+      if (import.meta.env.DEV) {
+        console.error("Error deleting transaction:", error);
+      }
       toast({
         title: "Erro",
         description: "Erro ao excluir transação",
@@ -118,7 +120,9 @@ const DeleteSeriesDialog = ({
       invalidateQueries();
       onOpenChange(false);
     } catch (error) {
-      console.error("Error deleting series:", error);
+      if (import.meta.env.DEV) {
+        console.error("Error deleting series:", error);
+      }
       toast({
         title: "Erro",
         description: "Erro ao excluir série de transações",

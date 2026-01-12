@@ -90,7 +90,9 @@ const ConfirmPaymentModal = ({
 
       onOpenChange(false);
     } catch (error) {
-      console.error("Error confirming payment:", error);
+      if (import.meta.env.DEV) {
+        console.error("Error confirming payment:", error);
+      }
       toast({
         title: "Erro",
         description: "Erro ao confirmar pagamento",
