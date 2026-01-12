@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -103,6 +103,8 @@ async function fetchTransacoesData(
   };
 }
 
+const DRAFT_KEY = "transacao-form-draft";
+
 const Transacoes = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -119,18 +121,39 @@ const Transacoes = () => {
   const [newCategoryName, setNewCategoryName] = useState("");
   const [newCategoryCor, setNewCategoryCor] = useState("#3B82F6");
 
-  const [formData, setFormData] = useState({
-    conta_id: "",
-    categoria_id: "",
-    valor: "",
-    tipo: "despesa",
-    data: format(new Date(), "yyyy-MM-dd"),
-    forma_pagamento: "pix",
-    recorrencia: "nenhuma",
-    descricao: "",
-    parcelas_total: "",
-    conta_destino_id: "",
-  });
+  const getInitialFormData = () => {
+    const defaultData = {
+      conta_id: "",
+      categoria_id: "",
+      valor: "",
+      tipo: "despesa",
+      data: format(new Date(), "yyyy-MM-dd"),
+      forma_pagamento: "pix",
+      recorrencia: "nenhuma",
+      descricao: "",
+      parcelas_total: "",
+      conta_destino_id: "",
+    };
+
+    try {
+      const saved = localStorage.getItem(DRAFT_KEY);
+      if (saved) {
+        return { ...defaultData, ...JSON.parse(saved) };
+      }
+    } catch {
+      // ignore parse errors
+    }
+    return defaultData;
+  };
+
+  const [formData, setFormData] = useState(getInitialFormData);
+
+  // Save draft to localStorage on form changes (only when dialog is open and not editing)
+  useEffect(() => {
+    if (dialogOpen && !editingId && (formData.valor || formData.conta_id || formData.categoria_id || formData.descricao)) {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(formData));
+    }
+  }, [formData, dialogOpen, editingId]);
 
   // Modal states
   const [confirmPaymentModal, setConfirmPaymentModal] = useState<{
@@ -374,6 +397,8 @@ const Transacoes = () => {
       }
     }
 
+    // Clear draft only after successful submission
+    localStorage.removeItem(DRAFT_KEY);
     setDialogOpen(false);
     resetForm();
     invalidateQueries();
