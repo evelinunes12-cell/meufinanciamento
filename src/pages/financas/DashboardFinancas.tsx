@@ -3,8 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { TrendingUp, TrendingDown, Wallet, PiggyBank, CreditCard, ArrowUpDown } from "lucide-react";
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
+import { TrendingUp, TrendingDown, Wallet, PiggyBank, CreditCard, ArrowUpDown, Info } from "lucide-react";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from "recharts";
 import { useState, useMemo } from "react";
 import { AdvancedFilters, FilterState, getInitialFilterState, getDateRangeFromFilters } from "@/components/AdvancedFilters";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -14,6 +14,7 @@ import { ContasConfirmarWidget } from "@/components/dashboard/ContasConfirmarWid
 import { EvolucaoMensalWidget } from "@/components/dashboard/EvolucaoMensalWidget";
 import { ProximosFechamentosWidget } from "@/components/dashboard/ProximosFechamentosWidget";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
 
 interface Transacao {
@@ -299,7 +300,19 @@ const DashboardFinancas = () => {
                     <PiggyBank className="h-5 w-5 text-primary" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Economia (Poupança)</p>
+                    <div className="flex items-center gap-1">
+                      <p className="text-xs text-muted-foreground">Economia (Poupança)</p>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="max-w-xs text-xs">
+                            Soma de receitas e transferências para contas do tipo Poupança.
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
                     <p className={`text-lg font-bold ${economiaTotal > 0 ? "text-success" : "text-muted-foreground"}`}>
                       {formatCurrency(economiaTotal)}
                     </p>
@@ -387,7 +400,7 @@ const DashboardFinancas = () => {
                           <Cell key={`cell-${index}`} fill={entry.color || COLORS[index % COLORS.length]} />
                         ))}
                       </Pie>
-                      <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                      <RechartsTooltip formatter={(value: number) => formatCurrency(value)} />
                       <Legend />
                     </PieChart>
                   </ResponsiveContainer>
