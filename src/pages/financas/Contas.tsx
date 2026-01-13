@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Plus, Trash2, Edit, Wallet, CreditCard, PiggyBank, Landmark, Banknote } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { contaSchema } from "@/lib/validations";
-
+import { formatCurrencyInput, parseCurrencyInput } from "@/lib/calculations";
 interface Conta {
   id: string;
   nome_conta: string;
@@ -91,9 +91,9 @@ const Contas = () => {
     const validationData = {
       nome_conta: formData.nome_conta.trim(),
       tipo: formData.tipo as 'corrente' | 'poupanca' | 'carteira' | 'investimento' | 'credito',
-      saldo_inicial: isCredito ? 0 : (parseFloat(formData.saldo_inicial) || 0),
+      saldo_inicial: isCredito ? 0 : (formData.saldo_inicial ? parseCurrencyInput(formData.saldo_inicial) : 0),
       cor: formData.cor,
-      limite: isCredito && formData.limite ? parseFloat(formData.limite) : null,
+      limite: isCredito && formData.limite ? parseCurrencyInput(formData.limite) : null,
       dia_fechamento: isCredito && formData.dia_fechamento ? parseInt(formData.dia_fechamento) : null,
       dia_vencimento: isCredito && formData.dia_vencimento ? parseInt(formData.dia_vencimento) : null,
     };
@@ -142,9 +142,9 @@ const Contas = () => {
     setFormData({
       nome_conta: conta.nome_conta,
       tipo: conta.tipo,
-      saldo_inicial: conta.saldo_inicial.toString(),
+      saldo_inicial: conta.saldo_inicial ? formatCurrencyInput((conta.saldo_inicial * 100).toString()) : "",
       cor: conta.cor,
-      limite: conta.limite?.toString() || "",
+      limite: conta.limite ? formatCurrencyInput((conta.limite * 100).toString()) : "",
       dia_fechamento: conta.dia_fechamento?.toString() || "",
       dia_vencimento: conta.dia_vencimento?.toString() || "",
     });
@@ -230,13 +230,17 @@ const Contas = () => {
                 {formData.tipo !== "credito" && (
                   <div className="space-y-2">
                     <Label>Saldo Inicial</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={formData.saldo_inicial}
-                      onChange={(e) => setFormData({ ...formData, saldo_inicial: e.target.value })}
-                      placeholder="0,00"
-                    />
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">R$</span>
+                      <Input
+                        type="text"
+                        inputMode="numeric"
+                        value={formData.saldo_inicial}
+                        onChange={(e) => setFormData({ ...formData, saldo_inicial: formatCurrencyInput(e.target.value) })}
+                        placeholder="0,00"
+                        className="pl-10"
+                      />
+                    </div>
                   </div>
                 )}
 
@@ -244,14 +248,18 @@ const Contas = () => {
                   <>
                     <div className="space-y-2">
                       <Label>Limite do Cartão *</Label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={formData.limite}
-                        onChange={(e) => setFormData({ ...formData, limite: e.target.value })}
-                        placeholder="0,00"
-                        required
-                      />
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">R$</span>
+                        <Input
+                          type="text"
+                          inputMode="numeric"
+                          value={formData.limite}
+                          onChange={(e) => setFormData({ ...formData, limite: formatCurrencyInput(e.target.value) })}
+                          placeholder="0,00"
+                          className="pl-10"
+                          required
+                        />
+                      </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
