@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Trash2, Edit, Wallet, CreditCard, PiggyBank, Landmark, Banknote } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Plus, Trash2, Edit, Wallet, CreditCard, PiggyBank, Landmark, Banknote, AlertTriangle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { contaSchema } from "@/lib/validations";
 import { formatCurrencyInput, parseCurrencyInput } from "@/lib/calculations";
@@ -339,9 +340,37 @@ const Contas = () => {
                     <Button variant="ghost" size="icon" onClick={() => handleEdit(conta)}>
                       <Edit className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(conta.id)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="text-destructive">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle className="flex items-center gap-2">
+                            <AlertTriangle className="h-5 w-5 text-destructive" />
+                            Excluir Conta
+                          </AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Tem certeza que deseja excluir <strong>{conta.nome_conta}</strong>?
+                            <br /><br />
+                            <span className="text-destructive font-medium">
+                              ⚠️ Atenção: Todo o histórico de transações vinculado a esta conta será perdido permanentemente.
+                            </span>
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleDelete(conta.id)}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            Excluir
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 </div>
                 {conta.tipo !== "credito" && (
@@ -368,8 +397,21 @@ const Contas = () => {
             </Card>
           ))}
           {contas.length === 0 && (
-            <div className="col-span-full text-center py-12 text-muted-foreground">
-              Nenhuma conta cadastrada. Clique em "Nova Conta" para começar.
+            <div className="col-span-full flex flex-col items-center justify-center py-16 text-center">
+              <div className="p-4 rounded-full bg-muted mb-4">
+                <Wallet className="h-10 w-10 text-muted-foreground" />
+              </div>
+              <h3 className="text-lg font-semibold text-foreground mb-1">Nenhuma conta registada</h3>
+              <p className="text-muted-foreground mb-4 max-w-sm">
+                Adicione suas contas bancárias, carteiras e cartões de crédito para começar a controlar suas finanças.
+              </p>
+              <Button 
+                onClick={() => setDialogOpen(true)}
+                className="gradient-primary text-primary-foreground"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Criar Primeira Conta
+              </Button>
             </div>
           )}
         </div>

@@ -939,8 +939,25 @@ const Transacoes = () => {
                 ))}
                 {transacoes.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
-                      Nenhuma transação neste período
+                    <TableCell colSpan={11} className="text-center py-16">
+                      <div className="flex flex-col items-center gap-4">
+                        <div className="p-4 rounded-full bg-muted">
+                          <ArrowRightLeft className="h-10 w-10 text-muted-foreground" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-semibold text-foreground mb-1">Nenhuma transação registada</h3>
+                          <p className="text-muted-foreground mb-4">
+                            Comece a registar suas receitas e despesas para ter controle financeiro.
+                          </p>
+                        </div>
+                        <Button 
+                          onClick={() => setDialogOpen(true)}
+                          className="gradient-primary text-primary-foreground"
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Criar Primeira Transação
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 )}
