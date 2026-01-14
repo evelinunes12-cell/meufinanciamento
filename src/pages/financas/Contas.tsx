@@ -9,10 +9,12 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Plus, Trash2, Edit, Wallet, CreditCard, PiggyBank, Landmark, Banknote, AlertTriangle } from "lucide-react";
+import { Plus, Trash2, Edit, Wallet, CreditCard, PiggyBank, Landmark, Banknote, AlertTriangle, Upload } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { contaSchema } from "@/lib/validations";
 import { formatCurrencyInput, parseCurrencyInput } from "@/lib/calculations";
+import ImportarOFXModal from "@/components/ImportarOFXModal";
+
 interface Conta {
   id: string;
   nome_conta: string;
@@ -43,6 +45,8 @@ const Contas = () => {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [ofxModalOpen, setOfxModalOpen] = useState(false);
+  const [selectedContaOFX, setSelectedContaOFX] = useState<{ id: string; nome: string } | null>(null);
 
   const [formData, setFormData] = useState({
     nome_conta: "",
@@ -337,6 +341,19 @@ const Contas = () => {
                     </div>
                   </div>
                   <div className="flex gap-1">
+                    {conta.tipo !== "credito" && (
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        title="Importar OFX"
+                        onClick={() => {
+                          setSelectedContaOFX({ id: conta.id, nome: conta.nome_conta });
+                          setOfxModalOpen(true);
+                        }}
+                      >
+                        <Upload className="h-4 w-4" />
+                      </Button>
+                    )}
                     <Button variant="ghost" size="icon" onClick={() => handleEdit(conta)}>
                       <Edit className="h-4 w-4" />
                     </Button>
@@ -415,6 +432,15 @@ const Contas = () => {
             </div>
           )}
         </div>
+
+        {selectedContaOFX && (
+          <ImportarOFXModal
+            open={ofxModalOpen}
+            onOpenChange={setOfxModalOpen}
+            contaId={selectedContaOFX.id}
+            contaNome={selectedContaOFX.nome}
+          />
+        )}
       </div>
     </AppLayout>
   );
