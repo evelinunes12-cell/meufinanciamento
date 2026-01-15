@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import type { TablesInsert } from "@/integrations/supabase/types";
 import { parseOFX, OFXTransaction } from "@/lib/ofxParser";
 import { Upload, Check, FileText, X, Loader2 } from "lucide-react";
 import { format } from "date-fns";
@@ -20,6 +21,13 @@ interface Categoria {
   categoria_pai_id: string | null;
 }
 
+interface Conta {
+  id: string;
+  nome_conta: string;
+  tipo: string;
+  cor: string;
+}
+
 interface ImportarOFXModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -27,23 +35,38 @@ interface ImportarOFXModalProps {
   contaNome: string;
 }
 
-interface TransacaoRevisao extends OFXTransaction {
-  categoriaId: string | null;
-  descricaoEditada: string;
-  confirmando: boolean;
+interface RowState {
+  categoryId: string | null;
+  description: string;
+  paymentMethod: string;
+  transactionType: "receita" | "despesa" | "transferencia";
+  targetAccountId: string | null;
+  isConfirming: boolean;
 }
+
+type RowStates = Record<string, RowState>;
+
+const FORMAS_PAGAMENTO = [
+  { value: "debito", label: "Débito" },
+  { value: "pix", label: "Pix" },
+  { value: "dinheiro", label: "Dinheiro" },
+  { value: "transferencia", label: "Transferência Bancária" },
+  { value: "boleto", label: "Boleto" },
+];
 
 const ImportarOFXModal = ({ open, onOpenChange, contaId, contaNome }: ImportarOFXModalProps) => {
   const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [transacoes, setTransacoes] = useState<TransacaoRevisao[]>([]);
+  const [transactions, setTransactions] = useState<OFXTransaction[]>([]);
+  const [rowStates, setRowStates] = useState<RowStates>({});
   const [categorias, setCategorias] = useState<Categoria[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [contas, setContas] = useState<Conta[]>([]);
   const [fileLoaded, setFileLoaded] = useState(false);
 
   useEffect(() => {
     if (open) {
       fetchCategorias();
+      fetchContas();
     }
   }, [open]);
 
@@ -53,6 +76,27 @@ const ImportarOFXModal = ({ open, onOpenChange, contaId, contaNome }: ImportarOF
       .select("*")
       .order("nome");
     if (data) setCategorias(data);
+  };
+
+  const fetchContas = async () => {
+    const { data } = await supabase
+      .from("contas")
+      .select("id, nome_conta, tipo, cor")
+      .neq("id", contaId)
+      .order("nome_conta");
+    if (data) setContas(data);
+  };
+
+  const initializeRowState = (transaction: OFXTransaction): RowState => {
+    const defaultType = transaction.amount < 0 ? "despesa" : "receita";
+    return {
+      categoryId: null,
+      description: transaction.description,
+      paymentMethod: "debito",
+      transactionType: defaultType,
+      targetAccountId: null,
+      isConfirming: false,
+    };
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -82,14 +126,15 @@ const ImportarOFXModal = ({ open, onOpenChange, contaId, contaNome }: ImportarOF
         return;
       }
 
-      setTransacoes(
-        parsed.map((t) => ({
-          ...t,
-          categoriaId: null,
-          descricaoEditada: t.description,
-          confirmando: false,
-        }))
-      );
+      setTransactions(parsed);
+      
+      // Initialize row states for each transaction
+      const initialStates: RowStates = {};
+      parsed.forEach((t) => {
+        initialStates[t.fitid] = initializeRowState(t);
+      });
+      setRowStates(initialStates);
+      
       setFileLoaded(true);
       toast({
         title: "Ficheiro carregado",
@@ -108,16 +153,28 @@ const ImportarOFXModal = ({ open, onOpenChange, contaId, contaNome }: ImportarOF
     reader.readAsText(file, 'ISO-8859-1');
   };
 
-  const updateTransacao = (fitid: string, field: 'categoriaId' | 'descricaoEditada', value: string | null) => {
-    setTransacoes((prev) =>
-      prev.map((t) =>
-        t.fitid === fitid ? { ...t, [field]: value } : t
-      )
-    );
+  const updateRowState = <K extends keyof RowState>(
+    fitid: string,
+    field: K,
+    value: RowState[K]
+  ) => {
+    setRowStates((prev) => ({
+      ...prev,
+      [fitid]: {
+        ...prev[fitid],
+        [field]: value,
+      },
+    }));
   };
 
-  const handleConfirmar = async (transacao: TransacaoRevisao) => {
-    if (!transacao.categoriaId) {
+  const handleConfirmar = async (transaction: OFXTransaction) => {
+    const state = rowStates[transaction.fitid];
+    if (!state) return;
+
+    const isTransfer = state.transactionType === "transferencia";
+
+    // Validation
+    if (!isTransfer && !state.categoryId) {
       toast({
         title: "Categoria obrigatória",
         description: "Selecione uma categoria antes de confirmar.",
@@ -126,26 +183,59 @@ const ImportarOFXModal = ({ open, onOpenChange, contaId, contaNome }: ImportarOF
       return;
     }
 
-    setTransacoes((prev) =>
-      prev.map((t) =>
-        t.fitid === transacao.fitid ? { ...t, confirmando: true } : t
-      )
-    );
+    if (isTransfer && !state.targetAccountId) {
+      toast({
+        title: "Conta obrigatória",
+        description: "Selecione a conta de destino/origem para a transferência.",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    const tipo = transacao.amount < 0 ? "despesa" : "receita";
-    const valor = Math.abs(transacao.amount);
+    // Set loading state for this row
+    updateRowState(transaction.fitid, "isConfirming", true);
 
-    const { error } = await supabase.from("transacoes").insert({
-      user_id: user?.id as string,
-      conta_id: contaId,
-      categoria_id: transacao.categoriaId,
-      valor,
-      tipo,
-      data: format(transacao.date, "yyyy-MM-dd"),
-      descricao: transacao.descricaoEditada || transacao.description,
-      forma_pagamento: "debito",
-      is_pago_executado: true,
-    });
+    const valor = Math.abs(transaction.amount);
+    const dataTransacao = format(transaction.date, "yyyy-MM-dd");
+
+    let payload: TablesInsert<"transacoes">;
+
+    if (isTransfer) {
+      // Transfer logic based on amount sign
+      const isOutflow = transaction.amount < 0;
+      
+      payload = {
+        user_id: user?.id as string,
+        // If negative (outflow): current account is origin, selected is destination
+        // If positive (inflow): selected account is origin, current is destination
+        conta_id: isOutflow ? contaId : (state.targetAccountId as string),
+        conta_destino_id: isOutflow ? state.targetAccountId : contaId,
+        categoria_id: null,
+        valor,
+        tipo: "transferencia",
+        data: dataTransacao,
+        descricao: state.description || transaction.description,
+        forma_pagamento: state.paymentMethod,
+        is_pago_executado: true,
+        data_execucao_pagamento: dataTransacao,
+      };
+    } else {
+      // Regular income/expense
+      payload = {
+        user_id: user?.id as string,
+        conta_id: contaId,
+        categoria_id: state.categoryId,
+        valor,
+        tipo: state.transactionType,
+        data: dataTransacao,
+        descricao: state.description || transaction.description,
+        forma_pagamento: state.paymentMethod,
+        is_pago_executado: true,
+        data_execucao_pagamento: dataTransacao,
+      };
+    }
+
+    const { error } = await supabase.from("transacoes").insert(payload);
 
     if (error) {
       toast({
@@ -153,19 +243,21 @@ const ImportarOFXModal = ({ open, onOpenChange, contaId, contaNome }: ImportarOF
         description: "Não foi possível salvar a transação.",
         variant: "destructive",
       });
-      setTransacoes((prev) =>
-        prev.map((t) =>
-          t.fitid === transacao.fitid ? { ...t, confirmando: false } : t
-        )
-      );
+      updateRowState(transaction.fitid, "isConfirming", false);
       return;
     }
 
-    // Remove from list
-    setTransacoes((prev) => prev.filter((t) => t.fitid !== transacao.fitid));
+    // Remove from lists immediately on success
+    setTransactions((prev) => prev.filter((t) => t.fitid !== transaction.fitid));
+    setRowStates((prev) => {
+      const newStates = { ...prev };
+      delete newStates[transaction.fitid];
+      return newStates;
+    });
+
     toast({
       title: "Transação salva",
-      description: `${transacao.descricaoEditada} foi registrada com sucesso.`,
+      description: `${state.description || transaction.description} foi registrada com sucesso.`,
     });
   };
 
@@ -177,7 +269,8 @@ const ImportarOFXModal = ({ open, onOpenChange, contaId, contaNome }: ImportarOF
   };
 
   const handleClose = () => {
-    setTransacoes([]);
+    setTransactions([]);
+    setRowStates({});
     setFileLoaded(false);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -198,7 +291,7 @@ const ImportarOFXModal = ({ open, onOpenChange, contaId, contaNome }: ImportarOF
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh]">
+      <DialogContent className="max-w-6xl max-h-[90vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
@@ -238,7 +331,7 @@ const ImportarOFXModal = ({ open, onOpenChange, contaId, contaNome }: ImportarOF
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <p className="text-sm text-muted-foreground">
-                {transacoes.length} transação(ões) pendente(s)
+                {transactions.length} transação(ões) pendente(s)
               </p>
               <Button variant="outline" size="sm" onClick={handleClose}>
                 <X className="h-4 w-4 mr-2" />
@@ -246,7 +339,7 @@ const ImportarOFXModal = ({ open, onOpenChange, contaId, contaNome }: ImportarOF
               </Button>
             </div>
 
-            {transacoes.length === 0 ? (
+            {transactions.length === 0 ? (
               <div className="text-center py-8">
                 <Check className="h-12 w-12 text-green-500 mx-auto mb-4" />
                 <h3 className="font-semibold text-foreground">
@@ -265,78 +358,149 @@ const ImportarOFXModal = ({ open, onOpenChange, contaId, contaNome }: ImportarOF
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[100px]">Data</TableHead>
-                      <TableHead>Descrição</TableHead>
-                      <TableHead className="w-[120px] text-right">Valor</TableHead>
-                      <TableHead className="w-[200px]">Categoria</TableHead>
-                      <TableHead className="w-[80px]"></TableHead>
+                      <TableHead className="w-[90px]">Data</TableHead>
+                      <TableHead className="min-w-[150px]">Descrição</TableHead>
+                      <TableHead className="w-[100px] text-right">Valor</TableHead>
+                      <TableHead className="w-[130px]">Tipo</TableHead>
+                      <TableHead className="w-[130px]">Pagamento</TableHead>
+                      <TableHead className="w-[180px]">Categoria / Conta</TableHead>
+                      <TableHead className="w-[60px]"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {transacoes.map((transacao) => (
-                      <TableRow key={transacao.fitid}>
-                        <TableCell className="text-sm">
-                          {format(transacao.date, "dd/MM/yyyy", { locale: ptBR })}
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            value={transacao.descricaoEditada}
-                            onChange={(e) =>
-                              updateTransacao(transacao.fitid, "descricaoEditada", e.target.value)
-                            }
-                            className="h-8 text-sm"
-                          />
-                        </TableCell>
-                        <TableCell className={`text-right font-medium ${transacao.amount < 0 ? "text-red-500" : "text-green-500"}`}>
-                          {transacao.amount < 0 ? "-" : "+"} {formatCurrency(transacao.amount)}
-                        </TableCell>
-                        <TableCell>
-                          <Select
-                            value={transacao.categoriaId || ""}
-                            onValueChange={(value) =>
-                              updateTransacao(transacao.fitid, "categoriaId", value)
-                            }
-                          >
-                            <SelectTrigger className="h-8 text-sm">
-                              <SelectValue placeholder="Selecione..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {categoriasAgrupadas().map((pai) => (
-                                <div key={pai.id}>
-                                  <SelectItem value={pai.id} className="font-medium">
-                                    {pai.nome}
+                    {transactions.map((transaction) => {
+                      const state = rowStates[transaction.fitid];
+                      if (!state) return null;
+
+                      const isTransfer = state.transactionType === "transferencia";
+
+                      return (
+                        <TableRow key={transaction.fitid}>
+                          <TableCell className="text-sm">
+                            {format(transaction.date, "dd/MM/yy", { locale: ptBR })}
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              value={state.description}
+                              onChange={(e) =>
+                                updateRowState(transaction.fitid, "description", e.target.value)
+                              }
+                              className="h-8 text-sm"
+                            />
+                          </TableCell>
+                          <TableCell className={`text-right font-medium ${transaction.amount < 0 ? "text-red-500" : "text-green-500"}`}>
+                            {transaction.amount < 0 ? "-" : "+"} {formatCurrency(transaction.amount)}
+                          </TableCell>
+                          <TableCell>
+                            <Select
+                              value={state.transactionType}
+                              onValueChange={(value: "receita" | "despesa" | "transferencia") =>
+                                updateRowState(transaction.fitid, "transactionType", value)
+                              }
+                            >
+                              <SelectTrigger className="h-8 text-sm">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="receita">Receita</SelectItem>
+                                <SelectItem value="despesa">Despesa</SelectItem>
+                                <SelectItem value="transferencia">Transferência</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell>
+                            <Select
+                              value={state.paymentMethod}
+                              onValueChange={(value) =>
+                                updateRowState(transaction.fitid, "paymentMethod", value)
+                              }
+                            >
+                              <SelectTrigger className="h-8 text-sm">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {FORMAS_PAGAMENTO.map((fp) => (
+                                  <SelectItem key={fp.value} value={fp.value}>
+                                    {fp.label}
                                   </SelectItem>
-                                  {pai.filhas.map((filha) => (
-                                    <SelectItem
-                                      key={filha.id}
-                                      value={filha.id}
-                                      className="pl-6"
-                                    >
-                                      └ {filha.nome}
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell>
+                            {isTransfer ? (
+                              <Select
+                                value={state.targetAccountId || ""}
+                                onValueChange={(value) =>
+                                  updateRowState(transaction.fitid, "targetAccountId", value)
+                                }
+                              >
+                                <SelectTrigger className="h-8 text-sm">
+                                  <SelectValue placeholder={transaction.amount < 0 ? "Destino..." : "Origem..."} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {contas.map((conta) => (
+                                    <SelectItem key={conta.id} value={conta.id}>
+                                      <span className="flex items-center gap-2">
+                                        <span
+                                          className="w-2 h-2 rounded-full"
+                                          style={{ backgroundColor: conta.cor }}
+                                        />
+                                        {conta.nome_conta}
+                                      </span>
                                     </SelectItem>
                                   ))}
-                                </div>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50"
-                            onClick={() => handleConfirmar(transacao)}
-                            disabled={transacao.confirmando}
-                          >
-                            {transacao.confirmando ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
+                                </SelectContent>
+                              </Select>
                             ) : (
-                              <Check className="h-4 w-4" />
+                              <Select
+                                value={state.categoryId || ""}
+                                onValueChange={(value) =>
+                                  updateRowState(transaction.fitid, "categoryId", value)
+                                }
+                              >
+                                <SelectTrigger className="h-8 text-sm">
+                                  <SelectValue placeholder="Selecione..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {categoriasAgrupadas().map((pai) => (
+                                    <div key={pai.id}>
+                                      <SelectItem value={pai.id} className="font-medium">
+                                        {pai.nome}
+                                      </SelectItem>
+                                      {pai.filhas.map((filha) => (
+                                        <SelectItem
+                                          key={filha.id}
+                                          value={filha.id}
+                                          className="pl-6"
+                                        >
+                                          └ {filha.nome}
+                                        </SelectItem>
+                                      ))}
+                                    </div>
+                                  ))}
+                                </SelectContent>
+                              </Select>
                             )}
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-950"
+                              onClick={() => handleConfirmar(transaction)}
+                              disabled={state.isConfirming}
+                            >
+                              {state.isConfirming ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Check className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </ScrollArea>
