@@ -54,8 +54,5 @@ export function parseOFX(content: string): OFXTransaction[] {
     }
   }
   
-  // Sort by date (most recent first)
-  transactions.sort((a, b) => b.date.getTime() - a.date.getTime());
-  
   return transactions;
 }

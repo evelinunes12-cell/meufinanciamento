@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import type { TablesInsert } from "@/integrations/supabase/types";
 import { parseOFX, OFXTransaction } from "@/lib/ofxParser";
-import { Upload, Check, FileText, X, Loader2 } from "lucide-react";
+import { Upload, Check, FileText, X } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -41,7 +41,6 @@ interface RowState {
   paymentMethod: string;
   transactionType: "receita" | "despesa" | "transferencia";
   targetAccountId: string | null;
-  isConfirming: boolean;
 }
 
 type RowStates = Record<string, RowState>;
@@ -95,7 +94,6 @@ const ImportarOFXModal = ({ open, onOpenChange, contaId, contaNome }: ImportarOF
       paymentMethod: "debito",
       transactionType: defaultType,
       targetAccountId: null,
-      isConfirming: false,
     };
   };
 
@@ -192,8 +190,16 @@ const ImportarOFXModal = ({ open, onOpenChange, contaId, contaNome }: ImportarOF
       return;
     }
 
-    // Set loading state for this row
-    updateRowState(transaction.fitid, "isConfirming", true);
+    const fitid = transaction.fitid;
+    const descricao = state.description || transaction.description;
+
+    // Optimistic update - remove from UI immediately
+    setTransactions((prev) => prev.filter((t) => t.fitid !== fitid));
+    setRowStates((prev) => {
+      const newStates = { ...prev };
+      delete newStates[fitid];
+      return newStates;
+    });
 
     const valor = Math.abs(transaction.amount);
     const dataTransacao = format(transaction.date, "yyyy-MM-dd");
@@ -201,26 +207,22 @@ const ImportarOFXModal = ({ open, onOpenChange, contaId, contaNome }: ImportarOF
     let payload: TablesInsert<"transacoes">;
 
     if (isTransfer) {
-      // Transfer logic based on amount sign
       const isOutflow = transaction.amount < 0;
       
       payload = {
         user_id: user?.id as string,
-        // If negative (outflow): current account is origin, selected is destination
-        // If positive (inflow): selected account is origin, current is destination
         conta_id: isOutflow ? contaId : (state.targetAccountId as string),
         conta_destino_id: isOutflow ? state.targetAccountId : contaId,
         categoria_id: null,
         valor,
         tipo: "transferencia",
         data: dataTransacao,
-        descricao: state.description || transaction.description,
+        descricao,
         forma_pagamento: state.paymentMethod,
         is_pago_executado: true,
         data_execucao_pagamento: dataTransacao,
       };
     } else {
-      // Regular income/expense
       payload = {
         user_id: user?.id as string,
         conta_id: contaId,
@@ -228,36 +230,27 @@ const ImportarOFXModal = ({ open, onOpenChange, contaId, contaNome }: ImportarOF
         valor,
         tipo: state.transactionType,
         data: dataTransacao,
-        descricao: state.description || transaction.description,
+        descricao,
         forma_pagamento: state.paymentMethod,
         is_pago_executado: true,
         data_execucao_pagamento: dataTransacao,
       };
     }
 
-    const { error } = await supabase.from("transacoes").insert(payload);
-
-    if (error) {
-      toast({
-        title: "Erro ao salvar",
-        description: "Não foi possível salvar a transação.",
-        variant: "destructive",
-      });
-      updateRowState(transaction.fitid, "isConfirming", false);
-      return;
-    }
-
-    // Remove from lists immediately on success
-    setTransactions((prev) => prev.filter((t) => t.fitid !== transaction.fitid));
-    setRowStates((prev) => {
-      const newStates = { ...prev };
-      delete newStates[transaction.fitid];
-      return newStates;
-    });
-
-    toast({
-      title: "Transação salva",
-      description: `${state.description || transaction.description} foi registrada com sucesso.`,
+    // Fire and forget with error handling
+    supabase.from("transacoes").insert(payload).then(({ error }) => {
+      if (error) {
+        toast({
+          title: "Erro ao salvar",
+          description: `Falha ao salvar "${descricao}". Tente novamente.`,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Transação salva",
+          description: `${descricao} foi registrada.`,
+        });
+      }
     });
   };
 
@@ -489,13 +482,8 @@ const ImportarOFXModal = ({ open, onOpenChange, contaId, contaNome }: ImportarOF
                               variant="ghost"
                               className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-950"
                               onClick={() => handleConfirmar(transaction)}
-                              disabled={state.isConfirming}
                             >
-                              {state.isConfirming ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <Check className="h-4 w-4" />
-                              )}
+                              <Check className="h-4 w-4" />
                             </Button>
                           </TableCell>
                         </TableRow>
