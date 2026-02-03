@@ -12,6 +12,8 @@ export const transacaoSchema = z.object({
   forma_pagamento: z.enum(['pix', 'debito', 'credito', 'dinheiro', 'transferencia', 'outro'], { message: "Forma de pagamento inválida" }),
   recorrencia: z.enum(['nenhuma', 'semanal', 'mensal', 'anual', 'fixa'], { message: "Recorrência inválida" }),
   descricao: z.string().max(500, { message: "Descrição muito longa" }).nullable().optional(),
+  // External ID for duplicate prevention (OFX FITID)
+  external_id: z.string().max(255, { message: "ID externo muito longo" }).nullable().optional(),
   // New fields for advanced management
   parcelas_total: z.number({ invalid_type_error: "Número de parcelas deve ser um número" })
     .int({ message: "Número de parcelas deve ser inteiro" })

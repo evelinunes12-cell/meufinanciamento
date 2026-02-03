@@ -5,12 +5,14 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useCategoryLearning } from "@/hooks/useCategoryLearning";
 import type { TablesInsert } from "@/integrations/supabase/types";
 import { parseOFX, OFXTransaction } from "@/lib/ofxParser";
-import { Upload, Check, FileText, X } from "lucide-react";
+import { Upload, Check, FileText, X, Trash2, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -41,6 +43,8 @@ interface RowState {
   paymentMethod: string;
   transactionType: "receita" | "despesa" | "transferencia";
   targetAccountId: string | null;
+  isDuplicate: boolean;
+  autoSuggested: boolean;
 }
 
 type RowStates = Record<string, RowState>;
@@ -61,13 +65,17 @@ const ImportarOFXModal = ({ open, onOpenChange, contaId, contaNome }: ImportarOF
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [contas, setContas] = useState<Conta[]>([]);
   const [fileLoaded, setFileLoaded] = useState(false);
+  const [existingExternalIds, setExistingExternalIds] = useState<Set<string>>(new Set());
+  
+  const { learnCategory, suggestCategory } = useCategoryLearning();
 
   useEffect(() => {
     if (open) {
       fetchCategorias();
       fetchContas();
+      fetchExistingExternalIds();
     }
-  }, [open]);
+  }, [open, contaId]);
 
   const fetchCategorias = async () => {
     const { data } = await supabase
@@ -86,18 +94,39 @@ const ImportarOFXModal = ({ open, onOpenChange, contaId, contaNome }: ImportarOF
     if (data) setContas(data);
   };
 
-  const initializeRowState = (transaction: OFXTransaction): RowState => {
+  const fetchExistingExternalIds = async () => {
+    // Fetch existing external_ids for this account to detect duplicates
+    const { data } = await supabase
+      .from("transacoes")
+      .select("external_id")
+      .eq("conta_id", contaId)
+      .not("external_id", "is", null);
+    
+    if (data) {
+      const ids = new Set(data.map(t => t.external_id).filter(Boolean) as string[]);
+      setExistingExternalIds(ids);
+    }
+  };
+
+  const initializeRowState = (transaction: OFXTransaction, existingIds: Set<string>): RowState => {
     const defaultType = transaction.amount < 0 ? "despesa" : "receita";
+    const isDuplicate = existingIds.has(transaction.fitid);
+    
+    // Try to auto-suggest category based on learned patterns
+    const suggestedCategoryId = suggestCategory(transaction.description);
+    
     return {
-      categoryId: null,
+      categoryId: suggestedCategoryId,
       description: transaction.description,
       paymentMethod: "debito",
       transactionType: defaultType,
       targetAccountId: null,
+      isDuplicate,
+      autoSuggested: !!suggestedCategoryId,
     };
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -111,7 +140,7 @@ const ImportarOFXModal = ({ open, onOpenChange, contaId, contaNome }: ImportarOF
     }
 
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       const content = event.target?.result as string;
       const parsed = parseOFX(content);
 
@@ -124,19 +153,46 @@ const ImportarOFXModal = ({ open, onOpenChange, contaId, contaNome }: ImportarOF
         return;
       }
 
+      // Refresh existing IDs before processing
+      const { data: existingData } = await supabase
+        .from("transacoes")
+        .select("external_id")
+        .eq("conta_id", contaId)
+        .not("external_id", "is", null);
+      
+      const existingIds = new Set(
+        (existingData || []).map(t => t.external_id).filter(Boolean) as string[]
+      );
+      setExistingExternalIds(existingIds);
+
       setTransactions(parsed);
       
       // Initialize row states for each transaction
       const initialStates: RowStates = {};
+      let duplicateCount = 0;
+      let autoSuggestedCount = 0;
+      
       parsed.forEach((t) => {
-        initialStates[t.fitid] = initializeRowState(t);
+        const state = initializeRowState(t, existingIds);
+        initialStates[t.fitid] = state;
+        if (state.isDuplicate) duplicateCount++;
+        if (state.autoSuggested) autoSuggestedCount++;
       });
       setRowStates(initialStates);
       
       setFileLoaded(true);
+      
+      let message = `${parsed.length} transações encontradas.`;
+      if (duplicateCount > 0) {
+        message += ` ${duplicateCount} já importada(s).`;
+      }
+      if (autoSuggestedCount > 0) {
+        message += ` ${autoSuggestedCount} com categoria sugerida.`;
+      }
+      
       toast({
         title: "Ficheiro carregado",
-        description: `${parsed.length} transações encontradas.`,
+        description: message,
       });
     };
 
@@ -161,8 +217,20 @@ const ImportarOFXModal = ({ open, onOpenChange, contaId, contaNome }: ImportarOF
       [fitid]: {
         ...prev[fitid],
         [field]: value,
+        // Clear auto-suggested flag if user manually changes category
+        ...(field === 'categoryId' ? { autoSuggested: false } : {}),
       },
     }));
+  };
+
+  const handleIgnorar = (fitid: string) => {
+    // Remove transaction from list without saving
+    setTransactions((prev) => prev.filter((t) => t.fitid !== fitid));
+    setRowStates((prev) => {
+      const newStates = { ...prev };
+      delete newStates[fitid];
+      return newStates;
+    });
   };
 
   const handleConfirmar = async (transaction: OFXTransaction) => {
@@ -193,6 +261,11 @@ const ImportarOFXModal = ({ open, onOpenChange, contaId, contaNome }: ImportarOF
     const fitid = transaction.fitid;
     const descricao = state.description || transaction.description;
 
+    // Learn category association for future suggestions
+    if (!isTransfer && state.categoryId) {
+      learnCategory(descricao, state.categoryId);
+    }
+
     // Optimistic update - remove from UI immediately
     setTransactions((prev) => prev.filter((t) => t.fitid !== fitid));
     setRowStates((prev) => {
@@ -221,6 +294,7 @@ const ImportarOFXModal = ({ open, onOpenChange, contaId, contaNome }: ImportarOF
         forma_pagamento: state.paymentMethod,
         is_pago_executado: true,
         data_execucao_pagamento: dataTransacao,
+        external_id: fitid,
       };
     } else {
       payload = {
@@ -234,12 +308,14 @@ const ImportarOFXModal = ({ open, onOpenChange, contaId, contaNome }: ImportarOF
         forma_pagamento: state.paymentMethod,
         is_pago_executado: true,
         data_execucao_pagamento: dataTransacao,
+        external_id: fitid,
       };
     }
 
     // Fire and forget with error handling
     supabase.from("transacoes").insert(payload).then(({ error }) => {
       if (error) {
+        console.error('Insert error:', error);
         toast({
           title: "Erro ao salvar",
           description: `Falha ao salvar "${descricao}". Tente novamente.`,
@@ -265,6 +341,7 @@ const ImportarOFXModal = ({ open, onOpenChange, contaId, contaNome }: ImportarOF
     setTransactions([]);
     setRowStates({});
     setFileLoaded(false);
+    setExistingExternalIds(new Set());
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -281,6 +358,10 @@ const ImportarOFXModal = ({ open, onOpenChange, contaId, contaNome }: ImportarOF
       filhas: filhas.filter((f) => f.categoria_pai_id === pai.id),
     }));
   };
+
+  // Count duplicates and pending
+  const duplicateCount = Object.values(rowStates).filter(s => s.isDuplicate).length;
+  const pendingCount = transactions.length - duplicateCount;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -323,9 +404,13 @@ const ImportarOFXModal = ({ open, onOpenChange, contaId, contaNome }: ImportarOF
         ) : (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">
-                {transactions.length} transação(ões) pendente(s)
-              </p>
+              <div className="flex items-center gap-3">
+                <p className="text-sm text-muted-foreground">
+                  {pendingCount} nova(s) • {duplicateCount > 0 && (
+                    <span className="text-amber-600">{duplicateCount} duplicada(s)</span>
+                  )}
+                </p>
+              </div>
               <Button variant="outline" size="sm" onClick={handleClose}>
                 <X className="h-4 w-4 mr-2" />
                 Cancelar
@@ -334,9 +419,9 @@ const ImportarOFXModal = ({ open, onOpenChange, contaId, contaNome }: ImportarOF
 
             {transactions.length === 0 ? (
               <div className="text-center py-8">
-                <Check className="h-12 w-12 text-green-500 mx-auto mb-4" />
+                <Check className="h-12 w-12 text-success mx-auto mb-4" />
                 <h3 className="font-semibold text-foreground">
-                  Todas as transações foram importadas!
+                  Todas as transações foram processadas!
                 </h3>
                 <Button
                   variant="outline"
@@ -357,7 +442,7 @@ const ImportarOFXModal = ({ open, onOpenChange, contaId, contaNome }: ImportarOF
                       <TableHead className="w-[130px]">Tipo</TableHead>
                       <TableHead className="w-[130px]">Pagamento</TableHead>
                       <TableHead className="w-[180px]">Categoria / Conta</TableHead>
-                      <TableHead className="w-[60px]"></TableHead>
+                      <TableHead className="w-[90px]"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -366,23 +451,42 @@ const ImportarOFXModal = ({ open, onOpenChange, contaId, contaNome }: ImportarOF
                       if (!state) return null;
 
                       const isTransfer = state.transactionType === "transferencia";
+                      const isNegative = transaction.amount < 0;
 
                       return (
-                        <TableRow key={transaction.fitid}>
+                        <TableRow 
+                          key={transaction.fitid}
+                          className={state.isDuplicate ? "opacity-50 bg-amber-50 dark:bg-amber-950/20" : ""}
+                        >
                           <TableCell className="text-sm">
-                            {format(transaction.date, "dd/MM/yy", { locale: ptBR })}
+                            <div className="flex flex-col gap-1">
+                              {format(transaction.date, "dd/MM/yy", { locale: ptBR })}
+                              {state.isDuplicate && (
+                                <Badge variant="outline" className="text-xs text-amber-600 border-amber-300 w-fit">
+                                  <AlertCircle className="h-3 w-3 mr-1" />
+                                  Duplicada
+                                </Badge>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell>
-                            <Input
-                              value={state.description}
-                              onChange={(e) =>
-                                updateRowState(transaction.fitid, "description", e.target.value)
-                              }
-                              className="h-8 text-sm"
-                            />
+                            <div className="space-y-1">
+                              <Input
+                                value={state.description}
+                                onChange={(e) =>
+                                  updateRowState(transaction.fitid, "description", e.target.value)
+                                }
+                                className="h-8 text-sm"
+                              />
+                              {state.autoSuggested && (
+                                <Badge variant="secondary" className="text-xs">
+                                  ✨ Sugerida
+                                </Badge>
+                              )}
+                            </div>
                           </TableCell>
-                          <TableCell className={`text-right font-medium ${transaction.amount < 0 ? "text-red-500" : "text-green-500"}`}>
-                            {transaction.amount < 0 ? "-" : "+"} {formatCurrency(transaction.amount)}
+                          <TableCell className={`text-right font-semibold ${isNegative ? "text-destructive" : "text-success"}`}>
+                            {isNegative ? "-" : "+"} {formatCurrency(transaction.amount)}
                           </TableCell>
                           <TableCell>
                             <Select
@@ -477,14 +581,26 @@ const ImportarOFXModal = ({ open, onOpenChange, contaId, contaNome }: ImportarOF
                             )}
                           </TableCell>
                           <TableCell>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-950"
-                              onClick={() => handleConfirmar(transaction)}
-                            >
-                              <Check className="h-4 w-4" />
-                            </Button>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8 text-success hover:text-success hover:bg-success/10"
+                                onClick={() => handleConfirmar(transaction)}
+                                title="Confirmar transação"
+                              >
+                                <Check className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                onClick={() => handleIgnorar(transaction.fitid)}
+                                title="Ignorar transação"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       );
