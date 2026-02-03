@@ -295,6 +295,7 @@ export type Database = {
           data: string
           data_execucao_pagamento: string | null
           descricao: string | null
+          external_id: string | null
           forma_pagamento: string
           id: string
           is_pago_executado: boolean | null
@@ -315,6 +316,7 @@ export type Database = {
           data: string
           data_execucao_pagamento?: string | null
           descricao?: string | null
+          external_id?: string | null
           forma_pagamento: string
           id?: string
           is_pago_executado?: boolean | null
@@ -335,6 +337,7 @@ export type Database = {
           data?: string
           data_execucao_pagamento?: string | null
           descricao?: string | null
+          external_id?: string | null
           forma_pagamento?: string
           id?: string
           is_pago_executado?: boolean | null
