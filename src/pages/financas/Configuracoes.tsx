@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { useTheme } from "next-themes";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ExportSettingsButton } from "@/components/dashboard/ExportSettingsButton";
-import { User, Shield, Palette, Database, LogOut, Mail, Sun, Moon, Monitor } from "lucide-react";
+import LimparDadosModal from "@/components/LimparDadosModal";
+import { User, Shield, Palette, Database, LogOut, Mail, Sun, Moon, Monitor, Trash2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 const Configuracoes = () => {
@@ -16,6 +17,7 @@ const Configuracoes = () => {
   const { theme, setTheme } = useTheme();
   const [isResettingPassword, setIsResettingPassword] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [showLimparDados, setShowLimparDados] = useState(false);
 
   const handleResetPassword = async () => {
     if (!user?.email) {
@@ -193,6 +195,33 @@ const Configuracoes = () => {
               </div>
             </CardContent>
           </Card>
+
+          {/* Limpar Dados */}
+          <Card className="shadow-card border-destructive/20">
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-2">
+                <Trash2 className="h-5 w-5 text-destructive" />
+                <CardTitle className="text-lg">Limpar Dados</CardTitle>
+              </div>
+              <CardDescription>Remova transações e registros financeiros</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">Limpeza de Finanças</Label>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Apague transações, faturas e orçamentos. Não afeta o módulo de Financiamento.
+                </p>
+                <Button
+                  variant="outline"
+                  className="border-destructive/30 text-destructive hover:bg-destructive/10"
+                  onClick={() => setShowLimparDados(true)}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Limpar Dados
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Conta - Full Width */}
@@ -223,6 +252,12 @@ const Configuracoes = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Modal de Limpeza */}
+        <LimparDadosModal 
+          open={showLimparDados} 
+          onOpenChange={setShowLimparDados} 
+        />
       </div>
     </AppLayout>
   );
