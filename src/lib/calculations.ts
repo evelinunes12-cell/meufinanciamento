@@ -134,3 +134,76 @@ export function formatCurrencyInput(value: string): string {
     maximumFractionDigits: 2,
   });
 }
+
+/**
+ * Calcula a data de vencimento da fatura do cartão de crédito
+ * baseado na data da compra, dia de fechamento e dia de vencimento
+ * 
+ * Lógica:
+ * - Se o dia da compra >= dia de fechamento: vencimento no mês seguinte
+ * - Se o dia da compra < dia de fechamento: vencimento no mês atual
+ * - Trata corretamente a virada de ano (Dezembro -> Janeiro)
+ */
+export function calculateCardDueDate(
+  purchaseDate: Date,
+  closingDay: number,
+  dueDay: number
+): Date {
+  const purchaseDay = purchaseDate.getDate();
+  const purchaseMonth = purchaseDate.getMonth();
+  const purchaseYear = purchaseDate.getFullYear();
+
+  let dueMonth: number;
+  let dueYear: number;
+
+  if (purchaseDay >= closingDay) {
+    // Compra após o fechamento: vencimento no mês seguinte
+    dueMonth = purchaseMonth + 1;
+    dueYear = purchaseYear;
+
+    // Tratar virada de ano
+    if (dueMonth > 11) {
+      dueMonth = 0; // Janeiro
+      dueYear = purchaseYear + 1;
+    }
+  } else {
+    // Compra antes do fechamento: vencimento no mês atual
+    dueMonth = purchaseMonth;
+    dueYear = purchaseYear;
+  }
+
+  // Criar a data de vencimento
+  // Se o dia de vencimento for maior que o último dia do mês, usar o último dia
+  const lastDayOfMonth = new Date(dueYear, dueMonth + 1, 0).getDate();
+  const actualDueDay = Math.min(dueDay, lastDayOfMonth);
+
+  return new Date(dueYear, dueMonth, actualDueDay);
+}
+
+/**
+ * Calcula a data de vencimento para parcelas subsequentes
+ * Adiciona N meses à data base mantendo o dia fixo do vencimento
+ */
+export function calculateInstallmentDueDate(
+  baseDueDate: Date,
+  installmentIndex: number,
+  dueDay: number
+): Date {
+  const baseMonth = baseDueDate.getMonth();
+  const baseYear = baseDueDate.getFullYear();
+
+  let targetMonth = baseMonth + installmentIndex;
+  let targetYear = baseYear;
+
+  // Ajustar anos conforme necessário
+  while (targetMonth > 11) {
+    targetMonth -= 12;
+    targetYear += 1;
+  }
+
+  // Verificar se o dia cabe no mês alvo
+  const lastDayOfMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
+  const actualDueDay = Math.min(dueDay, lastDayOfMonth);
+
+  return new Date(targetYear, targetMonth, actualDueDay);
+}
