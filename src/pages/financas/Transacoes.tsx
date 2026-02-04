@@ -28,6 +28,7 @@ interface Transacao {
   valor: number;
   tipo: string;
   data: string;
+  data_pagamento: string | null;
   forma_pagamento: string;
   recorrencia: string;
   descricao: string | null;
@@ -914,6 +915,7 @@ const Transacoes = () => {
                 <TableRow>
                   <TableHead className="w-12">#</TableHead>
                   <TableHead>Data</TableHead>
+                  <TableHead>Vencimento</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead>Descrição</TableHead>
                   <TableHead>Categoria</TableHead>
@@ -932,6 +934,9 @@ const Transacoes = () => {
                       {startIndex + index + 1}
                     </TableCell>
                     <TableCell>{formatDate(transacao.data)}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {transacao.data_pagamento ? formatDate(transacao.data_pagamento) : "-"}
+                    </TableCell>
                     <TableCell>
                       {transacao.forma_pagamento === 'transferencia' ? (
                         <Badge className="bg-primary/10 text-primary hover:bg-primary/20">
@@ -1009,7 +1014,7 @@ const Transacoes = () => {
                 ))}
                 {transacoes.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={11} className="text-center py-16">
+                    <TableCell colSpan={12} className="text-center py-16">
                       <div className="flex flex-col items-center gap-4">
                         <div className="p-4 rounded-full bg-muted">
                           <ArrowRightLeft className="h-10 w-10 text-muted-foreground" />
