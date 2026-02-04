@@ -118,9 +118,28 @@ const PagarFaturaModal = ({
       const { error: errorEntrada } = await supabase.from("transacoes").insert(transacaoEntrada);
       if (errorEntrada) throw errorEntrada;
 
+      // IMPORTANT: Mark all unpaid credit card transactions as paid
+      // This settles all purchases in the current invoice
+      const { error: updateError, data: updatedTransactions } = await supabase
+        .from("transacoes")
+        .update({
+          is_pago_executado: true,
+          data_execucao_pagamento: dataHoje,
+        })
+        .eq("conta_id", cartaoId)
+        .eq("is_pago_executado", false)
+        .lte("data_pagamento", dataHoje)
+        .select("id");
+
+      if (updateError) {
+        console.warn("Warning: Could not update transaction status:", updateError);
+      }
+
+      const transacoesQuitadas = updatedTransactions?.length || 0;
+      
       toast({
         title: "Sucesso",
-        description: `Fatura de ${formatCurrency(valorFatura)} paga com sucesso`,
+        description: `Fatura de ${formatCurrency(valorFatura)} paga com sucesso${transacoesQuitadas > 0 ? ` (${transacoesQuitadas} transações quitadas)` : ""}`,
       });
 
       queryClient.invalidateQueries({ queryKey: ["transacoes"] });

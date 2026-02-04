@@ -16,7 +16,7 @@ import { Plus, Trash2, Edit, TrendingUp, TrendingDown, ChevronLeft, ChevronRight
 import { format, parseISO, addWeeks, addMonths, addYears } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
-import { formatCurrencyInput, parseCurrencyInput } from "@/lib/calculations";
+import { formatCurrencyInput, parseCurrencyInput, calculateCardDueDate, calculateInstallmentDueDate } from "@/lib/calculations";
 import { AdvancedFilters, FilterState, getDateRangeFromFilters, getInitialFilterState } from "@/components/AdvancedFilters";
 import ConfirmPaymentModal from "@/components/ConfirmPaymentModal";
 import DeleteSeriesDialog from "@/components/DeleteSeriesDialog";
@@ -43,6 +43,8 @@ interface Conta {
   id: string;
   nome_conta: string;
   tipo: string;
+  dia_fechamento: number | null;
+  dia_vencimento: number | null;
 }
 
 interface Categoria {
@@ -133,6 +135,7 @@ const Transacoes = () => {
       descricao: "",
       parcelas_total: "",
       conta_destino_id: "",
+      data_pagamento: "", // Data de vencimento para cartão de crédito
     };
 
     try {
@@ -186,6 +189,36 @@ const Transacoes = () => {
   const contas = data?.contas || [];
   const categorias = data?.categorias || [];
 
+  // Auto-calculate due date when credit card is selected
+  useEffect(() => {
+    if (formData.forma_pagamento !== 'credito' || !formData.conta_id || !formData.data) {
+      return;
+    }
+
+    const selectedConta = contas.find(c => c.id === formData.conta_id);
+    if (!selectedConta || selectedConta.tipo !== 'credito') {
+      return;
+    }
+
+    const closingDay = selectedConta.dia_fechamento;
+    const dueDay = selectedConta.dia_vencimento;
+
+    if (!closingDay || !dueDay) {
+      return;
+    }
+
+    const purchaseDate = parseISO(formData.data);
+    const calculatedDueDate = calculateCardDueDate(purchaseDate, closingDay, dueDay);
+    const formattedDueDate = format(calculatedDueDate, 'yyyy-MM-dd');
+
+    if (formData.data_pagamento !== formattedDueDate) {
+      setFormData(prev => ({
+        ...prev,
+        data_pagamento: formattedDueDate,
+      }));
+    }
+  }, [formData.conta_id, formData.data, formData.forma_pagamento, contas]);
+
   const invalidateQueries = () => {
     queryClient.invalidateQueries({ queryKey: ["transacoes"] });
     queryClient.invalidateQueries({ queryKey: ["saldo-contas"] });
@@ -205,6 +238,7 @@ const Transacoes = () => {
       descricao: "",
       parcelas_total: "",
       conta_destino_id: "",
+      data_pagamento: "",
     });
     setEditingId(null);
     setCategorySearch("");
@@ -306,18 +340,41 @@ const Transacoes = () => {
     // Standard transaction or installment/recurrence logic
     // Check if it's fixed recurrence (unlimited) or has installments
     const isFixedRecurrence = formData.recorrencia === 'fixa';
-    const needsInstallments = (formData.forma_pagamento === 'credito' || (formData.recorrencia !== 'nenhuma' && formData.recorrencia !== 'fixa'))
+    const isCreditCard = formData.forma_pagamento === 'credito';
+    const needsInstallments = (isCreditCard || (formData.recorrencia !== 'nenhuma' && formData.recorrencia !== 'fixa'))
       && parsedParcelas && parsedParcelas > 1 && !editingId;
+
+    // Get credit card info for due date calculation
+    const selectedConta = contas.find(c => c.id === formData.conta_id);
+    const isCardAccount = selectedConta?.tipo === 'credito';
+    const closingDay = selectedConta?.dia_fechamento || 1;
+    const dueDay = selectedConta?.dia_vencimento || 10;
 
     if (needsInstallments) {
       // Create multiple installments/recurrences
       const baseDate = parseISO(formData.data);
       const transacoesToInsert = [];
 
+      // For credit card, calculate the first due date
+      let baseDueDate: Date | null = null;
+      if (isCreditCard && isCardAccount) {
+        baseDueDate = calculateCardDueDate(baseDate, closingDay, dueDay);
+      }
+
       for (let i = 0; i < parsedParcelas; i++) {
-        const nextDate = formData.forma_pagamento === 'credito'
-          ? addMonths(baseDate, i)
-          : getNextDate(baseDate, formData.recorrencia, i);
+        let transactionDate: string;
+        let paymentDate: string | null = null;
+
+        if (isCreditCard && baseDueDate) {
+          // For credit card: use purchase date for 'data', calculate due date for 'data_pagamento'
+          transactionDate = formData.data; // Keep original purchase date
+          const installmentDueDate = calculateInstallmentDueDate(baseDueDate, i, dueDay);
+          paymentDate = format(installmentDueDate, 'yyyy-MM-dd');
+        } else {
+          // For non-credit: use recurrence logic for dates
+          const nextDate = getNextDate(baseDate, formData.recorrencia, i);
+          transactionDate = format(nextDate, 'yyyy-MM-dd');
+        }
 
         transacoesToInsert.push({
           user_id: user?.id as string,
@@ -325,14 +382,15 @@ const Transacoes = () => {
           categoria_id: formData.categoria_id || null,
           valor: parsedValor,
           tipo: formData.tipo,
-          data: format(nextDate, 'yyyy-MM-dd'),
+          data: transactionDate,
+          data_pagamento: paymentDate,
           forma_pagamento: formData.forma_pagamento,
           recorrencia: formData.recorrencia,
           descricao: formData.descricao || null,
           parcelas_total: parsedParcelas,
           parcela_atual: i + 1,
-          // Credit goes to invoice (always "paid"), non-credit: ALL start as unpaid for manual confirmation
-          is_pago_executado: formData.forma_pagamento === 'credito',
+          // Credit card: unpaid until invoice is paid; non-credit: unpaid for manual confirmation
+          is_pago_executado: false,
         });
       }
 
@@ -365,6 +423,17 @@ const Transacoes = () => {
       toast({ title: "Sucesso", description: `${parsedParcelas} parcelas criadas` });
     } else {
       // Single transaction
+      let paymentDate: string | null = null;
+      let isPaid = true;
+
+      if (isCreditCard && isCardAccount) {
+        // For single credit card transaction
+        const purchaseDate = parseISO(formData.data);
+        const dueDate = calculateCardDueDate(purchaseDate, closingDay, dueDay);
+        paymentDate = format(dueDate, 'yyyy-MM-dd');
+        isPaid = false; // Credit card purchases are unpaid until invoice is settled
+      }
+
       const dataToSave = {
         user_id: user?.id as string,
         conta_id: formData.conta_id,
@@ -372,10 +441,11 @@ const Transacoes = () => {
         valor: parsedValor,
         tipo: formData.tipo,
         data: formData.data,
+        data_pagamento: paymentDate,
         forma_pagamento: formData.forma_pagamento,
         recorrencia: formData.recorrencia,
         descricao: formData.descricao || null,
-        is_pago_executado: true,
+        is_pago_executado: isPaid,
         parcelas_total: parsedParcelas,
         parcela_atual: parsedParcelas ? 1 : null,
       };
