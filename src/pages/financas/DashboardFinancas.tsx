@@ -56,7 +56,7 @@ async function fetchDashboardData(userId: string | undefined, startDate: string,
   const prevMonthStart = format(startOfMonth(subMonths(new Date(), 1)), "yyyy-MM-dd");
   const prevMonthEnd = format(endOfMonth(subMonths(new Date(), 1)), "yyyy-MM-dd");
 
-  const [transacoesRes, contasRes, categoriasRes, prevMonthRes] = await Promise.all([
+  const [transacoesRes, contasRes, categoriasRes, prevMonthRes, todasTransacoesRes] = await Promise.all([
     supabase
       .from("transacoes")
       .select("*")
@@ -70,6 +70,10 @@ async function fetchDashboardData(userId: string | undefined, startDate: string,
       .select("*")
       .gte("data", prevMonthStart)
       .lte("data", prevMonthEnd),
+    // Fetch all transactions for total balance calculation
+    supabase
+      .from("transacoes")
+      .select("id, valor, tipo, conta_id, forma_pagamento, is_pago_executado"),
   ]);
 
   return {
@@ -77,6 +81,7 @@ async function fetchDashboardData(userId: string | undefined, startDate: string,
     contas: (contasRes.data || []) as Conta[],
     categorias: (categoriasRes.data || []) as Categoria[],
     transacoesMesAnterior: (prevMonthRes.data || []) as Transacao[],
+    todasTransacoes: (todasTransacoesRes.data || []) as Pick<Transacao, 'id' | 'valor' | 'tipo' | 'conta_id' | 'forma_pagamento' | 'is_pago_executado'>[],
   };
 }
 
@@ -85,6 +90,7 @@ const DashboardFinancas = () => {
   const { visibility, setVisibility } = useWidgetVisibility();
   const [filters, setFilters] = useState<FilterState>(getInitialFilterState);
   const [categoryViewMode, setCategoryViewMode] = useState<"main" | "all">("main");
+  const [saldoContasMode, setSaldoContasMode] = useState<"total" | "mes">("total");
 
   const { startDate, endDate } = getDateRangeFromFilters(filters);
 
@@ -99,6 +105,7 @@ const DashboardFinancas = () => {
   const contas = data?.contas || [];
   const categorias = data?.categorias || [];
   const transacoesMesAnterior = data?.transacoesMesAnterior || [];
+  const todasTransacoes = data?.todasTransacoes || [];
 
   // Apply client-side filters
   const transacoesFiltradas = transacoes.filter((t) => {
@@ -423,18 +430,41 @@ const DashboardFinancas = () => {
             </Card>
           )}
 
-          {visibility.saldoContas && (
+        {visibility.saldoContas && (
             <Card className="shadow-card">
-              <CardHeader>
-                <CardTitle className="text-base">Saldo por Conta</CardTitle>
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between gap-4">
+                  <CardTitle className="text-base">Saldo por Conta</CardTitle>
+                  <Select value={saldoContasMode} onValueChange={(v) => setSaldoContasMode(v as "total" | "mes")}>
+                    <SelectTrigger className="w-[160px] h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="total">Saldo Total</SelectItem>
+                      <SelectItem value="mes">Saldo do Período</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   {contas.map((conta) => {
-                    const transacoesConta = transacoesValidas.filter(t => t.conta_id === conta.id);
-                    const receitas = transacoesConta.filter(t => t.tipo === "receita").reduce((a, t) => a + Number(t.valor), 0);
-                    const despesas = transacoesConta.filter(t => t.tipo === "despesa").reduce((a, t) => a + Number(t.valor), 0);
-                    const saldo = Number(conta.saldo_inicial) + receitas - despesas;
+                    // Choose which transactions to use based on mode
+                    const transacoesParaCalculo = saldoContasMode === "total"
+                      ? todasTransacoes.filter(t => 
+                          t.conta_id === conta.id && 
+                          t.forma_pagamento !== "transferencia" && 
+                          t.is_pago_executado !== false
+                        )
+                      : transacoesValidas.filter(t => t.conta_id === conta.id);
+                    
+                    const receitas = transacoesParaCalculo.filter(t => t.tipo === "receita").reduce((a, t) => a + Number(t.valor), 0);
+                    const despesas = transacoesParaCalculo.filter(t => t.tipo === "despesa").reduce((a, t) => a + Number(t.valor), 0);
+                    
+                    // For total mode, include initial balance; for period mode, show only period movement
+                    const saldo = saldoContasMode === "total"
+                      ? Number(conta.saldo_inicial) + receitas - despesas
+                      : receitas - despesas;
 
                     return (
                       <div key={conta.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
