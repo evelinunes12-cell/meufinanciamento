@@ -19,6 +19,7 @@ export interface FilterState {
   dataFinal: string;
   tipo?: string;
   categoriaId?: string;
+  subcategoriaId?: string;
   contaId?: string;
   formaPagamento?: string;
   statusPagamento?: string;
@@ -27,7 +28,7 @@ export interface FilterState {
 interface AdvancedFiltersProps {
   filters: FilterState;
   onFiltersChange: (filters: FilterState) => void;
-  categorias?: { id: string; nome: string; tipo: string }[];
+  categorias?: { id: string; nome: string; tipo: string; categoria_pai_id?: string | null }[];
   contas?: { id: string; nome_conta: string }[];
   showTipo?: boolean;
   showCategoria?: boolean;
@@ -92,14 +93,30 @@ export const AdvancedFilters = ({
       ...filters,
       tipo: "",
       categoriaId: "",
+      subcategoriaId: "",
       contaId: "",
       formaPagamento: "",
       statusPagamento: "",
     });
   };
 
-  const hasAdvancedFilters = filters.tipo || filters.categoriaId || filters.contaId || 
-    filters.formaPagamento || filters.statusPagamento;
+  const hasAdvancedFilters = filters.tipo || filters.categoriaId || filters.subcategoriaId || 
+    filters.contaId || filters.formaPagamento || filters.statusPagamento;
+
+  // Get subcategories for selected category
+  const subcategorias = filters.categoriaId 
+    ? categorias.filter(c => c.categoria_pai_id === filters.categoriaId)
+    : [];
+
+  // Handle category change - reset subcategory when parent changes
+  const handleCategoriaChange = (value: string) => {
+    const newCategoriaId = value === "__all__" ? "" : value;
+    onFiltersChange({ 
+      ...filters, 
+      categoriaId: newCategoriaId, 
+      subcategoriaId: "" // Reset subcategory when category changes
+    });
+  };
 
   const formatDateDisplay = (dateString: string) => {
     if (!dateString) return "Selecionar";
@@ -228,23 +245,48 @@ export const AdvancedFilters = ({
               )}
 
               {showCategoria && categorias.length > 0 && (
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Categoria</Label>
-                  <Select 
-                    value={filters.categoriaId || "__all__"} 
-                    onValueChange={(v) => updateFilter("categoriaId", v === "__all__" ? "" : v)}
-                  >
-                    <SelectTrigger className="w-40">
-                      <SelectValue placeholder="Todas" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__all__">Todas</SelectItem>
-                      {categorias.map((cat) => (
-                        <SelectItem key={cat.id} value={cat.id}>{cat.nome}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Categoria</Label>
+                    <Select 
+                      value={filters.categoriaId || "__all__"} 
+                      onValueChange={handleCategoriaChange}
+                    >
+                      <SelectTrigger className="w-40">
+                        <SelectValue placeholder="Todas" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__all__">Todas</SelectItem>
+                        {categorias
+                          .filter(cat => !cat.categoria_pai_id) // Only main categories
+                          .map((cat) => (
+                            <SelectItem key={cat.id} value={cat.id}>{cat.nome}</SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Subcategory filter - only show when category is selected and has subcategories */}
+                  {subcategorias.length > 0 && (
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Subcategoria</Label>
+                      <Select 
+                        value={filters.subcategoriaId || "__all__"} 
+                        onValueChange={(v) => updateFilter("subcategoriaId", v === "__all__" ? "" : v)}
+                      >
+                        <SelectTrigger className="w-40">
+                          <SelectValue placeholder="Todas" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__all__">Todas</SelectItem>
+                          {subcategorias.map((subcat) => (
+                            <SelectItem key={subcat.id} value={subcat.id}>{subcat.nome}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </>
               )}
 
               {showConta && contas.length > 0 && (
@@ -349,8 +391,31 @@ export const getInitialFilterState = (): FilterState => {
     dataFinal: "",
     tipo: "",
     categoriaId: "",
+    subcategoriaId: "",
     contaId: "",
     formaPagamento: "",
     statusPagamento: "",
   };
+};
+
+// Helper function to get all category IDs (parent + children) for filtering
+export const getCategoryIdsForFilter = (
+  categoriaId: string | undefined, 
+  subcategoriaId: string | undefined,
+  categorias: { id: string; categoria_pai_id?: string | null }[]
+): string[] => {
+  // If subcategory is selected, filter only by that
+  if (subcategoriaId) {
+    return [subcategoriaId];
+  }
+  
+  // If main category is selected, include it and all its subcategories
+  if (categoriaId) {
+    const subcatIds = categorias
+      .filter(c => c.categoria_pai_id === categoriaId)
+      .map(c => c.id);
+    return [categoriaId, ...subcatIds];
+  }
+  
+  return [];
 };

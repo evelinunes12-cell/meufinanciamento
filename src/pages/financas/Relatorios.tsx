@@ -11,7 +11,7 @@ import { Download, FileText, TrendingUp, TrendingDown } from "lucide-react";
 import { format, parseISO, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
-import { AdvancedFilters, FilterState, getDateRangeFromFilters, getInitialFilterState } from "@/components/AdvancedFilters";
+import { AdvancedFilters, FilterState, getDateRangeFromFilters, getInitialFilterState, getCategoryIdsForFilter } from "@/components/AdvancedFilters";
 import { ProjecaoFluxoCaixaWidget } from "@/components/dashboard/ProjecaoFluxoCaixaWidget";
 
 interface Transacao {
@@ -100,9 +100,17 @@ const Relatorios = () => {
     if (filters.tipo) {
       result = result.filter(t => t.tipo === filters.tipo);
     }
-    if (filters.categoriaId) {
-      result = result.filter(t => t.categoria_id === filters.categoriaId);
+    
+    // Category filter - includes subcategories when parent is selected
+    if (filters.categoriaId || filters.subcategoriaId) {
+      const categoryIds = getCategoryIdsForFilter(
+        filters.categoriaId, 
+        filters.subcategoriaId, 
+        categorias
+      );
+      result = result.filter(t => t.categoria_id && categoryIds.includes(t.categoria_id));
     }
+    
     if (filters.contaId) {
       result = result.filter(t => t.conta_id === filters.contaId);
     }
@@ -117,7 +125,7 @@ const Relatorios = () => {
     }
     
     return result;
-  }, [transacoes, filters.tipo, filters.categoriaId, filters.contaId, filters.formaPagamento, filters.statusPagamento]);
+  }, [transacoes, categorias, filters.tipo, filters.categoriaId, filters.subcategoriaId, filters.contaId, filters.formaPagamento, filters.statusPagamento]);
 
   // Filter valid transactions: exclude transfers for aggregations
   const transacoesValidas = filteredTransacoes.filter(t => t.forma_pagamento !== "transferencia");
