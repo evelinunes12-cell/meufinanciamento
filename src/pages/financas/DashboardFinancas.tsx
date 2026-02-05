@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrendingUp, TrendingDown, Wallet, PiggyBank, CreditCard, ArrowUpDown, Info } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from "recharts";
 import { useState, useMemo } from "react";
-import { AdvancedFilters, FilterState, getInitialFilterState, getDateRangeFromFilters } from "@/components/AdvancedFilters";
+import { AdvancedFilters, FilterState, getInitialFilterState, getDateRangeFromFilters, getCategoryIdsForFilter } from "@/components/AdvancedFilters";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CustomizeDashboardModal, useWidgetVisibility } from "@/components/dashboard/DashboardWidgets";
 import { UltimasTransacoesWidget } from "@/components/dashboard/UltimasTransacoesWidget";
@@ -103,7 +103,17 @@ const DashboardFinancas = () => {
   // Apply client-side filters
   const transacoesFiltradas = transacoes.filter((t) => {
     if (filters.tipo && t.tipo !== filters.tipo) return false;
-    if (filters.categoriaId && t.categoria_id !== filters.categoriaId) return false;
+    
+    // Category filter - includes subcategories when parent is selected
+    if (filters.categoriaId || filters.subcategoriaId) {
+      const categoryIds = getCategoryIdsForFilter(
+        filters.categoriaId, 
+        filters.subcategoriaId, 
+        categorias
+      );
+      if (!t.categoria_id || !categoryIds.includes(t.categoria_id)) return false;
+    }
+    
     if (filters.contaId && t.conta_id !== filters.contaId) return false;
     if (filters.formaPagamento && t.forma_pagamento !== filters.formaPagamento) return false;
     if (filters.statusPagamento === "pago" && t.is_pago_executado !== true) return false;
