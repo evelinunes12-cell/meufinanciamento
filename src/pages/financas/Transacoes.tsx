@@ -427,12 +427,19 @@ const Transacoes = () => {
       let paymentDate: string | null = null;
       let isPaid = true;
 
+      const transactionDate = parseISO(formData.data);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const isFutureDate = transactionDate > today;
+
       if (isCreditCard && isCardAccount) {
         // For single credit card transaction
-        const purchaseDate = parseISO(formData.data);
-        const dueDate = calculateCardDueDate(purchaseDate, closingDay, dueDay);
+        const dueDate = calculateCardDueDate(transactionDate, closingDay, dueDay);
         paymentDate = format(dueDate, 'yyyy-MM-dd');
         isPaid = false; // Credit card purchases are unpaid until invoice is settled
+      } else if (isFutureDate) {
+        // Future transactions must be confirmed manually
+        isPaid = false;
       }
 
       const dataToSave = {
