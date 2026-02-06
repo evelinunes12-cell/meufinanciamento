@@ -454,7 +454,7 @@ const DashboardFinancas = () => {
                       ? todasTransacoes.filter(t => 
                           t.conta_id === conta.id && 
                           t.forma_pagamento !== "transferencia" && 
-                          t.is_pago_executado !== false
+                          t.is_pago_executado === true
                         )
                       : transacoesValidas.filter(t => t.conta_id === conta.id);
                     
