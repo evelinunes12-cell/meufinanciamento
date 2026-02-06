@@ -32,56 +32,51 @@ interface Transacao {
   is_pago_executado: boolean | null;
 }
 
-// Calculate the invoice period for a credit card based on closing day
-function getInvoicePeriod(diaFechamento: number | null, referenceDate: Date = new Date()) {
+// Calculate the CURRENT OPEN invoice period (transactions that will go into the next bill)
+function getCurrentInvoicePeriod(diaFechamento: number | null, referenceDate: Date = new Date()) {
   const closingDay = diaFechamento || 1;
   const today = referenceDate;
   const currentDay = today.getDate();
   
-  let closingDate: Date;
   let startDate: Date;
+  let endDate: Date;
   
-  // If we're past the closing day, we're in the next invoice period
   if (currentDay > closingDay) {
-    // Invoice closes this month, so it covers from last month's closing day + 1 to this month's closing day
-    closingDate = new Date(today.getFullYear(), today.getMonth(), closingDay);
-    startDate = new Date(today.getFullYear(), today.getMonth() - 1, closingDay + 1);
+    // We're past closing day this month, current invoice is from this month's closing + 1 to next month's closing
+    startDate = new Date(today.getFullYear(), today.getMonth(), closingDay + 1);
+    endDate = new Date(today.getFullYear(), today.getMonth() + 1, closingDay);
   } else {
-    // We're before the closing day, so current invoice started last month
-    closingDate = new Date(today.getFullYear(), today.getMonth(), closingDay);
+    // We're before or on closing day, current invoice is from last month's closing + 1 to this month's closing
     startDate = new Date(today.getFullYear(), today.getMonth() - 1, closingDay + 1);
+    endDate = new Date(today.getFullYear(), today.getMonth(), closingDay);
   }
   
   return {
     startDate: format(startDate, "yyyy-MM-dd"),
-    endDate: format(closingDate, "yyyy-MM-dd"),
-    closingDate,
+    endDate: format(endDate, "yyyy-MM-dd"),
+    closingDate: endDate,
   };
 }
 
-// Get the closed invoice period (the one that's ready to be paid)
-function getClosedInvoicePeriod(diaFechamento: number | null, referenceDate: Date = new Date()) {
+// Get the most recent CLOSED invoice cutoff date
+// Any unpaid transaction with data <= this date should be in the closed invoice
+function getClosedInvoiceCutoffDate(diaFechamento: number | null, referenceDate: Date = new Date()) {
   const closingDay = diaFechamento || 1;
   const today = referenceDate;
   const currentDay = today.getDate();
   
   let closingDate: Date;
-  let startDate: Date;
   
-  // If we're past the closing day, the closed invoice is from the previous cycle
   if (currentDay > closingDay) {
-    // Closed invoice: from 2 months ago closing day + 1 to last month's closing day
+    // We're past closing day, so the most recent closed invoice is THIS month's closing date
     closingDate = new Date(today.getFullYear(), today.getMonth(), closingDay);
-    startDate = new Date(today.getFullYear(), today.getMonth() - 1, closingDay + 1);
   } else {
-    // We're before closing day, so closed invoice is from last cycle
+    // We're before closing day, so the most recent closed invoice is LAST month's closing date
     closingDate = new Date(today.getFullYear(), today.getMonth() - 1, closingDay);
-    startDate = new Date(today.getFullYear(), today.getMonth() - 2, closingDay + 1);
   }
   
   return {
-    startDate: format(startDate, "yyyy-MM-dd"),
-    endDate: format(closingDate, "yyyy-MM-dd"),
+    cutoffDate: format(closingDate, "yyyy-MM-dd"),
     closingDate,
   };
 }
@@ -131,27 +126,28 @@ const Cartoes = () => {
   };
 
   // Get expenses for the closed invoice (ready to be paid)
+  // This includes ALL unpaid transactions with date <= the most recent closing date
   const getFaturaFechada = (cartao: Conta) => {
-    const { startDate, endDate } = getClosedInvoicePeriod(cartao.dia_fechamento);
+    const { cutoffDate } = getClosedInvoiceCutoffDate(cartao.dia_fechamento);
     
     return transacoes
       .filter(t => {
         if (t.conta_id !== cartao.id) return false;
-        const transactionDate = t.data;
-        return transactionDate >= startDate && transactionDate <= endDate && t.is_pago_executado !== true;
+        // Include all unpaid transactions that occurred on or before the last closing date
+        return t.data <= cutoffDate && t.is_pago_executado !== true;
       })
       .reduce((acc, t) => acc + Number(t.valor), 0);
   };
 
-  // Get expenses for the current open invoice
+  // Get expenses for the current open invoice (transactions after last closing, not yet closed)
   const getFaturaAberta = (cartao: Conta) => {
-    const { startDate, endDate } = getInvoicePeriod(cartao.dia_fechamento);
+    const { startDate, endDate } = getCurrentInvoicePeriod(cartao.dia_fechamento);
     
     return transacoes
       .filter(t => {
         if (t.conta_id !== cartao.id) return false;
-        const transactionDate = t.data;
-        return transactionDate >= startDate && transactionDate <= endDate;
+        // Include transactions in the current billing cycle (even if unpaid)
+        return t.data >= startDate && t.data <= endDate;
       })
       .reduce((acc, t) => acc + Number(t.valor), 0);
   };
@@ -221,7 +217,7 @@ const Cartoes = () => {
               const percentualUsado = limite > 0 ? (Math.max(0, saldoDevedor) / limite) * 100 : 0;
               const disponivel = limite - Math.max(0, saldoDevedor);
               
-              const { closingDate } = getClosedInvoicePeriod(cartao.dia_fechamento);
+              const { closingDate } = getClosedInvoiceCutoffDate(cartao.dia_fechamento);
               const mesReferencia = format(closingDate, "MMMM/yyyy", { locale: ptBR });
 
               return (
