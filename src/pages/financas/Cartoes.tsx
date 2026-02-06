@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { CreditCard, Calendar, AlertTriangle, Banknote } from "lucide-react";
-import { format, startOfMonth, endOfMonth } from "date-fns";
+import { format, parseISO, subMonths, addMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Link } from "react-router-dom";
 import PagarFaturaModal from "@/components/PagarFaturaModal";
@@ -29,22 +29,73 @@ interface Transacao {
   valor: number;
   tipo: string;
   data: string;
+  is_pago_executado: boolean | null;
+}
+
+// Calculate the invoice period for a credit card based on closing day
+function getInvoicePeriod(diaFechamento: number | null, referenceDate: Date = new Date()) {
+  const closingDay = diaFechamento || 1;
+  const today = referenceDate;
+  const currentDay = today.getDate();
+  
+  let closingDate: Date;
+  let startDate: Date;
+  
+  // If we're past the closing day, we're in the next invoice period
+  if (currentDay > closingDay) {
+    // Invoice closes this month, so it covers from last month's closing day + 1 to this month's closing day
+    closingDate = new Date(today.getFullYear(), today.getMonth(), closingDay);
+    startDate = new Date(today.getFullYear(), today.getMonth() - 1, closingDay + 1);
+  } else {
+    // We're before the closing day, so current invoice started last month
+    closingDate = new Date(today.getFullYear(), today.getMonth(), closingDay);
+    startDate = new Date(today.getFullYear(), today.getMonth() - 1, closingDay + 1);
+  }
+  
+  return {
+    startDate: format(startDate, "yyyy-MM-dd"),
+    endDate: format(closingDate, "yyyy-MM-dd"),
+    closingDate,
+  };
+}
+
+// Get the closed invoice period (the one that's ready to be paid)
+function getClosedInvoicePeriod(diaFechamento: number | null, referenceDate: Date = new Date()) {
+  const closingDay = diaFechamento || 1;
+  const today = referenceDate;
+  const currentDay = today.getDate();
+  
+  let closingDate: Date;
+  let startDate: Date;
+  
+  // If we're past the closing day, the closed invoice is from the previous cycle
+  if (currentDay > closingDay) {
+    // Closed invoice: from 2 months ago closing day + 1 to last month's closing day
+    closingDate = new Date(today.getFullYear(), today.getMonth(), closingDay);
+    startDate = new Date(today.getFullYear(), today.getMonth() - 1, closingDay + 1);
+  } else {
+    // We're before closing day, so closed invoice is from last cycle
+    closingDate = new Date(today.getFullYear(), today.getMonth() - 1, closingDay);
+    startDate = new Date(today.getFullYear(), today.getMonth() - 2, closingDay + 1);
+  }
+  
+  return {
+    startDate: format(startDate, "yyyy-MM-dd"),
+    endDate: format(closingDate, "yyyy-MM-dd"),
+    closingDate,
+  };
 }
 
 async function fetchCartoesData(userId: string | undefined) {
   if (!userId) return null;
 
-  const now = new Date();
-  const start = startOfMonth(now);
-  const end = endOfMonth(now);
-
+  // Fetch all credit card transactions (we'll filter by period on client side)
   const [cartoesRes, transacoesRes, contasRes] = await Promise.all([
     supabase.from("contas").select("*").eq("tipo", "credito"),
     supabase
       .from("transacoes")
       .select("*")
-      .gte("data", format(start, "yyyy-MM-dd"))
-      .lte("data", format(end, "yyyy-MM-dd")),
+      .eq("tipo", "despesa"),
     supabase.from("contas").select("*"),
   ]);
 
@@ -79,21 +130,41 @@ const Cartoes = () => {
     return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
   };
 
-  const getGastosCartao = (cartaoId: string) => {
-    // Calculate: expenses - incomes (invoices paid are income to the card)
-    const despesas = transacoes
-      .filter(t => t.conta_id === cartaoId && t.tipo === "despesa")
-      .reduce((acc, t) => acc + Number(t.valor), 0);
+  // Get expenses for the closed invoice (ready to be paid)
+  const getFaturaFechada = (cartao: Conta) => {
+    const { startDate, endDate } = getClosedInvoicePeriod(cartao.dia_fechamento);
     
-    const receitas = transacoes
-      .filter(t => t.conta_id === cartaoId && t.tipo === "receita")
+    return transacoes
+      .filter(t => {
+        if (t.conta_id !== cartao.id) return false;
+        const transactionDate = t.data;
+        return transactionDate >= startDate && transactionDate <= endDate && t.is_pago_executado !== true;
+      })
       .reduce((acc, t) => acc + Number(t.valor), 0);
+  };
 
-    return despesas - receitas;
+  // Get expenses for the current open invoice
+  const getFaturaAberta = (cartao: Conta) => {
+    const { startDate, endDate } = getInvoicePeriod(cartao.dia_fechamento);
+    
+    return transacoes
+      .filter(t => {
+        if (t.conta_id !== cartao.id) return false;
+        const transactionDate = t.data;
+        return transactionDate >= startDate && transactionDate <= endDate;
+      })
+      .reduce((acc, t) => acc + Number(t.valor), 0);
+  };
+
+  // Total unpaid balance on the card (all unpaid transactions)
+  const getSaldoDevedor = (cartaoId: string) => {
+    return transacoes
+      .filter(t => t.conta_id === cartaoId && t.is_pago_executado !== true)
+      .reduce((acc, t) => acc + Number(t.valor), 0);
   };
 
   const handlePagarFatura = (cartao: Conta) => {
-    const valorFatura = getGastosCartao(cartao.id);
+    const valorFatura = getFaturaFechada(cartao);
     setFaturaModal({
       open: true,
       cartaoId: cartao.id,
@@ -143,10 +214,15 @@ const Cartoes = () => {
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {cartoes.map((cartao) => {
-              const gastos = getGastosCartao(cartao.id);
+              const faturaFechada = getFaturaFechada(cartao);
+              const faturaAberta = getFaturaAberta(cartao);
+              const saldoDevedor = getSaldoDevedor(cartao.id);
               const limite = Number(cartao.limite) || 0;
-              const percentualUsado = limite > 0 ? (Math.max(0, gastos) / limite) * 100 : 0;
-              const disponivel = limite - Math.max(0, gastos);
+              const percentualUsado = limite > 0 ? (Math.max(0, saldoDevedor) / limite) * 100 : 0;
+              const disponivel = limite - Math.max(0, saldoDevedor);
+              
+              const { closingDate } = getClosedInvoicePeriod(cartao.dia_fechamento);
+              const mesReferencia = format(closingDate, "MMMM/yyyy", { locale: ptBR });
 
               return (
                 <Card key={cartao.id} className="shadow-card overflow-hidden">
@@ -177,11 +253,33 @@ const Cartoes = () => {
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
+                    {/* Closed Invoice - Ready to Pay */}
+                    {faturaFechada > 0 && (
+                      <div className="p-3 rounded-lg bg-warning/10 border border-warning/30">
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <p className="text-xs text-muted-foreground">Fatura Fechada ({mesReferencia})</p>
+                            <p className="text-lg font-bold text-warning">{formatCurrency(faturaFechada)}</p>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-1 border-warning text-warning hover:bg-warning hover:text-warning-foreground"
+                            onClick={() => handlePagarFatura(cartao)}
+                          >
+                            <Banknote className="h-4 w-4" />
+                            Pagar
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Current Open Invoice */}
                     <div>
                       <div className="flex justify-between text-sm mb-2">
-                        <span className="text-muted-foreground">Fatura Atual</span>
+                        <span className="text-muted-foreground">Fatura Atual (em aberto)</span>
                         <span className="font-medium text-foreground">
-                          {formatCurrency(Math.max(0, gastos))}
+                          {formatCurrency(faturaAberta)}
                         </span>
                       </div>
                       <Progress 
@@ -202,22 +300,10 @@ const Cartoes = () => {
                         </p>
                       </div>
                       <div>
-                        <p className="text-xs text-muted-foreground">Limite Total</p>
-                        <p className="text-lg font-bold text-foreground">{formatCurrency(limite)}</p>
+                        <p className="text-xs text-muted-foreground">Saldo Devedor Total</p>
+                        <p className="text-lg font-bold text-foreground">{formatCurrency(saldoDevedor)}</p>
                       </div>
                     </div>
-
-                    {/* Pay Invoice Button */}
-                    {gastos > 0 && (
-                      <Button
-                        variant="outline"
-                        className="w-full gap-2"
-                        onClick={() => handlePagarFatura(cartao)}
-                      >
-                        <Banknote className="h-4 w-4" />
-                        Pagar Fatura
-                      </Button>
-                    )}
                   </CardContent>
                 </Card>
               );
