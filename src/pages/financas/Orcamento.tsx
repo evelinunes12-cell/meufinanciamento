@@ -12,9 +12,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Trash2, Edit, AlertTriangle, CheckCircle } from "lucide-react";
-import { format, startOfMonth, endOfMonth } from "date-fns";
+import { format, startOfMonth, endOfMonth, parseISO, isBefore, isAfter } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
+import { isExecutado, getDataEfetiva } from "@/lib/transactions";
 
 interface Orcamento {
   id: string;
@@ -37,8 +38,16 @@ interface Transacao {
   valor: number;
   tipo: string;
   data: string;
+  data_pagamento: string | null;
   forma_pagamento: string;
   is_pago_executado: boolean | null;
+  conta_id: string;
+}
+
+interface Conta {
+  id: string;
+  tipo: string;
+  dia_fechamento: number | null;
 }
 
 async function fetchOrcamentoData(userId: string | undefined, mesAtual: string) {
@@ -48,21 +57,24 @@ async function fetchOrcamentoData(userId: string | undefined, mesAtual: string) 
   const start = startOfMonth(now);
   const end = endOfMonth(now);
 
-  const [orcamentosRes, categoriasRes, transacoesRes] = await Promise.all([
+  // Fetch transactions with a wider range to capture credit card transactions
+  // that may have been made in previous months but have data_pagamento in current month
+  const [orcamentosRes, categoriasRes, transacoesRes, contasRes] = await Promise.all([
     supabase.from("orcamentos").select("*").eq("mes_referencia", mesAtual),
     supabase.from("categorias").select("*").eq("tipo", "despesa"),
+    // Fetch all expense transactions - we'll filter by effective date client-side
     supabase
       .from("transacoes")
       .select("*")
-      .eq("tipo", "despesa")
-      .gte("data", format(start, "yyyy-MM-dd"))
-      .lte("data", format(end, "yyyy-MM-dd")),
+      .eq("tipo", "despesa"),
+    supabase.from("contas").select("id, tipo, dia_fechamento"),
   ]);
 
   return {
     orcamentos: (orcamentosRes.data || []) as Orcamento[],
     categorias: (categoriasRes.data || []) as Categoria[],
     transacoes: (transacoesRes.data || []) as Transacao[],
+    contas: (contasRes.data || []) as Conta[],
   };
 }
 
@@ -89,6 +101,18 @@ const Orcamento = () => {
   const orcamentos = data?.orcamentos || [];
   const categorias = data?.categorias || [];
   const transacoes = data?.transacoes || [];
+  const contas = data?.contas || [];
+
+  // Filter transactions by effective date (uses data_pagamento for credit cards)
+  const mesAtualDate = new Date();
+  const startMes = startOfMonth(mesAtualDate);
+  const endMes = endOfMonth(mesAtualDate);
+  
+  const transacoesMesAtual = transacoes.filter(t => {
+    const dataEfetiva = getDataEfetiva(t, contas);
+    const dataEfetivaDate = parseISO(dataEfetiva);
+    return !isBefore(dataEfetivaDate, startMes) && !isAfter(dataEfetivaDate, endMes);
+  });
 
   const resetForm = () => {
     setFormData({ categoria_id: "", valor_limite: "" });
@@ -176,12 +200,13 @@ const Orcamento = () => {
     const allSubcatIds = getAllSubcategoriaIds(categoriaId);
     const allCategoryIds = [categoriaId, ...allSubcatIds];
     
-    return transacoes
+    // Use transactions filtered by effective date (data_pagamento for credit cards)
+    return transacoesMesAtual
       .filter(t => 
         t.categoria_id && 
         allCategoryIds.includes(t.categoria_id) && 
         t.forma_pagamento !== "transferencia" &&
-        t.is_pago_executado !== false
+        isExecutado(t.is_pago_executado)
       )
       .reduce((acc, t) => acc + Number(t.valor), 0);
   };

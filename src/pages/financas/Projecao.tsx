@@ -11,12 +11,14 @@ import { format, addMonths, startOfMonth, endOfMonth, parseISO, isBefore, isAfte
 import { ptBR } from "date-fns/locale";
 import { useState, useMemo } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from "recharts";
+import { isExecutado, calcularSaldoTotalReal, getDataEfetiva } from "@/lib/transactions";
 
 interface Transacao {
   id: string;
   valor: number;
   tipo: string;
   data: string;
+  data_pagamento: string | null;
   descricao: string | null;
   is_pago_executado: boolean | null;
   forma_pagamento: string;
@@ -30,6 +32,7 @@ interface Conta {
   saldo_inicial: number;
   tipo: string;
   cor: string;
+  dia_fechamento: number | null;
 }
 
 async function fetchProjecaoData(userId: string | undefined) {
@@ -64,20 +67,18 @@ const Projecao = () => {
     return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
   };
 
-  // Calculate current balance (saldo atual)
+  // Calculate current balance (saldo atual) using helper
   const saldoAtual = useMemo(() => {
-    const transacoesValidas = transacoes.filter(
-      t => t.forma_pagamento !== "transferencia" && t.is_pago_executado !== false
-    );
-
-    return contas
-      .filter(c => c.tipo !== "credito")
-      .reduce((acc, conta) => {
-        const transacoesConta = transacoesValidas.filter(t => t.conta_id === conta.id);
-        const receitas = transacoesConta.filter(t => t.tipo === "receita").reduce((a, t) => a + Number(t.valor), 0);
-        const despesas = transacoesConta.filter(t => t.tipo === "despesa").reduce((a, t) => a + Number(t.valor), 0);
-        return acc + Number(conta.saldo_inicial) + receitas - despesas;
-      }, 0);
+    const transacoesParaCalculo = transacoes.map(t => ({
+      valor: t.valor,
+      tipo: t.tipo,
+      conta_id: t.conta_id,
+      forma_pagamento: t.forma_pagamento,
+      is_pago_executado: t.is_pago_executado,
+      data: t.data
+    }));
+    
+    return calcularSaldoTotalReal(contas, transacoesParaCalculo);
   }, [contas, transacoes]);
 
   // Identify recurring transactions
@@ -104,17 +105,20 @@ const Projecao = () => {
 
     let saldoAcumulado = saldoAtual;
 
-    // Get pending transactions for current month
+    // Get pending transactions for current month - use effective date for credit cards
     const inicioMesAtual = startOfMonth(hoje);
     const fimMesAtual = endOfMonth(hoje);
+    const inicioMesAtualStr = format(inicioMesAtual, "yyyy-MM-dd");
+    const fimMesAtualStr = format(fimMesAtual, "yyyy-MM-dd");
 
     const pendentesMesAtual = transacoes.filter(t => {
-      const dataTransacao = parseISO(t.data);
+      const dataEfetiva = getDataEfetiva(t, contas);
+      const dataEfetivaDate = parseISO(dataEfetiva);
       return (
         t.is_pago_executado === false &&
         t.forma_pagamento !== "transferencia" &&
-        !isBefore(dataTransacao, inicioMesAtual) &&
-        !isAfter(dataTransacao, fimMesAtual)
+        !isBefore(dataEfetivaDate, inicioMesAtual) &&
+        !isAfter(dataEfetivaDate, fimMesAtual)
       );
     });
 
