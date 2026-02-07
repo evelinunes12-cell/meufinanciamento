@@ -16,6 +16,14 @@ import { ProximosFechamentosWidget } from "@/components/dashboard/ProximosFecham
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
+import { 
+  isExecutado, 
+  isPendente, 
+  calcularSaldoTotalReal, 
+  calcularVariacaoPatrimonial,
+  calcularSaldoRealConta,
+  getDataEfetiva
+} from "@/lib/transactions";
 
 interface Transacao {
   id: string;
@@ -70,10 +78,11 @@ async function fetchDashboardData(userId: string | undefined, startDate: string,
       .select("*")
       .gte("data", prevMonthStart)
       .lte("data", prevMonthEnd),
-    // Fetch all transactions for total balance calculation
+    // Fetch ALL transactions for total balance calculation (no date filter)
     supabase
       .from("transacoes")
-      .select("id, valor, tipo, conta_id, forma_pagamento, is_pago_executado"),
+      .select("id, valor, tipo, conta_id, forma_pagamento, is_pago_executado, data")
+      .order("data", { ascending: false }),
   ]);
 
   return {
@@ -81,7 +90,7 @@ async function fetchDashboardData(userId: string | undefined, startDate: string,
     contas: (contasRes.data || []) as Conta[],
     categorias: (categoriasRes.data || []) as Categoria[],
     transacoesMesAnterior: (prevMonthRes.data || []) as Transacao[],
-    todasTransacoes: (todasTransacoesRes.data || []) as Pick<Transacao, 'id' | 'valor' | 'tipo' | 'conta_id' | 'forma_pagamento' | 'is_pago_executado'>[],
+    todasTransacoes: (todasTransacoesRes.data || []) as Array<Pick<Transacao, 'id' | 'valor' | 'tipo' | 'conta_id' | 'forma_pagamento' | 'is_pago_executado' | 'data'>>,
   };
 }
 
@@ -131,7 +140,7 @@ const DashboardFinancas = () => {
   // Filter valid transactions: exclude transfers and non-executed payments
   const transacoesValidas = transacoesFiltradas.filter(t => 
     t.forma_pagamento !== "transferencia" && 
-    t.is_pago_executado !== false
+    isExecutado(t.is_pago_executado)
   );
 
   // For balance calculation, also exclude credit card expenses (they go to invoice, not immediate balance)
@@ -156,43 +165,24 @@ const DashboardFinancas = () => {
   const economiaTotal = transacoesFiltradas
     .filter(t => {
       const isEntradaPoupanca = contasPoupanca.some(cp => cp.id === t.conta_id) && t.tipo === "receita";
-      return isEntradaPoupanca && t.is_pago_executado !== false;
+      return isEntradaPoupanca && isExecutado(t.is_pago_executado);
     })
     .reduce((acc, t) => acc + Number(t.valor), 0);
 
-  // Calculate total account balance
-  const saldoContas = contas.reduce((acc, conta) => {
-    if (conta.tipo === "credito") return acc;
-    
-    const transacoesConta = transacoesValidas.filter(t => t.conta_id === conta.id);
-    const receitas = transacoesConta.filter(t => t.tipo === "receita").reduce((a, t) => a + Number(t.valor), 0);
-    const despesas = transacoesConta.filter(t => t.tipo === "despesa").reduce((a, t) => a + Number(t.valor), 0);
-    return acc + Number(conta.saldo_inicial) + receitas - despesas;
-  }, 0);
+  // Calculate total account balance using ALL executed transactions (real balance)
+  const saldoContas = useMemo(() => {
+    return calcularSaldoTotalReal(contas, todasTransacoes);
+  }, [contas, todasTransacoes]);
 
   const gastosCartao = transacoesValidas.filter(t => {
     const conta = contas.find(c => c.id === t.conta_id);
     return conta?.tipo === "credito" && t.tipo === "despesa";
   }).reduce((acc, t) => acc + Number(t.valor), 0);
 
-  // Calculate previous month balance for comparison
+  // Calculate patrimonial variation using end-of-month comparison with ALL transactions
   const variacaoPatrimonial = useMemo(() => {
-    const transacoesMesAnteriorValidas = transacoesMesAnterior.filter(t => 
-      t.forma_pagamento !== "transferencia" && t.is_pago_executado !== false
-    );
-
-    const saldoMesAnterior = contas.reduce((acc, conta) => {
-      if (conta.tipo === "credito") return acc;
-      const transacoesConta = transacoesMesAnteriorValidas.filter(t => t.conta_id === conta.id);
-      const receitas = transacoesConta.filter(t => t.tipo === "receita").reduce((a, t) => a + Number(t.valor), 0);
-      const despesas = transacoesConta.filter(t => t.tipo === "despesa").reduce((a, t) => a + Number(t.valor), 0);
-      return acc + Number(conta.saldo_inicial) + receitas - despesas;
-    }, 0);
-
-    if (saldoMesAnterior === 0) return null;
-    const variacao = ((saldoContas - saldoMesAnterior) / Math.abs(saldoMesAnterior)) * 100;
-    return variacao;
-  }, [saldoContas, contas, transacoesMesAnterior]);
+    return calcularVariacaoPatrimonial(contas, todasTransacoes);
+  }, [contas, todasTransacoes]);
 
   // Category aggregation helpers
   const mainCategoriasDesp = categorias.filter(c => c.tipo === "despesa" && !c.categoria_pai_id);
@@ -449,22 +439,30 @@ const DashboardFinancas = () => {
               <CardContent>
                 <div className="space-y-4">
                   {contas.map((conta) => {
+                    // Build transaction data with dates for calculation
+                    const transacoesContaComData = transacoes.filter(t => t.conta_id === conta.id);
+                    
                     // Choose which transactions to use based on mode
-                    const transacoesParaCalculo = saldoContasMode === "total"
-                      ? todasTransacoes.filter(t => 
-                          t.conta_id === conta.id && 
-                          t.forma_pagamento !== "transferencia" && 
-                          t.is_pago_executado === true
-                        )
-                      : transacoesValidas.filter(t => t.conta_id === conta.id);
+                    let saldo = 0;
                     
-                    const receitas = transacoesParaCalculo.filter(t => t.tipo === "receita").reduce((a, t) => a + Number(t.valor), 0);
-                    const despesas = transacoesParaCalculo.filter(t => t.tipo === "despesa").reduce((a, t) => a + Number(t.valor), 0);
-                    
-                    // For total mode, include initial balance; for period mode, show only period movement
-                    const saldo = saldoContasMode === "total"
-                      ? Number(conta.saldo_inicial) + receitas - despesas
-                      : receitas - despesas;
+                    if (saldoContasMode === "total") {
+                      // Use helper for real balance calculation
+                      const transacoesParaCalculo = transacoesContaComData.map(t => ({
+                        valor: t.valor,
+                        tipo: t.tipo,
+                        conta_id: t.conta_id,
+                        forma_pagamento: t.forma_pagamento,
+                        is_pago_executado: t.is_pago_executado,
+                        data: t.data
+                      }));
+                      saldo = calcularSaldoRealConta(conta, transacoesParaCalculo);
+                    } else {
+                      // Period mode: only filtered transactions
+                      const transacoesParaCalculo = transacoesValidas.filter(t => t.conta_id === conta.id);
+                      const receitas = transacoesParaCalculo.filter(t => t.tipo === "receita").reduce((a, t) => a + Number(t.valor), 0);
+                      const despesas = transacoesParaCalculo.filter(t => t.tipo === "despesa").reduce((a, t) => a + Number(t.valor), 0);
+                      saldo = receitas - despesas;
+                    }
 
                     return (
                       <div key={conta.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">

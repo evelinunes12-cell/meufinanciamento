@@ -8,11 +8,12 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Download, FileText, TrendingUp, TrendingDown } from "lucide-react";
-import { format, parseISO, startOfMonth, endOfMonth } from "date-fns";
+import { format, parseISO, startOfMonth, endOfMonth, isBefore, isAfter } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
 import { AdvancedFilters, FilterState, getDateRangeFromFilters, getInitialFilterState, getCategoryIdsForFilter } from "@/components/AdvancedFilters";
 import { ProjecaoFluxoCaixaWidget } from "@/components/dashboard/ProjecaoFluxoCaixaWidget";
+import { isExecutado, getDataEfetiva, filterTransacoesPorPeriodoEfetivo } from "@/lib/transactions";
 
 interface Transacao {
   id: string;
@@ -21,6 +22,7 @@ interface Transacao {
   valor: number;
   tipo: string;
   data: string;
+  data_pagamento: string | null;
   forma_pagamento: string;
   descricao: string | null;
   is_pago_executado: boolean | null;
@@ -32,6 +34,7 @@ interface Conta {
   nome_conta: string;
   saldo_inicial: number;
   tipo: string;
+  dia_fechamento: number | null;
 }
 
 interface Categoria {
@@ -50,12 +53,11 @@ const formatDate = (dateString: string) => {
 async function fetchRelatoriosData(userId: string | undefined, startDate: string, endDate: string) {
   if (!userId) return null;
 
+  // Fetch all transactions - we filter by effective date client-side
   const [transacoesRes, contasRes, categoriasRes] = await Promise.all([
     supabase
       .from("transacoes")
       .select("*")
-      .gte("data", startDate)
-      .lte("data", endDate)
       .order("data", { ascending: false }),
     supabase.from("contas").select("*"),
     supabase.from("categorias").select("*"),
@@ -82,9 +84,14 @@ const Relatorios = () => {
     staleTime: 5 * 60 * 1000,
   });
 
-  const transacoes = data?.transacoes || [];
+  const allTransacoes = data?.transacoes || [];
   const contas = data?.contas || [];
   const categorias = data?.categorias || [];
+
+  // First filter by effective date (uses data_pagamento for credit cards)
+  const transacoesNoPeriodo = useMemo(() => {
+    return filterTransacoesPorPeriodoEfetivo(allTransacoes, contas, startDate, endDate);
+  }, [allTransacoes, contas, startDate, endDate]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
@@ -93,9 +100,9 @@ const Relatorios = () => {
   const getContaNome = (id: string) => contas.find(c => c.id === id)?.nome_conta || "-";
   const getCategoriaNome = (id: string | null) => id ? categorias.find(c => c.id === id)?.nome || "-" : "-";
 
-  // Apply advanced filters client-side
+  // Apply advanced filters client-side (after date filtering)
   const filteredTransacoes = useMemo(() => {
-    let result = transacoes;
+    let result = transacoesNoPeriodo;
     
     if (filters.tipo) {
       result = result.filter(t => t.tipo === filters.tipo);
@@ -119,13 +126,13 @@ const Relatorios = () => {
     }
     if (filters.statusPagamento) {
       result = result.filter(t => {
-        const isPago = t.is_pago_executado === true;
+        const isPago = isExecutado(t.is_pago_executado);
         return filters.statusPagamento === "pago" ? isPago : !isPago;
       });
     }
     
     return result;
-  }, [transacoes, categorias, filters.tipo, filters.categoriaId, filters.subcategoriaId, filters.contaId, filters.formaPagamento, filters.statusPagamento]);
+  }, [transacoesNoPeriodo, categorias, filters.tipo, filters.categoriaId, filters.subcategoriaId, filters.contaId, filters.formaPagamento, filters.statusPagamento]);
 
   // Filter valid transactions: exclude transfers for aggregations
   const transacoesValidas = filteredTransacoes.filter(t => t.forma_pagamento !== "transferencia");
@@ -135,20 +142,21 @@ const Relatorios = () => {
   const saldo = totalReceitas - totalDespesas;
 
   // Calculate current balance for projection (all time executed transactions)
+  // Calculate current balance for projection (all time executed transactions)
   const saldoAtual = useMemo(() => {
     return contas.reduce((acc, conta) => {
       if (conta.tipo === "credito") return acc;
       
-      const transacoesConta = transacoes.filter(t => 
+      const transacoesConta = allTransacoes.filter(t => 
         t.conta_id === conta.id && 
         t.forma_pagamento !== "transferencia" &&
-        t.is_pago_executado !== false
+        isExecutado(t.is_pago_executado)
       );
       const receitas = transacoesConta.filter(t => t.tipo === "receita").reduce((a, t) => a + Number(t.valor), 0);
       const despesas = transacoesConta.filter(t => t.tipo === "despesa").reduce((a, t) => a + Number(t.valor), 0);
       return acc + Number(conta.saldo_inicial) + receitas - despesas;
     }, 0);
-  }, [contas, transacoes]);
+  }, [contas, allTransacoes]);
 
   // Relatório por categoria
   const relatorioCategoria = categorias.map(cat => {
@@ -423,7 +431,7 @@ const Relatorios = () => {
         {/* Projeção Widget */}
         {tipoRelatorio === "projecao" && (
           <ProjecaoFluxoCaixaWidget 
-            transacoes={transacoes} 
+            transacoes={allTransacoes} 
             contas={contas} 
             saldoAtual={saldoAtual} 
           />
