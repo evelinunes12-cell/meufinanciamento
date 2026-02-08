@@ -34,6 +34,7 @@ const ConfirmPaymentModal = ({
 }: ConfirmPaymentModalProps) => {
   const queryClient = useQueryClient();
   const [valorPago, setValorPago] = useState("");
+  const [dataExecucao, setDataExecucao] = useState(format(new Date(), "yyyy-MM-dd"));
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -44,6 +45,7 @@ const ConfirmPaymentModal = ({
         maximumFractionDigits: 2,
       });
       setValorPago(formatted);
+      setDataExecucao(format(new Date(), "yyyy-MM-dd"));
     }
   }, [open, valorPrevisto]);
 
@@ -72,7 +74,7 @@ const ConfirmPaymentModal = ({
         .update({
           valor: valor,
           is_pago_executado: true,
-          data_execucao_pagamento: format(new Date(), "yyyy-MM-dd"),
+          data_execucao_pagamento: dataExecucao,
         })
         .eq("id", transacaoId);
 
@@ -138,6 +140,18 @@ const ConfirmPaymentModal = ({
             </div>
             <p className="text-xs text-muted-foreground">
               Ajuste o valor se necessário antes de confirmar
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Data de Execução</Label>
+            <Input
+              type="date"
+              value={dataExecucao}
+              onChange={(e) => setDataExecucao(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Use a data real em que o pagamento foi efetuado
             </p>
           </div>
         </div>
