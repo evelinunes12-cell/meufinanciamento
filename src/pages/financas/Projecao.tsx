@@ -11,7 +11,7 @@ import { format, addMonths, startOfMonth, endOfMonth, parseISO, isBefore, isAfte
 import { ptBR } from "date-fns/locale";
 import { useState, useMemo } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from "recharts";
-import { isExecutado, calcularSaldoTotalReal, getDataEfetiva } from "@/lib/transactions";
+import { isExecutado, isPendente, calcularSaldoTotalReal, getDataEfetiva } from "@/lib/transactions";
 
 interface Transacao {
   id: string;
@@ -83,12 +83,14 @@ const Projecao = () => {
 
   // Identify recurring transactions
   const transacoesRecorrentes = useMemo(() => {
+    const hoje = new Date();
     return transacoes.filter(t => 
       t.recorrencia && 
       t.recorrencia !== "unica" && 
-      t.forma_pagamento !== "transferencia"
+      t.forma_pagamento !== "transferencia" &&
+      !isAfter(parseISO(getDataEfetiva(t, contas)), hoje)
     );
-  }, [transacoes]);
+  }, [transacoes, contas]);
 
   // Project future months
   const projecaoMensal = useMemo(() => {
@@ -108,14 +110,12 @@ const Projecao = () => {
     // Get pending transactions for current month - use effective date for credit cards
     const inicioMesAtual = startOfMonth(hoje);
     const fimMesAtual = endOfMonth(hoje);
-    const inicioMesAtualStr = format(inicioMesAtual, "yyyy-MM-dd");
-    const fimMesAtualStr = format(fimMesAtual, "yyyy-MM-dd");
 
     const pendentesMesAtual = transacoes.filter(t => {
       const dataEfetiva = getDataEfetiva(t, contas);
       const dataEfetivaDate = parseISO(dataEfetiva);
       return (
-        t.is_pago_executado === false &&
+        isPendente(t.is_pago_executado) &&
         t.forma_pagamento !== "transferencia" &&
         !isBefore(dataEfetivaDate, inicioMesAtual) &&
         !isAfter(dataEfetivaDate, fimMesAtual)
@@ -147,7 +147,29 @@ const Projecao = () => {
           });
         });
       } else {
-        // Future months: use recurring transactions
+        // Future months: include scheduled transactions and recurring estimates
+        const transacoesFuturas = transacoes.filter(t => {
+          if (t.forma_pagamento === "transferencia") return false;
+          if (isExecutado(t.is_pago_executado)) return false;
+          const dataEfetiva = parseISO(getDataEfetiva(t, contas));
+          return !isBefore(dataEfetiva, inicioMes) && !isAfter(dataEfetiva, fimMes);
+        });
+
+        transacoesFuturas.forEach(t => {
+          const valor = Number(t.valor);
+          if (t.tipo === "receita") {
+            receitas += valor;
+          } else {
+            despesas += valor;
+          }
+          transacoesMes.push({
+            descricao: t.descricao || "Sem descrição",
+            valor,
+            tipo: t.tipo,
+          });
+        });
+
+        // Recurring transactions for estimates (fixed / repeating)
         transacoesRecorrentes.forEach(t => {
           const valor = Number(t.valor);
           if (t.tipo === "receita") {

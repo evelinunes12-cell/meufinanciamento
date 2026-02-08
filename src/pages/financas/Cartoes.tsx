@@ -8,10 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { CreditCard, Calendar, AlertTriangle, Banknote } from "lucide-react";
-import { format, parseISO, subMonths, addMonths } from "date-fns";
+import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Link } from "react-router-dom";
 import PagarFaturaModal from "@/components/PagarFaturaModal";
+import { getDataEfetiva } from "@/lib/transactions";
 
 interface Conta {
   id: string;
@@ -29,6 +30,7 @@ interface Transacao {
   valor: number;
   tipo: string;
   data: string;
+  data_pagamento: string | null;
   is_pago_executado: boolean | null;
 }
 
@@ -133,8 +135,9 @@ const Cartoes = () => {
     return transacoes
       .filter(t => {
         if (t.conta_id !== cartao.id) return false;
+        const dataEfetiva = getDataEfetiva(t, cartoes);
         // Include all unpaid transactions that occurred on or before the last closing date
-        return t.data <= cutoffDate && t.is_pago_executado !== true;
+        return dataEfetiva <= cutoffDate && t.is_pago_executado !== true;
       })
       .reduce((acc, t) => acc + Number(t.valor), 0);
   };
@@ -146,8 +149,9 @@ const Cartoes = () => {
     return transacoes
       .filter(t => {
         if (t.conta_id !== cartao.id) return false;
+        const dataEfetiva = getDataEfetiva(t, cartoes);
         // Include transactions in the current billing cycle (even if unpaid)
-        return t.data >= startDate && t.data <= endDate;
+        return dataEfetiva >= startDate && dataEfetiva <= endDate;
       })
       .reduce((acc, t) => acc + Number(t.valor), 0);
   };
