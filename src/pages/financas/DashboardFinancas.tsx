@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { TrendingUp, TrendingDown, Wallet, PiggyBank, CreditCard, ArrowUpDown, Info } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, PiggyBank, CreditCard, ArrowUpDown, Info, Clock, LineChart } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from "recharts";
 import { useState, useMemo } from "react";
 import { AdvancedFilters, FilterState, getInitialFilterState, getDateRangeFromFilters, getCategoryIdsForFilter } from "@/components/AdvancedFilters";
@@ -21,8 +21,7 @@ import {
   isPendente, 
   calcularSaldoTotalReal, 
   calcularVariacaoPatrimonial,
-  calcularSaldoRealConta,
-  getDataEfetiva
+  calcularSaldoRealConta
 } from "@/lib/transactions";
 
 interface Transacao {
@@ -132,8 +131,8 @@ const DashboardFinancas = () => {
     
     if (filters.contaId && t.conta_id !== filters.contaId) return false;
     if (filters.formaPagamento && t.forma_pagamento !== filters.formaPagamento) return false;
-    if (filters.statusPagamento === "pago" && t.is_pago_executado !== true) return false;
-    if (filters.statusPagamento === "pendente" && t.is_pago_executado !== false) return false;
+    if (filters.statusPagamento === "pago" && !isExecutado(t.is_pago_executado)) return false;
+    if (filters.statusPagamento === "pendente" && !isPendente(t.is_pago_executado)) return false;
     return true;
   });
 
@@ -168,6 +167,22 @@ const DashboardFinancas = () => {
       return isEntradaPoupanca && isExecutado(t.is_pago_executado);
     })
     .reduce((acc, t) => acc + Number(t.valor), 0);
+
+  const pendenciasPeriodo = transacoesFiltradas.filter(t => 
+    t.forma_pagamento !== "transferencia" &&
+    isPendente(t.is_pago_executado)
+  );
+
+  const receitasPendentes = pendenciasPeriodo
+    .filter(t => t.tipo === "receita")
+    .reduce((acc, t) => acc + Number(t.valor), 0);
+
+  const despesasPendentes = pendenciasPeriodo
+    .filter(t => t.tipo === "despesa")
+    .reduce((acc, t) => acc + Number(t.valor), 0);
+
+  const pendenteMes = despesasPendentes - receitasPendentes;
+  const saldoPrevisto = saldoMes + receitasPendentes - despesasPendentes;
 
   // Calculate total account balance using ALL executed transactions (real balance)
   const saldoContas = useMemo(() => {
@@ -255,7 +270,7 @@ const DashboardFinancas = () => {
 
         {/* KPIs */}
         {visibility.kpis && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-4 gap-4">
             <Card className="shadow-card">
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
@@ -294,6 +309,62 @@ const DashboardFinancas = () => {
                     <p className="text-xs text-muted-foreground">Saldo do Período</p>
                     <p className={`text-lg font-bold ${saldoMes >= 0 ? "text-success" : "text-destructive"}`}>
                       {formatCurrency(saldoMes)}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-card">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-warning/10">
+                    <Clock className="h-5 w-5 text-warning" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1">
+                      <p className="text-xs text-muted-foreground">Pendente do Mês</p>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="max-w-xs text-xs">
+                            Soma líquida das transações pendentes no período (a pagar menos a receber).
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                    <p className={`text-lg font-bold ${pendenteMes <= 0 ? "text-success" : "text-warning"}`}>
+                      {formatCurrency(pendenteMes)}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-card">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <LineChart className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1">
+                      <p className="text-xs text-muted-foreground">Saldo Previsto</p>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="max-w-xs text-xs">
+                            Saldo do período somado às pendências (receitas e despesas pendentes).
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                    <p className={`text-lg font-bold ${saldoPrevisto >= 0 ? "text-success" : "text-destructive"}`}>
+                      {formatCurrency(saldoPrevisto)}
                     </p>
                   </div>
                 </div>

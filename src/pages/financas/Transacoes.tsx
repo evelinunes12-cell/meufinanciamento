@@ -20,6 +20,7 @@ import { formatCurrencyInput, parseCurrencyInput, calculateCardDueDate, calculat
 import { AdvancedFilters, FilterState, getDateRangeFromFilters, getInitialFilterState, getCategoryIdsForFilter } from "@/components/AdvancedFilters";
 import ConfirmPaymentModal from "@/components/ConfirmPaymentModal";
 import DeleteSeriesDialog from "@/components/DeleteSeriesDialog";
+import { isPendente } from "@/lib/transactions";
 
 interface Transacao {
   id: string;
@@ -641,6 +642,38 @@ const Transacoes = () => {
           <div>
             <h1 className="text-2xl font-bold text-foreground">Transações</h1>
             <p className="text-muted-foreground">Gerencie suas receitas e despesas ({filteredTransacoes.length} lançamentos)</p>
+            <div className="flex flex-wrap gap-2 mt-3">
+              <Button
+                variant={!filters.statusPagamento ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setFilters((prev) => ({ ...prev, statusPagamento: "" }));
+                  setCurrentPage(1);
+                }}
+              >
+                Todos
+              </Button>
+              <Button
+                variant={filters.statusPagamento === "pendente" ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setFilters((prev) => ({ ...prev, statusPagamento: "pendente" }));
+                  setCurrentPage(1);
+                }}
+              >
+                Pendentes
+              </Button>
+              <Button
+                variant={filters.statusPagamento === "pago" ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setFilters((prev) => ({ ...prev, statusPagamento: "pago" }));
+                  setCurrentPage(1);
+                }}
+              >
+                Executados
+              </Button>
+            </div>
           </div>
           <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
             <DialogTrigger asChild>
@@ -982,7 +1015,14 @@ const Transacoes = () => {
                     </TableCell>
                     <TableCell>{getContaNome(transacao.conta_id)}</TableCell>
                     <TableCell className="capitalize">
-                      {formasPagamento.find(f => f.value === transacao.forma_pagamento)?.label}
+                      <div className="flex items-center gap-2">
+                        <span>{formasPagamento.find(f => f.value === transacao.forma_pagamento)?.label}</span>
+                        {transacao.forma_pagamento === "credito" && (
+                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
+                            Cartão
+                          </Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       {transacao.parcelas_total
@@ -994,13 +1034,13 @@ const Transacoes = () => {
                       {transacao.tipo === "receita" ? "+" : "-"}{formatCurrency(Number(transacao.valor))}
                     </TableCell>
                     <TableCell>
-                      {transacao.is_pago_executado === false ? (
-                        <Badge variant="outline" className="text-warning border-warning">
+                      {isPendente(transacao.is_pago_executado) ? (
+                        <Badge className="bg-warning/10 text-warning hover:bg-warning/20 border border-warning/40">
                           Pendente
                         </Badge>
                       ) : (
-                        <Badge variant="outline" className="text-success border-success">
-                          Pago
+                        <Badge className="bg-success/10 text-success hover:bg-success/20 border border-success/40">
+                          Executado
                         </Badge>
                       )}
                     </TableCell>

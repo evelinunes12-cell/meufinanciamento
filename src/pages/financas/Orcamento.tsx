@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
@@ -83,6 +84,7 @@ const Orcamento = () => {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [incluirPendentes, setIncluirPendentes] = useState(true);
 
   const [formData, setFormData] = useState({
     categoria_id: "",
@@ -206,7 +208,7 @@ const Orcamento = () => {
         t.categoria_id && 
         allCategoryIds.includes(t.categoria_id) && 
         t.forma_pagamento !== "transferencia" &&
-        isExecutado(t.is_pago_executado)
+        (incluirPendentes || isExecutado(t.is_pago_executado))
       )
       .reduce((acc, t) => acc + Number(t.valor), 0);
   };
@@ -239,6 +241,14 @@ const Orcamento = () => {
               {format(new Date(), "MMMM 'de' yyyy", { locale: ptBR })}
             </p>
           </div>
+          <div className="flex flex-wrap items-center gap-4">
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Checkbox
+                checked={incluirPendentes}
+                onCheckedChange={(checked) => setIncluirPendentes(checked === true)}
+              />
+              Incluir pendentes
+            </label>
           <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
             <DialogTrigger asChild>
               <Button className="gradient-primary text-primary-foreground" disabled={categoriasDisponiveis.length === 0}>
@@ -284,6 +294,7 @@ const Orcamento = () => {
               </form>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
 
         {orcamentos.length === 0 ? (
