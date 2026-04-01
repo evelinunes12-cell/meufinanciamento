@@ -189,6 +189,12 @@ const DashboardFinancas = () => {
     return calcularSaldoTotalReal(contas, todasTransacoes);
   }, [contas, todasTransacoes]);
 
+  // Saldo apenas de contas correntes (exclui crédito, poupança, etc.)
+  const saldoContasCorrentes = useMemo(() => {
+    const contasCorrentes = contas.filter(c => c.tipo === "corrente");
+    return calcularSaldoTotalReal(contasCorrentes, todasTransacoes);
+  }, [contas, todasTransacoes]);
+
   const gastosCartao = transacoesValidas.filter(t => {
     const conta = contas.find(c => c.id === t.conta_id);
     return conta?.tipo === "credito" && t.tipo === "despesa";
