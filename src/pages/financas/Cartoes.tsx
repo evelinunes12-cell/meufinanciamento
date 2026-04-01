@@ -7,12 +7,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { CreditCard, Calendar, AlertTriangle, Banknote } from "lucide-react";
-import { format } from "date-fns";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { CreditCard, Calendar, AlertTriangle, Banknote, Info } from "lucide-react";
+import { format, addMonths, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Link } from "react-router-dom";
 import PagarFaturaModal from "@/components/PagarFaturaModal";
-import { getDataEfetiva } from "@/lib/transactions";
 
 interface Conta {
   id: string;
@@ -29,69 +29,119 @@ interface Transacao {
   conta_id: string;
   valor: number;
   tipo: string;
-  data: string;
-  data_pagamento: string | null;
+  data: string; // data da compra
+  data_pagamento: string | null; // data de vencimento (calculada)
   is_pago_executado: boolean | null;
+  descricao: string | null;
+  parcela_atual: number | null;
+  parcelas_total: number | null;
 }
 
-// Calculate the CURRENT OPEN invoice period (transactions that will go into the next bill)
-function getCurrentInvoicePeriod(diaFechamento: number | null, referenceDate: Date = new Date()) {
-  const closingDay = diaFechamento || 1;
-  const today = referenceDate;
-  const currentDay = today.getDate();
-  
-  let startDate: Date;
-  let endDate: Date;
-  
-  if (currentDay > closingDay) {
-    // We're past closing day this month, current invoice is from this month's closing + 1 to next month's closing
-    startDate = new Date(today.getFullYear(), today.getMonth(), closingDay + 1);
-    endDate = new Date(today.getFullYear(), today.getMonth() + 1, closingDay);
+// ==========================================
+// Lógica de ciclo de fatura de cartão de crédito
+// ==========================================
+// Regra real: uma compra feita no dia X pertence à fatura que fecha no dia_fechamento.
+// - Se X < dia_fechamento → pertence à fatura que fecha neste mesmo mês
+// - Se X >= dia_fechamento → pertence à fatura que fecha no mês seguinte
+// O vencimento da fatura é dia_vencimento do mês seguinte ao fechamento.
+
+/**
+ * Retorna o início e fim do ciclo de fatura para uma data de compra,
+ * e a data de vencimento dessa fatura.
+ */
+function getCicloFatura(dataCompra: Date, diaFechamento: number, diaVencimento: number) {
+  const dia = dataCompra.getDate();
+  const mes = dataCompra.getMonth();
+  const ano = dataCompra.getFullYear();
+
+  let fechamentoDate: Date;
+
+  if (dia >= diaFechamento) {
+    // Compra cai na fatura do mês seguinte
+    fechamentoDate = new Date(ano, mes + 1, diaFechamento);
   } else {
-    // We're before or on closing day, current invoice is from last month's closing + 1 to this month's closing
-    startDate = new Date(today.getFullYear(), today.getMonth() - 1, closingDay + 1);
-    endDate = new Date(today.getFullYear(), today.getMonth(), closingDay);
+    // Compra cai na fatura deste mês
+    fechamentoDate = new Date(ano, mes, diaFechamento);
   }
+
+  // Início do ciclo: dia_fechamento do mês anterior + 1
+  const inicioCiclo = new Date(fechamentoDate.getFullYear(), fechamentoDate.getMonth() - 1, diaFechamento + 1);
   
+  // Vencimento: dia_vencimento do mês seguinte ao fechamento
+  const vencimentoDate = new Date(fechamentoDate.getFullYear(), fechamentoDate.getMonth(), diaVencimento);
+
   return {
-    startDate: format(startDate, "yyyy-MM-dd"),
-    endDate: format(endDate, "yyyy-MM-dd"),
-    closingDate: endDate,
+    inicioCiclo,
+    fimCiclo: fechamentoDate, // dia do fechamento
+    vencimento: vencimentoDate,
+    fechamentoKey: format(fechamentoDate, "yyyy-MM"), // chave para agrupar
   };
 }
 
-// Get the most recent CLOSED invoice cutoff date
-// Any unpaid transaction with data <= this date should be in the closed invoice
-function getClosedInvoiceCutoffDate(diaFechamento: number | null, referenceDate: Date = new Date()) {
-  const closingDay = diaFechamento || 1;
-  const today = referenceDate;
-  const currentDay = today.getDate();
-  
-  let closingDate: Date;
-  
-  if (currentDay > closingDay) {
-    // We're past closing day, so the most recent closed invoice is THIS month's closing date
-    closingDate = new Date(today.getFullYear(), today.getMonth(), closingDay);
+/**
+ * Retorna as informações da fatura FECHADA mais recente (pronta para pagar)
+ * e da fatura ABERTA (ciclo atual).
+ */
+function getFaturasInfo(cartao: Conta, hoje: Date = new Date()) {
+  const diaFechamento = cartao.dia_fechamento || 1;
+  const diaVencimento = cartao.dia_vencimento || 10;
+  const diaHoje = hoje.getDate();
+  const mesHoje = hoje.getMonth();
+  const anoHoje = hoje.getFullYear();
+
+  // --- Fatura ABERTA (ciclo atual em curso) ---
+  let abertaInicio: Date;
+  let abertaFim: Date;
+
+  if (diaHoje >= diaFechamento) {
+    // Já passou o fechamento neste mês → ciclo aberto vai de hoje até fechamento do próximo mês
+    abertaInicio = new Date(anoHoje, mesHoje, diaFechamento + 1);
+    abertaFim = new Date(anoHoje, mesHoje + 1, diaFechamento);
   } else {
-    // We're before closing day, so the most recent closed invoice is LAST month's closing date
-    closingDate = new Date(today.getFullYear(), today.getMonth() - 1, closingDay);
+    // Ainda não fechou → ciclo aberto vai do fechamento do mês passado + 1 até o fechamento deste mês
+    abertaInicio = new Date(anoHoje, mesHoje - 1, diaFechamento + 1);
+    abertaFim = new Date(anoHoje, mesHoje, diaFechamento);
   }
-  
+
+  // --- Fatura FECHADA mais recente ---
+  let fechadaFim: Date;
+  let fechadaInicio: Date;
+  let fechadaVencimento: Date;
+
+  if (diaHoje >= diaFechamento) {
+    // O fechamento deste mês já ocorreu
+    fechadaFim = new Date(anoHoje, mesHoje, diaFechamento);
+    fechadaInicio = new Date(anoHoje, mesHoje - 1, diaFechamento + 1);
+    fechadaVencimento = new Date(anoHoje, mesHoje, diaVencimento);
+  } else {
+    // O fechamento deste mês ainda não ocorreu → a mais recente é do mês passado
+    fechadaFim = new Date(anoHoje, mesHoje - 1, diaFechamento);
+    fechadaInicio = new Date(anoHoje, mesHoje - 2, diaFechamento + 1);
+    fechadaVencimento = new Date(anoHoje, mesHoje - 1, diaVencimento);
+  }
+
   return {
-    cutoffDate: format(closingDate, "yyyy-MM-dd"),
-    closingDate,
+    aberta: {
+      inicio: format(abertaInicio, "yyyy-MM-dd"),
+      fim: format(abertaFim, "yyyy-MM-dd"),
+    },
+    fechada: {
+      inicio: format(fechadaInicio, "yyyy-MM-dd"),
+      fim: format(fechadaFim, "yyyy-MM-dd"),
+      vencimento: fechadaVencimento,
+      mesReferencia: format(fechadaFim, "MMMM/yyyy", { locale: ptBR }),
+    },
   };
 }
 
 async function fetchCartoesData(userId: string | undefined) {
   if (!userId) return null;
 
-  // Fetch all credit card transactions (we'll filter by period on client side)
   const [cartoesRes, transacoesRes, contasRes] = await Promise.all([
     supabase.from("contas").select("*").eq("tipo", "credito"),
     supabase
       .from("transacoes")
-      .select("*")
+      .select("id, conta_id, valor, tipo, data, data_pagamento, is_pago_executado, descricao, parcela_atual, parcelas_total")
       .eq("tipo", "despesa"),
     supabase.from("contas").select("*"),
   ]);
@@ -110,7 +160,8 @@ const Cartoes = () => {
     cartaoId: string;
     cartaoNome: string;
     valorFatura: number;
-  }>({ open: false, cartaoId: "", cartaoNome: "", valorFatura: 0 });
+    vencimentoFatura: string;
+  }>({ open: false, cartaoId: "", cartaoNome: "", valorFatura: 0, vencimentoFatura: "" });
 
   const { data, isLoading } = useQuery({
     queryKey: ["cartoes", user?.id],
@@ -127,36 +178,47 @@ const Cartoes = () => {
     return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
   };
 
-  // Get expenses for the closed invoice (ready to be paid)
-  // This includes ALL unpaid transactions with date <= the most recent closing date
+  /**
+   * Filtra transações do cartão que pertencem a um ciclo de fatura específico,
+   * baseado na DATA DA COMPRA (data), não na data de vencimento.
+   */
+  const getTransacoesCiclo = (cartaoId: string, inicio: string, fim: string) => {
+    return transacoes.filter(t => {
+      if (t.conta_id !== cartaoId) return false;
+      // Usa a data da compra para determinar em qual ciclo a transação pertence
+      return t.data >= inicio && t.data <= fim;
+    });
+  };
+
+  // Valor da fatura fechada: soma das transações do ciclo fechado que NÃO foram pagas
   const getFaturaFechada = (cartao: Conta) => {
-    const { cutoffDate } = getClosedInvoiceCutoffDate(cartao.dia_fechamento);
-    
+    const { fechada } = getFaturasInfo(cartao);
+    const transacoesCiclo = getTransacoesCiclo(cartao.id, fechada.inicio, fechada.fim);
+    return transacoesCiclo
+      .filter(t => t.is_pago_executado !== true)
+      .reduce((acc, t) => acc + Number(t.valor), 0);
+  };
+
+  // Também verificar se há faturas anteriores não pagas (acumuladas)
+  const getFaturasAnterioresNaoPagas = (cartao: Conta) => {
+    const { fechada } = getFaturasInfo(cartao);
+    // Todas as transações com data de compra ANTES do ciclo fechado atual que ainda não foram pagas
     return transacoes
       .filter(t => {
         if (t.conta_id !== cartao.id) return false;
-        const dataEfetiva = getDataEfetiva(t, cartoes);
-        // Include all unpaid transactions that occurred on or before the last closing date
-        return dataEfetiva <= cutoffDate && t.is_pago_executado !== true;
+        return t.data < fechada.inicio && t.is_pago_executado !== true;
       })
       .reduce((acc, t) => acc + Number(t.valor), 0);
   };
 
-  // Get expenses for the current open invoice (transactions after last closing, not yet closed)
+  // Valor da fatura aberta (ciclo atual)
   const getFaturaAberta = (cartao: Conta) => {
-    const { startDate, endDate } = getCurrentInvoicePeriod(cartao.dia_fechamento);
-    
-    return transacoes
-      .filter(t => {
-        if (t.conta_id !== cartao.id) return false;
-        const dataEfetiva = getDataEfetiva(t, cartoes);
-        // Include transactions in the current billing cycle (even if unpaid)
-        return dataEfetiva >= startDate && dataEfetiva <= endDate;
-      })
-      .reduce((acc, t) => acc + Number(t.valor), 0);
+    const { aberta } = getFaturasInfo(cartao);
+    const transacoesCiclo = getTransacoesCiclo(cartao.id, aberta.inicio, aberta.fim);
+    return transacoesCiclo.reduce((acc, t) => acc + Number(t.valor), 0);
   };
 
-  // Total unpaid balance on the card (all unpaid transactions)
+  // Saldo devedor total = todas as transações não pagas
   const getSaldoDevedor = (cartaoId: string) => {
     return transacoes
       .filter(t => t.conta_id === cartaoId && t.is_pago_executado !== true)
@@ -164,12 +226,17 @@ const Cartoes = () => {
   };
 
   const handlePagarFatura = (cartao: Conta) => {
-    const valorFatura = getFaturaFechada(cartao);
+    const { fechada } = getFaturasInfo(cartao);
+    const faturaFechada = getFaturaFechada(cartao);
+    const faturasAnteriores = getFaturasAnterioresNaoPagas(cartao);
+    const valorTotal = faturaFechada + faturasAnteriores;
+    
     setFaturaModal({
       open: true,
       cartaoId: cartao.id,
       cartaoNome: cartao.nome_conta,
-      valorFatura: Math.max(0, valorFatura),
+      valorFatura: Math.max(0, valorTotal),
+      vencimentoFatura: format(fechada.vencimento, "yyyy-MM-dd"),
     });
   };
 
@@ -214,15 +281,15 @@ const Cartoes = () => {
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {cartoes.map((cartao) => {
+              const faturasInfo = getFaturasInfo(cartao);
               const faturaFechada = getFaturaFechada(cartao);
+              const faturasAnteriores = getFaturasAnterioresNaoPagas(cartao);
+              const totalFechada = faturaFechada + faturasAnteriores;
               const faturaAberta = getFaturaAberta(cartao);
               const saldoDevedor = getSaldoDevedor(cartao.id);
               const limite = Number(cartao.limite) || 0;
               const percentualUsado = limite > 0 ? (Math.max(0, saldoDevedor) / limite) * 100 : 0;
               const disponivel = limite - Math.max(0, saldoDevedor);
-              
-              const { closingDate } = getClosedInvoiceCutoffDate(cartao.dia_fechamento);
-              const mesReferencia = format(closingDate, "MMMM/yyyy", { locale: ptBR });
 
               return (
                 <Card key={cartao.id} className="shadow-card overflow-hidden">
@@ -253,14 +320,37 @@ const Cartoes = () => {
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {/* Closed Invoice - Ready to Pay */}
-                    {faturaFechada > 0 && (
-                      <div className="p-3 rounded-lg bg-warning/10 border border-warning/30">
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <p className="text-xs text-muted-foreground">Fatura Fechada ({mesReferencia})</p>
-                            <p className="text-lg font-bold text-warning">{formatCurrency(faturaFechada)}</p>
+                    {/* Fatura Fechada - Pronta para pagar */}
+                    <div className="p-3 rounded-lg bg-warning/10 border border-warning/30">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <div className="flex items-center gap-1">
+                            <p className="text-xs text-muted-foreground">
+                              Fatura Fechada ({faturasInfo.fechada.mesReferencia})
+                            </p>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p className="max-w-xs text-xs">
+                                  Compras de {format(new Date(faturasInfo.fechada.inicio), "dd/MM")} a {format(new Date(faturasInfo.fechada.fim), "dd/MM")}.
+                                  Vencimento: {format(faturasInfo.fechada.vencimento, "dd/MM/yyyy")}.
+                                  {faturasAnteriores > 0 && ` Inclui ${formatCurrency(faturasAnteriores)} de faturas anteriores não pagas.`}
+                                </p>
+                              </TooltipContent>
+                            </Tooltip>
                           </div>
+                          <p className={`text-lg font-bold ${totalFechada > 0 ? "text-warning" : "text-success"}`}>
+                            {formatCurrency(totalFechada)}
+                          </p>
+                          {faturasAnteriores > 0 && (
+                            <p className="text-[10px] text-destructive">
+                              Inclui {formatCurrency(faturasAnteriores)} de faturas anteriores
+                            </p>
+                          )}
+                        </div>
+                        {totalFechada > 0 && (
                           <Button
                             size="sm"
                             variant="outline"
@@ -270,14 +360,27 @@ const Cartoes = () => {
                             <Banknote className="h-4 w-4" />
                             Pagar
                           </Button>
-                        </div>
+                        )}
                       </div>
-                    )}
+                    </div>
 
-                    {/* Current Open Invoice */}
+                    {/* Fatura Aberta (ciclo atual) */}
                     <div>
                       <div className="flex justify-between text-sm mb-2">
-                        <span className="text-muted-foreground">Fatura Atual (em aberto)</span>
+                        <div className="flex items-center gap-1">
+                          <span className="text-muted-foreground">Fatura Atual (em aberto)</span>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p className="max-w-xs text-xs">
+                                Compras de {format(new Date(faturasInfo.aberta.inicio), "dd/MM")} a {format(new Date(faturasInfo.aberta.fim), "dd/MM")}.
+                                Esta fatura ainda não fechou.
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
                         <span className="font-medium text-foreground">
                           {formatCurrency(faturaAberta)}
                         </span>
@@ -318,6 +421,7 @@ const Cartoes = () => {
         cartaoId={faturaModal.cartaoId}
         cartaoNome={faturaModal.cartaoNome}
         valorFatura={faturaModal.valorFatura}
+        vencimentoFatura={faturaModal.vencimentoFatura}
         contasDisponiveis={todasContas}
       />
     </AppLayout>
