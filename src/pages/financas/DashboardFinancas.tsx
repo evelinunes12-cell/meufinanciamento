@@ -303,12 +303,24 @@ const DashboardFinancas = () => {
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-lg bg-primary/10">
-                    <ArrowUpDown className="h-5 w-5 text-primary" />
+                    <Wallet className="h-5 w-5 text-primary" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Saldo do Período</p>
-                    <p className={`text-lg font-bold ${saldoMes >= 0 ? "text-success" : "text-destructive"}`}>
-                      {formatCurrency(saldoMes)}
+                    <div className="flex items-center gap-1">
+                      <p className="text-xs text-muted-foreground">Saldo Total</p>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="max-w-xs text-xs">
+                            Saldo acumulado de todas as contas considerando todo o histórico de transações executadas.
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                    <p className={`text-lg font-bold ${saldoContas >= 0 ? "text-success" : "text-destructive"}`}>
+                      {formatCurrency(saldoContas)}
                     </p>
                   </div>
                 </div>
