@@ -313,20 +313,20 @@ const DashboardFinancas = () => {
                   </div>
                   <div>
                     <div className="flex items-center gap-1">
-                      <p className="text-xs text-muted-foreground">Saldo Total</p>
+                      <p className="text-xs text-muted-foreground">Saldo Conta Corrente</p>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Info className="h-3 w-3 text-muted-foreground cursor-help" />
                         </TooltipTrigger>
                         <TooltipContent>
                           <p className="max-w-xs text-xs">
-                            Saldo acumulado de todas as contas considerando todo o histórico de transações executadas.
+                            Saldo acumulado apenas das contas correntes, considerando todo o histórico de transações executadas.
                           </p>
                         </TooltipContent>
                       </Tooltip>
                     </div>
-                    <p className={`text-lg font-bold ${saldoContas >= 0 ? "text-success" : "text-destructive"}`}>
-                      {formatCurrency(saldoContas)}
+                    <p className={`text-lg font-bold ${saldoContasCorrentes >= 0 ? "text-success" : "text-destructive"}`}>
+                      {formatCurrency(saldoContasCorrentes)}
                     </p>
                   </div>
                 </div>
