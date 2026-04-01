@@ -189,6 +189,12 @@ const DashboardFinancas = () => {
     return calcularSaldoTotalReal(contas, todasTransacoes);
   }, [contas, todasTransacoes]);
 
+  // Saldo apenas de contas correntes (exclui crédito, poupança, etc.)
+  const saldoContasCorrentes = useMemo(() => {
+    const contasCorrentes = contas.filter(c => c.tipo === "corrente");
+    return calcularSaldoTotalReal(contasCorrentes, todasTransacoes);
+  }, [contas, todasTransacoes]);
+
   const gastosCartao = transacoesValidas.filter(t => {
     const conta = contas.find(c => c.id === t.conta_id);
     return conta?.tipo === "credito" && t.tipo === "despesa";
@@ -307,20 +313,20 @@ const DashboardFinancas = () => {
                   </div>
                   <div>
                     <div className="flex items-center gap-1">
-                      <p className="text-xs text-muted-foreground">Saldo Total</p>
+                      <p className="text-xs text-muted-foreground">Saldo Conta Corrente</p>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Info className="h-3 w-3 text-muted-foreground cursor-help" />
                         </TooltipTrigger>
                         <TooltipContent>
                           <p className="max-w-xs text-xs">
-                            Saldo acumulado de todas as contas considerando todo o histórico de transações executadas.
+                            Saldo acumulado apenas das contas correntes, considerando todo o histórico de transações executadas.
                           </p>
                         </TooltipContent>
                       </Tooltip>
                     </div>
-                    <p className={`text-lg font-bold ${saldoContas >= 0 ? "text-success" : "text-destructive"}`}>
-                      {formatCurrency(saldoContas)}
+                    <p className={`text-lg font-bold ${saldoContasCorrentes >= 0 ? "text-success" : "text-destructive"}`}>
+                      {formatCurrency(saldoContasCorrentes)}
                     </p>
                   </div>
                 </div>
