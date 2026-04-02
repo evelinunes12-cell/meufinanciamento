@@ -221,6 +221,15 @@ const Auth = () => {
                     <p className="text-sm text-destructive">{errors.password}</p>
                   )}
                 </div>
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    className="text-sm text-primary hover:underline"
+                    onClick={() => { setShowForgotPassword(true); setForgotEmail(email); }}
+                  >
+                    Esqueceu a senha?
+                  </button>
+                </div>
                 <Button 
                   type="submit" 
                   variant="hero" 
