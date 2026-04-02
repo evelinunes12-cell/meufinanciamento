@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Loader2, Mail, Lock, LogIn, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -11,6 +12,7 @@ import { toast } from "@/hooks/use-toast";
 import { z } from "zod";
 import { lovable } from "@/integrations/lovable/index";
 import { Separator } from "@/components/ui/separator";
+import { supabase } from "@/integrations/supabase/client";
 
 const authSchema = z.object({
   email: z.string().email("Email inválido"),
@@ -25,6 +27,8 @@ const Auth = () => {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
 
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
@@ -57,6 +61,28 @@ const Auth = () => {
       });
     } finally {
       setIsGoogleLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotEmail) {
+      toast({ title: "Erro", description: "Informe seu email", variant: "destructive" });
+      return;
+    }
+    setIsLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setIsLoading(false);
+    if (error) {
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
+    } else {
+      toast({
+        title: "Email enviado!",
+        description: "Verifique sua caixa de entrada para redefinir a senha.",
+      });
+      setShowForgotPassword(false);
     }
   };
 
@@ -196,6 +222,15 @@ const Auth = () => {
                     <p className="text-sm text-destructive">{errors.password}</p>
                   )}
                 </div>
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    className="text-sm text-primary hover:underline"
+                    onClick={() => { setShowForgotPassword(true); setForgotEmail(email); }}
+                  >
+                    Esqueceu a senha?
+                  </button>
+                </div>
                 <Button 
                   type="submit" 
                   variant="hero" 
@@ -298,6 +333,38 @@ const Auth = () => {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={showForgotPassword} onOpenChange={setShowForgotPassword}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Redefinir Senha</DialogTitle>
+            <DialogDescription>
+              Informe seu email para receber o link de redefinição de senha.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleForgotPassword} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="forgot-email">Email</Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="forgot-email"
+                  type="email"
+                  placeholder="seu@email.com"
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                  className="pl-10"
+                  required
+                />
+              </div>
+            </div>
+            <Button type="submit" variant="hero" className="w-full" disabled={isLoading}>
+              {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Enviar Link
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
