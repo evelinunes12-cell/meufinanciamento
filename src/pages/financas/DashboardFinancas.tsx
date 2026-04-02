@@ -496,7 +496,24 @@ const DashboardFinancas = () => {
                           <Cell key={`cell-${index}`} fill={entry.color || COLORS[index % COLORS.length]} />
                         ))}
                       </Pie>
-                      <RechartsTooltip formatter={(value: number) => formatCurrency(value)} />
+                      <RechartsTooltip 
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            const entry = payload[0];
+                            const value = entry.value as number;
+                            const totalDespesas = despesasPorCategoria.reduce((sum, d) => sum + d.value, 0);
+                            const percent = totalDespesas > 0 ? ((value / totalDespesas) * 100).toFixed(1) : '0';
+                            return (
+                              <div className="bg-popover border border-border rounded-lg p-3 shadow-lg">
+                                <p className="font-medium text-foreground text-sm">{entry.name}</p>
+                                <p className="text-sm text-foreground">{formatCurrency(value)}</p>
+                                <p className="text-xs text-muted-foreground">{percent}% do total de despesas</p>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
                       <Legend />
                     </PieChart>
                   </ResponsiveContainer>
