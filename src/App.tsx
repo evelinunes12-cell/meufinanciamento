@@ -8,6 +8,7 @@ import { SaldoProvider } from "@/contexts/SaldoContext";
 import { ThemeProvider } from "next-themes";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Auth from "./pages/Auth";
+import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 
 // Finanças Pessoais
