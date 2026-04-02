@@ -39,7 +39,8 @@ const App = () => (
           <SaldoProvider>
             <SidebarProvider>
               <Routes>
-            <Route path="/auth" element={<Auth />} />
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
             
             {/* Redirect root to financas dashboard */}
             <Route
