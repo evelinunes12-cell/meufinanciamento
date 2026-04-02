@@ -26,11 +26,39 @@ const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
 
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+
   useEffect(() => {
     if (user && !authLoading) {
       navigate("/financas");
     }
   }, [user, authLoading, navigate]);
+
+  const handleGoogleSignIn = async () => {
+    setIsGoogleLoading(true);
+    try {
+      const result = await lovable.auth.signInWithOAuth("google", {
+        redirect_uri: window.location.origin,
+      });
+      if (result.error) {
+        toast({
+          title: "Erro",
+          description: "Erro ao entrar com Google",
+          variant: "destructive",
+        });
+      }
+      if (result.redirected) return;
+      navigate("/financas");
+    } catch {
+      toast({
+        title: "Erro",
+        description: "Erro ao entrar com Google",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGoogleLoading(false);
+    }
+  };
 
   const validateForm = () => {
     const result = authSchema.safeParse({ email, password });
