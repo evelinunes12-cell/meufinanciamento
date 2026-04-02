@@ -361,33 +361,6 @@ const DashboardFinancas = () => {
               </CardContent>
             </Card>
 
-            <Card className="shadow-card">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-primary/10">
-                    <LineChart className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-1">
-                      <p className="text-xs text-muted-foreground">Saldo Previsto</p>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Info className="h-3 w-3 text-muted-foreground cursor-help" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p className="max-w-xs text-xs">
-                            Saldo do período somado às pendências (receitas e despesas pendentes).
-                          </p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </div>
-                    <p className={`text-lg font-bold ${saldoPrevisto >= 0 ? "text-success" : "text-destructive"}`}>
-                      {formatCurrency(saldoPrevisto)}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
 
             <Card className="shadow-card">
               <CardContent className="p-4">
