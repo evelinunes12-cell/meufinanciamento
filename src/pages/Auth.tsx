@@ -11,6 +11,7 @@ import { toast } from "@/hooks/use-toast";
 import { z } from "zod";
 import { lovable } from "@/integrations/lovable/index";
 import { Separator } from "@/components/ui/separator";
+import { supabase } from "@/integrations/supabase/client";
 
 const authSchema = z.object({
   email: z.string().email("Email inválido"),
