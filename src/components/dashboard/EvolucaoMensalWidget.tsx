@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { format, subMonths, startOfMonth, endOfMonth, parseISO } from "date-fns";
+import { format, subMonths, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useMemo } from "react";
 
@@ -26,11 +26,9 @@ export function EvolucaoMensalWidget({ transacoes }: EvolucaoMensalWidgetProps) 
     const hoje = new Date();
     const meses: Array<{ mes: string; mesLabel: string; receitas: number; despesas: number }> = [];
 
-    // Generate last 6 months
-    for (let i = 5; i >= 0; i--) {
+    // Generate last 12 months
+    for (let i = 11; i >= 0; i--) {
       const data = subMonths(hoje, i);
-      const inicio = startOfMonth(data);
-      const fim = endOfMonth(data);
       const mesKey = format(data, "yyyy-MM");
       const mesLabel = format(data, "MMM/yy", { locale: ptBR });
 

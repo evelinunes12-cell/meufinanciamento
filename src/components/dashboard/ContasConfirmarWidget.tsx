@@ -20,6 +20,7 @@ interface Transacao {
 
 interface ContasConfirmarWidgetProps {
   transacoes: Transacao[];
+  categorias?: { id: string; nome: string }[];
   onRefresh?: () => void;
 }
 
@@ -27,11 +28,15 @@ const formatCurrency = (value: number) => {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 };
 
-export function ContasConfirmarWidget({ transacoes }: ContasConfirmarWidgetProps) {
+export function ContasConfirmarWidget({ transacoes, categorias = [] }: ContasConfirmarWidgetProps) {
   const [selectedTransacao, setSelectedTransacao] = useState<Transacao | null>(null);
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
 
-  const pendentes = transacoes.filter(t => t.is_pago_executado === false).slice(0, 10);
+  const pendentes = transacoes
+    .filter(t => t.tipo === "despesa" && t.is_pago_executado === false)
+    .slice(0, 10);
+  const getCategoriaNome = (id: string | null) =>
+    categorias.find(c => c.id === id)?.nome || "Sem categoria";
 
   const handleOpenConfirmModal = (transacao: Transacao) => {
     setSelectedTransacao(transacao);
@@ -70,6 +75,9 @@ export function ContasConfirmarWidget({ transacoes }: ContasConfirmarWidgetProps
                         </p>
                         <p className="text-xs text-muted-foreground">
                           Vence em {format(parseISO(t.data), "dd/MM/yyyy", { locale: ptBR })}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {getCategoriaNome(t.categoria_id)}
                         </p>
                       </div>
                     </div>
