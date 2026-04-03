@@ -49,7 +49,7 @@ const PagarFaturaModal = ({
   cartaoNome,
   valorFatura,
   vencimentoFatura,
-  contasDisponiveis,
+  contasDisponiveis = [],
 }: PagarFaturaModalProps) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
