@@ -294,17 +294,7 @@ const Contas = () => {
 
                 <div className="space-y-2">
                   <Label>Cor</Label>
-                  <div className="flex flex-wrap gap-2">
-                    {cores.map((cor) => (
-                      <button
-                        key={cor}
-                        type="button"
-                        className={`w-8 h-8 rounded-full border-2 ${formData.cor === cor ? "border-foreground" : "border-transparent"}`}
-                        style={{ backgroundColor: cor }}
-                        onClick={() => setFormData({ ...formData, cor })}
-                      />
-                    ))}
-                  </div>
+                  <ColorPicker value={formData.cor} onChange={(cor) => setFormData({ ...formData, cor })} />
                 </div>
 
                 <Button type="submit" className="w-full gradient-primary text-primary-foreground">
