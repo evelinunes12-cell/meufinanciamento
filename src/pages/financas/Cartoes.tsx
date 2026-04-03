@@ -9,7 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { CreditCard, Calendar, AlertTriangle, Banknote, Info } from "lucide-react";
-import { format, addMonths, subMonths } from "date-fns";
+import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Link } from "react-router-dom";
 import PagarFaturaModal from "@/components/PagarFaturaModal";
@@ -44,39 +44,6 @@ interface Transacao {
 // - Se X < dia_fechamento → pertence à fatura que fecha neste mesmo mês
 // - Se X >= dia_fechamento → pertence à fatura que fecha no mês seguinte
 // O vencimento da fatura é dia_vencimento do mês seguinte ao fechamento.
-
-/**
- * Retorna o início e fim do ciclo de fatura para uma data de compra,
- * e a data de vencimento dessa fatura.
- */
-function getCicloFatura(dataCompra: Date, diaFechamento: number, diaVencimento: number) {
-  const dia = dataCompra.getDate();
-  const mes = dataCompra.getMonth();
-  const ano = dataCompra.getFullYear();
-
-  let fechamentoDate: Date;
-
-  if (dia >= diaFechamento) {
-    // Compra cai na fatura do mês seguinte
-    fechamentoDate = new Date(ano, mes + 1, diaFechamento);
-  } else {
-    // Compra cai na fatura deste mês
-    fechamentoDate = new Date(ano, mes, diaFechamento);
-  }
-
-  // Início do ciclo: dia_fechamento do mês anterior + 1
-  const inicioCiclo = new Date(fechamentoDate.getFullYear(), fechamentoDate.getMonth() - 1, diaFechamento + 1);
-  
-  // Vencimento: dia_vencimento do mês seguinte ao fechamento
-  const vencimentoDate = new Date(fechamentoDate.getFullYear(), fechamentoDate.getMonth(), diaVencimento);
-
-  return {
-    inicioCiclo,
-    fimCiclo: fechamentoDate, // dia do fechamento
-    vencimento: vencimentoDate,
-    fechamentoKey: format(fechamentoDate, "yyyy-MM"), // chave para agrupar
-  };
-}
 
 /**
  * Retorna as informações da fatura FECHADA mais recente (pronta para pagar)

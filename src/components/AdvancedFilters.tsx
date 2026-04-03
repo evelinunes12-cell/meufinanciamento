@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -28,6 +27,7 @@ export interface FilterState {
 interface AdvancedFiltersProps {
   filters: FilterState;
   onFiltersChange: (filters: FilterState) => void;
+  onResetToDefault?: () => void;
   categorias?: { id: string; nome: string; tipo: string; categoria_pai_id?: string | null }[];
   contas?: { id: string; nome_conta: string }[];
   showTipo?: boolean;
@@ -74,6 +74,7 @@ const anos = generateYears();
 export const AdvancedFilters = ({
   filters,
   onFiltersChange,
+  onResetToDefault,
   categorias = [],
   contas = [],
   showTipo = false,
@@ -105,8 +106,14 @@ export const AdvancedFilters = ({
 
   // Get subcategories for selected category
   const subcategorias = filters.categoriaId 
-    ? categorias.filter(c => c.categoria_pai_id === filters.categoriaId)
+    ? categorias.filter(c =>
+        c.categoria_pai_id === filters.categoriaId &&
+        (!filters.tipo || c.tipo === filters.tipo)
+      )
     : [];
+  const categoriasPrincipaisFiltradas = categorias.filter(
+    cat => !cat.categoria_pai_id && (!filters.tipo || cat.tipo === filters.tipo)
+  );
 
   // Handle category change - reset subcategory when parent changes
   const handleCategoriaChange = (value: string) => {
@@ -115,6 +122,16 @@ export const AdvancedFilters = ({
       ...filters, 
       categoriaId: newCategoriaId, 
       subcategoriaId: "" // Reset subcategory when category changes
+    });
+  };
+
+  const handleTipoChange = (value: string) => {
+    const novoTipo = value === "__all__" ? "" : value;
+    onFiltersChange({
+      ...filters,
+      tipo: novoTipo,
+      categoriaId: "",
+      subcategoriaId: "",
     });
   };
 
@@ -206,6 +223,11 @@ export const AdvancedFilters = ({
             </Popover>
           </>
         )}
+        {onResetToDefault && (
+          <Button variant="outline" onClick={onResetToDefault}>
+            Restaurar filtro padrão
+          </Button>
+        )}
       </div>
 
       {/* Advanced Filters Collapsible */}
@@ -230,7 +252,7 @@ export const AdvancedFilters = ({
                   <Label className="text-xs text-muted-foreground">Tipo</Label>
                   <Select 
                     value={filters.tipo || "__all__"} 
-                    onValueChange={(v) => updateFilter("tipo", v === "__all__" ? "" : v)}
+                    onValueChange={handleTipoChange}
                   >
                     <SelectTrigger className="w-32">
                       <SelectValue placeholder="Todos" />
@@ -257,11 +279,12 @@ export const AdvancedFilters = ({
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="__all__">Todas</SelectItem>
-                        {categorias
-                          .filter(cat => !cat.categoria_pai_id) // Only main categories
-                          .map((cat) => (
-                            <SelectItem key={cat.id} value={cat.id}>{cat.nome}</SelectItem>
-                          ))}
+                        {categoriasPrincipaisFiltradas.map((cat) => (
+                          <SelectItem key={cat.id} value={cat.id}>
+                            {cat.nome}
+                            {(!filters.tipo || filters.tipo === "") ? ` (${cat.tipo === "receita" ? "Receita" : "Despesa"})` : ""}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
