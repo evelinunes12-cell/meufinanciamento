@@ -18,6 +18,7 @@ import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
 import { formatCurrencyInput, parseCurrencyInput, calculateCardDueDate, calculateInstallmentDueDate } from "@/lib/calculations";
 import { AdvancedFilters, FilterState, getDateRangeFromFilters, getInitialFilterState, getCategoryIdsForFilter } from "@/components/AdvancedFilters";
+import ColorPicker from "@/components/ColorPicker";
 import ConfirmPaymentModal from "@/components/ConfirmPaymentModal";
 import DeleteSeriesDialog from "@/components/DeleteSeriesDialog";
 import { isPendente } from "@/lib/transactions";
@@ -74,10 +75,6 @@ const recorrencias = [
   { value: "fixa", label: "Recorrência Fixa (Ilimitada)" },
 ];
 
-const cores = [
-  "#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", 
-  "#EC4899", "#06B6D4", "#84CC16", "#F97316", "#6366F1"
-];
 
 const ITEMS_PER_PAGE = 10;
 
@@ -788,17 +785,7 @@ const Transacoes = () => {
                               </div>
                               <div className="space-y-2">
                                 <Label>Cor</Label>
-                                <div className="flex flex-wrap gap-2">
-                                  {cores.map((cor) => (
-                                    <button
-                                      key={cor}
-                                      type="button"
-                                      className={`w-8 h-8 rounded-full border-2 ${newCategoryCor === cor ? "border-foreground" : "border-transparent"}`}
-                                      style={{ backgroundColor: cor }}
-                                      onClick={() => setNewCategoryCor(cor)}
-                                    />
-                                  ))}
-                                </div>
+                                <ColorPicker value={newCategoryCor} onChange={setNewCategoryCor} />
                               </div>
                               <Button type="button" onClick={handleCreateCategory} className="w-full gradient-primary text-primary-foreground">
                                 Criar Categoria

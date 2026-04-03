@@ -14,6 +14,7 @@ import { toast } from "@/hooks/use-toast";
 import { contaSchema } from "@/lib/validations";
 import { formatCurrencyInput, parseCurrencyInput } from "@/lib/calculations";
 import ImportarOFXModal from "@/components/ImportarOFXModal";
+import ColorPicker from "@/components/ColorPicker";
 
 interface Conta {
   id: string;
@@ -34,10 +35,6 @@ const tiposConta = [
   { value: "credito", label: "Cartão de Crédito", icon: CreditCard },
 ];
 
-const cores = [
-  "#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", 
-  "#EC4899", "#06B6D4", "#84CC16", "#F97316", "#6366F1"
-];
 
 const Contas = () => {
   const { user } = useAuth();
@@ -297,17 +294,7 @@ const Contas = () => {
 
                 <div className="space-y-2">
                   <Label>Cor</Label>
-                  <div className="flex flex-wrap gap-2">
-                    {cores.map((cor) => (
-                      <button
-                        key={cor}
-                        type="button"
-                        className={`w-8 h-8 rounded-full border-2 ${formData.cor === cor ? "border-foreground" : "border-transparent"}`}
-                        style={{ backgroundColor: cor }}
-                        onClick={() => setFormData({ ...formData, cor })}
-                      />
-                    ))}
-                  </div>
+                  <ColorPicker value={formData.cor} onChange={(cor) => setFormData({ ...formData, cor })} />
                 </div>
 
                 <Button type="submit" className="w-full gradient-primary text-primary-foreground">
