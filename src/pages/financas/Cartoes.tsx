@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
@@ -7,9 +7,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { CreditCard, Calendar, AlertTriangle, Banknote, Info } from "lucide-react";
-import { format } from "date-fns";
+import { Switch } from "@/components/ui/switch";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { CreditCard, Calendar, AlertTriangle, Banknote, Info, History, Lock, LockOpen } from "lucide-react";
+import { format, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Link } from "react-router-dom";
 import PagarFaturaModal from "@/components/PagarFaturaModal";
@@ -29,8 +32,8 @@ interface Transacao {
   conta_id: string;
   valor: number;
   tipo: string;
-  data: string; // data da compra
-  data_pagamento: string | null; // data de vencimento (calculada)
+  data: string;
+  data_pagamento: string | null;
   is_pago_executado: boolean | null;
   descricao: string | null;
   parcela_atual: number | null;
@@ -40,48 +43,37 @@ interface Transacao {
 // ==========================================
 // Lógica de ciclo de fatura de cartão de crédito
 // ==========================================
-// Regra real: uma compra feita no dia X pertence à fatura que fecha no dia_fechamento.
-// - Se X < dia_fechamento → pertence à fatura que fecha neste mesmo mês
-// - Se X >= dia_fechamento → pertence à fatura que fecha no mês seguinte
-// O vencimento da fatura é dia_vencimento do mês seguinte ao fechamento.
 
-/**
- * Retorna as informações da fatura FECHADA mais recente (pronta para pagar)
- * e da fatura ABERTA (ciclo atual).
- */
-function getFaturasInfo(cartao: Conta, hoje: Date = new Date()) {
+function getFaturasInfo(cartao: Conta, hoje: Date = new Date(), forceClose = false) {
   const diaFechamento = cartao.dia_fechamento || 1;
   const diaVencimento = cartao.dia_vencimento || 10;
   const diaHoje = hoje.getDate();
   const mesHoje = hoje.getMonth();
   const anoHoje = hoje.getFullYear();
 
-  // --- Fatura ABERTA (ciclo atual em curso) ---
+  // Se forceClose é true, tratamos como se já tivesse fechado
+  const jaFechou = forceClose ? true : diaHoje >= diaFechamento;
+
   let abertaInicio: Date;
   let abertaFim: Date;
 
-  if (diaHoje >= diaFechamento) {
-    // Já passou o fechamento neste mês → ciclo aberto vai de hoje até fechamento do próximo mês
+  if (jaFechou) {
     abertaInicio = new Date(anoHoje, mesHoje, diaFechamento + 1);
     abertaFim = new Date(anoHoje, mesHoje + 1, diaFechamento);
   } else {
-    // Ainda não fechou → ciclo aberto vai do fechamento do mês passado + 1 até o fechamento deste mês
     abertaInicio = new Date(anoHoje, mesHoje - 1, diaFechamento + 1);
     abertaFim = new Date(anoHoje, mesHoje, diaFechamento);
   }
 
-  // --- Fatura FECHADA mais recente ---
   let fechadaFim: Date;
   let fechadaInicio: Date;
   let fechadaVencimento: Date;
 
-  if (diaHoje >= diaFechamento) {
-    // O fechamento deste mês já ocorreu
+  if (jaFechou) {
     fechadaFim = new Date(anoHoje, mesHoje, diaFechamento);
     fechadaInicio = new Date(anoHoje, mesHoje - 1, diaFechamento + 1);
     fechadaVencimento = new Date(anoHoje, mesHoje, diaVencimento);
   } else {
-    // O fechamento deste mês ainda não ocorreu → a mais recente é do mês passado
     fechadaFim = new Date(anoHoje, mesHoje - 1, diaFechamento);
     fechadaInicio = new Date(anoHoje, mesHoje - 2, diaFechamento + 1);
     fechadaVencimento = new Date(anoHoje, mesHoje - 1, diaVencimento);
@@ -99,6 +91,41 @@ function getFaturasInfo(cartao: Conta, hoje: Date = new Date()) {
       mesReferencia: format(fechadaFim, "MMMM/yyyy", { locale: ptBR }),
     },
   };
+}
+
+/**
+ * Gera ciclos de fatura retroativos para histórico
+ */
+function getHistoricoCiclos(cartao: Conta, meses: number = 12) {
+  const diaFechamento = cartao.dia_fechamento || 1;
+  const diaVencimento = cartao.dia_vencimento || 10;
+  const hoje = new Date();
+  const ciclos: Array<{
+    mesReferencia: string;
+    inicio: string;
+    fim: string;
+    vencimento: Date;
+  }> = [];
+
+  for (let i = 1; i <= meses; i++) {
+    const refDate = subMonths(hoje, i);
+    const mes = refDate.getMonth();
+    const ano = refDate.getFullYear();
+
+    // O ciclo que fecha nesse mês
+    const fechaFim = new Date(ano, mes, diaFechamento);
+    const fechaInicio = new Date(ano, mes - 1, diaFechamento + 1);
+    const vencimento = new Date(ano, mes, diaVencimento);
+
+    ciclos.push({
+      mesReferencia: format(fechaFim, "MMMM/yyyy", { locale: ptBR }),
+      inicio: format(fechaInicio, "yyyy-MM-dd"),
+      fim: format(fechaFim, "yyyy-MM-dd"),
+      vencimento,
+    });
+  }
+
+  return ciclos;
 }
 
 async function fetchCartoesData(userId: string | undefined) {
@@ -120,8 +147,24 @@ async function fetchCartoesData(userId: string | undefined) {
   };
 }
 
+const FORCE_CLOSE_KEY = "cartoes_force_close";
+
+function getForceCloseState(): Record<string, boolean> {
+  try {
+    return JSON.parse(localStorage.getItem(FORCE_CLOSE_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function setForceCloseState(state: Record<string, boolean>) {
+  localStorage.setItem(FORCE_CLOSE_KEY, JSON.stringify(state));
+}
+
 const Cartoes = () => {
   const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState("faturas");
+  const [forceClose, setForceClose] = useState<Record<string, boolean>>(getForceCloseState);
   const [faturaModal, setFaturaModal] = useState<{
     open: boolean;
     cartaoId: string;
@@ -145,31 +188,33 @@ const Cartoes = () => {
     return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
   };
 
-  /**
-   * Filtra transações do cartão que pertencem a um ciclo de fatura específico,
-   * baseado na DATA DA COMPRA (data), não na data de vencimento.
-   */
+  const toggleForceClose = (cartaoId: string) => {
+    setForceClose((prev) => {
+      const next = { ...prev, [cartaoId]: !prev[cartaoId] };
+      setForceCloseState(next);
+      return next;
+    });
+  };
+
   const getTransacoesCiclo = (cartaoId: string, inicio: string, fim: string) => {
     return transacoes.filter(t => {
       if (t.conta_id !== cartaoId) return false;
-      // Usa a data da compra para determinar em qual ciclo a transação pertence
       return t.data >= inicio && t.data <= fim;
     });
   };
 
-  // Valor da fatura fechada: soma das transações do ciclo fechado que NÃO foram pagas
   const getFaturaFechada = (cartao: Conta) => {
-    const { fechada } = getFaturasInfo(cartao);
+    const isForced = forceClose[cartao.id] || false;
+    const { fechada } = getFaturasInfo(cartao, new Date(), isForced);
     const transacoesCiclo = getTransacoesCiclo(cartao.id, fechada.inicio, fechada.fim);
     return transacoesCiclo
       .filter(t => t.is_pago_executado !== true)
       .reduce((acc, t) => acc + Number(t.valor), 0);
   };
 
-  // Também verificar se há faturas anteriores não pagas (acumuladas)
   const getFaturasAnterioresNaoPagas = (cartao: Conta) => {
-    const { fechada } = getFaturasInfo(cartao);
-    // Todas as transações com data de compra ANTES do ciclo fechado atual que ainda não foram pagas
+    const isForced = forceClose[cartao.id] || false;
+    const { fechada } = getFaturasInfo(cartao, new Date(), isForced);
     return transacoes
       .filter(t => {
         if (t.conta_id !== cartao.id) return false;
@@ -178,14 +223,13 @@ const Cartoes = () => {
       .reduce((acc, t) => acc + Number(t.valor), 0);
   };
 
-  // Valor da fatura aberta (ciclo atual)
   const getFaturaAberta = (cartao: Conta) => {
-    const { aberta } = getFaturasInfo(cartao);
+    const isForced = forceClose[cartao.id] || false;
+    const { aberta } = getFaturasInfo(cartao, new Date(), isForced);
     const transacoesCiclo = getTransacoesCiclo(cartao.id, aberta.inicio, aberta.fim);
     return transacoesCiclo.reduce((acc, t) => acc + Number(t.valor), 0);
   };
 
-  // Saldo devedor total = todas as transações não pagas
   const getSaldoDevedor = (cartaoId: string) => {
     return transacoes
       .filter(t => t.conta_id === cartaoId && t.is_pago_executado !== true)
@@ -193,7 +237,8 @@ const Cartoes = () => {
   };
 
   const handlePagarFatura = (cartao: Conta) => {
-    const { fechada } = getFaturasInfo(cartao);
+    const isForced = forceClose[cartao.id] || false;
+    const { fechada } = getFaturasInfo(cartao, new Date(), isForced);
     const faturaFechada = getFaturaFechada(cartao);
     const faturasAnteriores = getFaturasAnterioresNaoPagas(cartao);
     const valorTotal = faturaFechada + faturasAnteriores;
@@ -205,6 +250,30 @@ const Cartoes = () => {
       valorFatura: Math.max(0, valorTotal),
       vencimentoFatura: format(fechada.vencimento, "yyyy-MM-dd"),
     });
+  };
+
+  // Calcula histórico de faturas para um cartão
+  const getHistorico = (cartao: Conta) => {
+    const ciclos = getHistoricoCiclos(cartao, 12);
+    return ciclos.map(ciclo => {
+      const transacoesCiclo = getTransacoesCiclo(cartao.id, ciclo.inicio, ciclo.fim);
+      const valorFechado = transacoesCiclo.reduce((acc, t) => acc + Number(t.valor), 0);
+      const valorPago = transacoesCiclo
+        .filter(t => t.is_pago_executado === true)
+        .reduce((acc, t) => acc + Number(t.valor), 0);
+      const valorPendente = transacoesCiclo
+        .filter(t => t.is_pago_executado !== true)
+        .reduce((acc, t) => acc + Number(t.valor), 0);
+
+      return {
+        mesReferencia: ciclo.mesReferencia,
+        vencimento: ciclo.vencimento,
+        valorFechado,
+        valorPago,
+        valorPendente,
+        qtdTransacoes: transacoesCiclo.length,
+      };
+    }).filter(h => h.qtdTransacoes > 0 || h.valorFechado > 0);
   };
 
   if (isLoading) {
@@ -246,139 +315,277 @@ const Cartoes = () => {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {cartoes.map((cartao) => {
-              const faturasInfo = getFaturasInfo(cartao);
-              const faturaFechada = getFaturaFechada(cartao);
-              const faturasAnteriores = getFaturasAnterioresNaoPagas(cartao);
-              const totalFechada = faturaFechada + faturasAnteriores;
-              const faturaAberta = getFaturaAberta(cartao);
-              const saldoDevedor = getSaldoDevedor(cartao.id);
-              const limite = Number(cartao.limite) || 0;
-              const percentualUsado = limite > 0 ? (Math.max(0, saldoDevedor) / limite) * 100 : 0;
-              const disponivel = limite - Math.max(0, saldoDevedor);
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="grid w-full max-w-md grid-cols-2">
+              <TabsTrigger value="faturas" className="flex items-center gap-2">
+                <CreditCard className="h-4 w-4" />
+                Faturas
+              </TabsTrigger>
+              <TabsTrigger value="historico" className="flex items-center gap-2">
+                <History className="h-4 w-4" />
+                Histórico
+              </TabsTrigger>
+            </TabsList>
 
-              return (
-                <Card key={cartao.id} className="shadow-card overflow-hidden">
-                  <div className="h-2" style={{ backgroundColor: cartao.cor }} />
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div 
-                          className="p-2 rounded-lg"
-                          style={{ backgroundColor: `${cartao.cor}20` }}
-                        >
-                          <CreditCard className="h-5 w-5" style={{ color: cartao.cor }} />
-                        </div>
-                        <div>
-                          <CardTitle className="text-lg">{cartao.nome_conta}</CardTitle>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <Calendar className="h-3 w-3" />
-                            Fecha dia {cartao.dia_fechamento} | Vence dia {cartao.dia_vencimento}
+            <TabsContent value="faturas" className="mt-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {cartoes.map((cartao) => {
+                  const isForced = forceClose[cartao.id] || false;
+                  const diaHoje = new Date().getDate();
+                  const diaFechamento = cartao.dia_fechamento || 1;
+                  const jaFechouNaturalmente = diaHoje >= diaFechamento;
+                  const faturasInfo = getFaturasInfo(cartao, new Date(), isForced);
+                  const faturaFechada = getFaturaFechada(cartao);
+                  const faturasAnteriores = getFaturasAnterioresNaoPagas(cartao);
+                  const totalFechada = faturaFechada + faturasAnteriores;
+                  const faturaAberta = getFaturaAberta(cartao);
+                  const saldoDevedor = getSaldoDevedor(cartao.id);
+                  const limite = Number(cartao.limite) || 0;
+                  const percentualUsado = limite > 0 ? (Math.max(0, saldoDevedor) / limite) * 100 : 0;
+                  const disponivel = limite - Math.max(0, saldoDevedor);
+
+                  return (
+                    <Card key={cartao.id} className="shadow-card overflow-hidden">
+                      <div className="h-2" style={{ backgroundColor: cartao.cor }} />
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div 
+                              className="p-2 rounded-lg"
+                              style={{ backgroundColor: `${cartao.cor}20` }}
+                            >
+                              <CreditCard className="h-5 w-5" style={{ color: cartao.cor }} />
+                            </div>
+                            <div>
+                              <CardTitle className="text-lg">{cartao.nome_conta}</CardTitle>
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <Calendar className="h-3 w-3" />
+                                Fecha dia {cartao.dia_fechamento} | Vence dia {cartao.dia_vencimento}
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      </div>
-                      {percentualUsado > 80 && (
-                        <Badge variant="destructive" className="flex items-center gap-1">
-                          <AlertTriangle className="h-3 w-3" />
-                          Alto uso
-                        </Badge>
-                      )}
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {/* Fatura Fechada - Pronta para pagar */}
-                    <div className="p-3 rounded-lg bg-warning/10 border border-warning/30">
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <div className="flex items-center gap-1">
-                            <p className="text-xs text-muted-foreground">
-                              Fatura Fechada ({faturasInfo.fechada.mesReferencia})
-                            </p>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Info className="h-3 w-3 text-muted-foreground cursor-help" />
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p className="max-w-xs text-xs">
-                                  Compras de {format(new Date(faturasInfo.fechada.inicio), "dd/MM")} a {format(new Date(faturasInfo.fechada.fim), "dd/MM")}.
-                                  Vencimento: {format(faturasInfo.fechada.vencimento, "dd/MM/yyyy")}.
-                                  {faturasAnteriores > 0 && ` Inclui ${formatCurrency(faturasAnteriores)} de faturas anteriores não pagas.`}
-                                </p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </div>
-                          <p className={`text-lg font-bold ${totalFechada > 0 ? "text-warning" : "text-success"}`}>
-                            {formatCurrency(totalFechada)}
-                          </p>
-                          {faturasAnteriores > 0 && (
-                            <p className="text-[10px] text-destructive">
-                              Inclui {formatCurrency(faturasAnteriores)} de faturas anteriores
-                            </p>
+                          {percentualUsado > 80 && (
+                            <Badge variant="destructive" className="flex items-center gap-1">
+                              <AlertTriangle className="h-3 w-3" />
+                              Alto uso
+                            </Badge>
                           )}
                         </div>
-                        {totalFechada > 0 && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="gap-1 border-warning text-warning hover:bg-warning hover:text-warning-foreground"
-                            onClick={() => handlePagarFatura(cartao)}
-                          >
-                            <Banknote className="h-4 w-4" />
-                            Pagar
-                          </Button>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        {/* Toggle forçar fechamento - só mostra se a fatura ainda não fechou naturalmente */}
+                        {!jaFechouNaturalmente && (
+                          <div className="flex items-center justify-between p-2 rounded-lg bg-muted/50 border border-border">
+                            <div className="flex items-center gap-2">
+                              {isForced ? (
+                                <Lock className="h-4 w-4 text-warning" />
+                              ) : (
+                                <LockOpen className="h-4 w-4 text-muted-foreground" />
+                              )}
+                              <div>
+                                <p className="text-xs font-medium text-foreground">
+                                  {isForced ? "Fatura marcada como fechada" : "Fatura ainda aberta"}
+                                </p>
+                                <p className="text-[10px] text-muted-foreground">
+                                  Fechamento automático no dia {diaFechamento}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] text-muted-foreground">
+                                {isForced ? "Fechada" : "Aberta"}
+                              </span>
+                              <Switch
+                                checked={isForced}
+                                onCheckedChange={() => toggleForceClose(cartao.id)}
+                              />
+                            </div>
+                          </div>
                         )}
-                      </div>
-                    </div>
 
-                    {/* Fatura Aberta (ciclo atual) */}
-                    <div>
-                      <div className="flex justify-between text-sm mb-2">
-                        <div className="flex items-center gap-1">
-                          <span className="text-muted-foreground">Fatura Atual (em aberto)</span>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Info className="h-3 w-3 text-muted-foreground cursor-help" />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p className="max-w-xs text-xs">
-                                Compras de {format(new Date(faturasInfo.aberta.inicio), "dd/MM")} a {format(new Date(faturasInfo.aberta.fim), "dd/MM")}.
-                                Esta fatura ainda não fechou.
+                        {/* Fatura Fechada */}
+                        <div className="p-3 rounded-lg bg-warning/10 border border-warning/30">
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <div className="flex items-center gap-1">
+                                <p className="text-xs text-muted-foreground">
+                                  Fatura Fechada ({faturasInfo.fechada.mesReferencia})
+                                </p>
+                                {isForced && !jaFechouNaturalmente && (
+                                  <Badge variant="outline" className="text-[9px] px-1 py-0 border-warning text-warning">
+                                    Manual
+                                  </Badge>
+                                )}
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p className="max-w-xs text-xs">
+                                      Compras de {format(new Date(faturasInfo.fechada.inicio), "dd/MM")} a {format(new Date(faturasInfo.fechada.fim), "dd/MM")}.
+                                      Vencimento: {format(faturasInfo.fechada.vencimento, "dd/MM/yyyy")}.
+                                      {faturasAnteriores > 0 && ` Inclui ${formatCurrency(faturasAnteriores)} de faturas anteriores não pagas.`}
+                                    </p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </div>
+                              <p className={`text-lg font-bold ${totalFechada > 0 ? "text-warning" : "text-success"}`}>
+                                {formatCurrency(totalFechada)}
                               </p>
-                            </TooltipContent>
-                          </Tooltip>
+                              {faturasAnteriores > 0 && (
+                                <p className="text-[10px] text-destructive">
+                                  Inclui {formatCurrency(faturasAnteriores)} de faturas anteriores
+                                </p>
+                              )}
+                            </div>
+                            {totalFechada > 0 && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="gap-1 border-warning text-warning hover:bg-warning hover:text-warning-foreground"
+                                onClick={() => handlePagarFatura(cartao)}
+                              >
+                                <Banknote className="h-4 w-4" />
+                                Pagar
+                              </Button>
+                            )}
+                          </div>
                         </div>
-                        <span className="font-medium text-foreground">
-                          {formatCurrency(faturaAberta)}
-                        </span>
-                      </div>
-                      <Progress 
-                        value={Math.min(percentualUsado, 100)} 
-                        className="h-2"
-                      />
-                      <div className="flex justify-between text-xs mt-1">
-                        <span className="text-muted-foreground">{percentualUsado.toFixed(1)}% usado</span>
-                        <span className="text-muted-foreground">Limite: {formatCurrency(limite)}</span>
-                      </div>
-                    </div>
 
-                    <div className="grid grid-cols-2 gap-4 pt-2 border-t border-border">
-                      <div>
-                        <p className="text-xs text-muted-foreground">Disponível</p>
-                        <p className={`text-lg font-bold ${disponivel >= 0 ? "text-success" : "text-destructive"}`}>
-                          {formatCurrency(disponivel)}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Saldo Devedor Total</p>
-                        <p className="text-lg font-bold text-foreground">{formatCurrency(saldoDevedor)}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
+                        {/* Fatura Aberta (ciclo atual) */}
+                        <div>
+                          <div className="flex justify-between text-sm mb-2">
+                            <div className="flex items-center gap-1">
+                              <span className="text-muted-foreground">Fatura Atual (em aberto)</span>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p className="max-w-xs text-xs">
+                                    Compras de {format(new Date(faturasInfo.aberta.inicio), "dd/MM")} a {format(new Date(faturasInfo.aberta.fim), "dd/MM")}.
+                                    Esta fatura ainda não fechou.
+                                  </p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </div>
+                            <span className="font-medium text-foreground">
+                              {formatCurrency(faturaAberta)}
+                            </span>
+                          </div>
+                          <Progress 
+                            value={Math.min(percentualUsado, 100)} 
+                            className="h-2"
+                          />
+                          <div className="flex justify-between text-xs mt-1">
+                            <span className="text-muted-foreground">{percentualUsado.toFixed(1)}% usado</span>
+                            <span className="text-muted-foreground">Limite: {formatCurrency(limite)}</span>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4 pt-2 border-t border-border">
+                          <div>
+                            <p className="text-xs text-muted-foreground">Disponível</p>
+                            <p className={`text-lg font-bold ${disponivel >= 0 ? "text-success" : "text-destructive"}`}>
+                              {formatCurrency(disponivel)}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Saldo Devedor Total</p>
+                            <p className="text-lg font-bold text-foreground">{formatCurrency(saldoDevedor)}</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="historico" className="mt-4">
+              <div className="space-y-6">
+                {cartoes.map((cartao) => {
+                  const historico = getHistorico(cartao);
+
+                  return (
+                    <Card key={cartao.id} className="shadow-card overflow-hidden">
+                      <div className="h-2" style={{ backgroundColor: cartao.cor }} />
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center gap-3">
+                          <div 
+                            className="p-2 rounded-lg"
+                            style={{ backgroundColor: `${cartao.cor}20` }}
+                          >
+                            <CreditCard className="h-5 w-5" style={{ color: cartao.cor }} />
+                          </div>
+                          <CardTitle className="text-lg">{cartao.nome_conta}</CardTitle>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        {historico.length === 0 ? (
+                          <div className="text-center py-8">
+                            <History className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                            <p className="text-muted-foreground text-sm">Nenhum histórico de fatura encontrado</p>
+                          </div>
+                        ) : (
+                          <div className="overflow-x-auto">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>Mês</TableHead>
+                                  <TableHead>Vencimento</TableHead>
+                                  <TableHead className="text-right">Valor Fatura</TableHead>
+                                  <TableHead className="text-right">Valor Pago</TableHead>
+                                  <TableHead className="text-right">Pendente</TableHead>
+                                  <TableHead className="text-center">Status</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {historico.map((item) => (
+                                  <TableRow key={item.mesReferencia}>
+                                    <TableCell className="font-medium capitalize">
+                                      {item.mesReferencia}
+                                    </TableCell>
+                                    <TableCell className="text-muted-foreground">
+                                      {format(item.vencimento, "dd/MM/yyyy")}
+                                    </TableCell>
+                                    <TableCell className="text-right font-medium">
+                                      {formatCurrency(item.valorFechado)}
+                                    </TableCell>
+                                    <TableCell className="text-right text-success">
+                                      {formatCurrency(item.valorPago)}
+                                    </TableCell>
+                                    <TableCell className={`text-right ${item.valorPendente > 0 ? "text-destructive font-medium" : "text-muted-foreground"}`}>
+                                      {formatCurrency(item.valorPendente)}
+                                    </TableCell>
+                                    <TableCell className="text-center">
+                                      {item.valorPendente <= 0 ? (
+                                        <Badge className="bg-success/20 text-success border-success/30 hover:bg-success/30">
+                                          Paga
+                                        </Badge>
+                                      ) : item.valorPago > 0 ? (
+                                        <Badge variant="outline" className="border-warning text-warning">
+                                          Parcial
+                                        </Badge>
+                                      ) : (
+                                        <Badge variant="destructive">
+                                          Pendente
+                                        </Badge>
+                                      )}
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </TabsContent>
+          </Tabs>
         )}
       </div>
 
