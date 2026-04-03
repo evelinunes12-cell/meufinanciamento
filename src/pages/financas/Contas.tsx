@@ -14,6 +14,7 @@ import { toast } from "@/hooks/use-toast";
 import { contaSchema } from "@/lib/validations";
 import { formatCurrencyInput, parseCurrencyInput } from "@/lib/calculations";
 import ImportarOFXModal from "@/components/ImportarOFXModal";
+import ColorPicker from "@/components/ColorPicker";
 
 interface Conta {
   id: string;
