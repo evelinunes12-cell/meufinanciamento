@@ -785,17 +785,7 @@ const Transacoes = () => {
                               </div>
                               <div className="space-y-2">
                                 <Label>Cor</Label>
-                                <div className="flex flex-wrap gap-2">
-                                  {cores.map((cor) => (
-                                    <button
-                                      key={cor}
-                                      type="button"
-                                      className={`w-8 h-8 rounded-full border-2 ${newCategoryCor === cor ? "border-foreground" : "border-transparent"}`}
-                                      style={{ backgroundColor: cor }}
-                                      onClick={() => setNewCategoryCor(cor)}
-                                    />
-                                  ))}
-                                </div>
+                                <ColorPicker value={newCategoryCor} onChange={setNewCategoryCor} />
                               </div>
                               <Button type="button" onClick={handleCreateCategory} className="w-full gradient-primary text-primary-foreground">
                                 Criar Categoria
