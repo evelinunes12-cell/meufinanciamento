@@ -12,13 +12,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, Edit, AlertTriangle, CheckCircle } from "lucide-react";
+import { Plus, Trash2, Edit, AlertTriangle, CheckCircle, ChevronDown, ChevronRight } from "lucide-react";
 import { format, startOfMonth, endOfMonth, parseISO, isBefore, isAfter } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
 import { isExecutado, getDataEfetiva } from "@/lib/transactions";
 
-interface Orcamento {
+interface OrcamentoType {
   id: string;
   categoria_id: string;
   valor_limite: number;
@@ -54,25 +54,15 @@ interface Conta {
 async function fetchOrcamentoData(userId: string | undefined, mesAtual: string) {
   if (!userId) return null;
 
-  const now = new Date();
-  const start = startOfMonth(now);
-  const end = endOfMonth(now);
-
-  // Fetch transactions with a wider range to capture credit card transactions
-  // that may have been made in previous months but have data_pagamento in current month
   const [orcamentosRes, categoriasRes, transacoesRes, contasRes] = await Promise.all([
     supabase.from("orcamentos").select("*").eq("mes_referencia", mesAtual),
     supabase.from("categorias").select("*").eq("tipo", "despesa"),
-    // Fetch all expense transactions - we'll filter by effective date client-side
-    supabase
-      .from("transacoes")
-      .select("*")
-      .eq("tipo", "despesa"),
+    supabase.from("transacoes").select("*").eq("tipo", "despesa"),
     supabase.from("contas").select("id, tipo, dia_fechamento"),
   ]);
 
   return {
-    orcamentos: (orcamentosRes.data || []) as Orcamento[],
+    orcamentos: (orcamentosRes.data || []) as OrcamentoType[],
     categorias: (categoriasRes.data || []) as Categoria[],
     transacoes: (transacoesRes.data || []) as Transacao[],
     contas: (contasRes.data || []) as Conta[],
@@ -85,6 +75,7 @@ const Orcamento = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [incluirPendentes, setIncluirPendentes] = useState(true);
+  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
 
   const [formData, setFormData] = useState({
     categoria_id: "",
@@ -97,7 +88,7 @@ const Orcamento = () => {
     queryKey: ["orcamentos", user?.id, mesAtual],
     queryFn: () => fetchOrcamentoData(user?.id, mesAtual),
     enabled: !!user?.id,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000,
   });
 
   const orcamentos = data?.orcamentos || [];
@@ -105,11 +96,10 @@ const Orcamento = () => {
   const transacoes = data?.transacoes || [];
   const contas = data?.contas || [];
 
-  // Filter transactions by effective date (uses data_pagamento for credit cards)
   const mesAtualDate = new Date();
   const startMes = startOfMonth(mesAtualDate);
   const endMes = endOfMonth(mesAtualDate);
-  
+
   const transacoesMesAtual = transacoes.filter(t => {
     const dataEfetiva = getDataEfetiva(t, contas);
     const dataEfetivaDate = parseISO(dataEfetiva);
@@ -123,7 +113,6 @@ const Orcamento = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!formData.categoria_id || !formData.valor_limite) {
       toast({ title: "Erro", description: "Preencha todos os campos", variant: "destructive" });
       return;
@@ -161,7 +150,7 @@ const Orcamento = () => {
     queryClient.invalidateQueries({ queryKey: ["orcamentos"] });
   };
 
-  const handleEdit = (orcamento: Orcamento) => {
+  const handleEdit = (orcamento: OrcamentoType) => {
     setFormData({
       categoria_id: orcamento.categoria_id,
       valor_limite: orcamento.valor_limite.toString(),
@@ -180,46 +169,135 @@ const Orcamento = () => {
     queryClient.invalidateQueries({ queryKey: ["orcamentos"] });
   };
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
-  };
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 
   const getCategoriaNome = (id: string) => categorias.find(c => c.id === id)?.nome || "-";
   const getCategoriaCor = (id: string) => categorias.find(c => c.id === id)?.cor || "#888";
+  const getCategoria = (id: string) => categorias.find(c => c.id === id);
 
-  // Filter valid transactions: exclude transfers and non-executed payments
-  // Include subcategory expenses in main category total (recursive for nested subcategories)
-  const getAllSubcategoriaIds = (mainCategoriaId: string): string[] => {
-    const directChildren = categorias.filter(c => c.categoria_pai_id === mainCategoriaId);
-    const directIds = directChildren.map(c => c.id);
-    // Recursively get children of children
-    const nestedIds = directChildren.flatMap(child => getAllSubcategoriaIds(child.id));
-    return [...directIds, ...nestedIds];
+  const getAllSubcategoriaIds = (catId: string): string[] => {
+    const children = categorias.filter(c => c.categoria_pai_id === catId);
+    return children.flatMap(child => [child.id, ...getAllSubcategoriaIds(child.id)]);
   };
 
-  const getGastosCategoria = (categoriaId: string) => {
-    // Get all subcategory IDs recursively
-    const allSubcatIds = getAllSubcategoriaIds(categoriaId);
-    const allCategoryIds = [categoriaId, ...allSubcatIds];
-    
-    // Use transactions filtered by effective date (data_pagamento for credit cards)
+  // Get spending for a SINGLE category only (no children)
+  const getGastosDiretos = (categoriaId: string) => {
     return transacoesMesAtual
-      .filter(t => 
-        t.categoria_id && 
-        allCategoryIds.includes(t.categoria_id) && 
+      .filter(t =>
+        t.categoria_id === categoriaId &&
         t.forma_pagamento !== "transferencia" &&
         (incluirPendentes || isExecutado(t.is_pago_executado))
       )
       .reduce((acc, t) => acc + Number(t.valor), 0);
   };
 
-  // For budget, only allow main categories (not subcategories)
-  const mainCategorias = categorias.filter(c => !c.categoria_pai_id);
+  // Get spending for a category INCLUDING all children
+  const getGastosCategoria = (categoriaId: string) => {
+    const allIds = [categoriaId, ...getAllSubcategoriaIds(categoriaId)];
+    return transacoesMesAtual
+      .filter(t =>
+        t.categoria_id &&
+        allIds.includes(t.categoria_id) &&
+        t.forma_pagamento !== "transferencia" &&
+        (incluirPendentes || isExecutado(t.is_pago_executado))
+      )
+      .reduce((acc, t) => acc + Number(t.valor), 0);
+  };
 
-  // Available categories for budget: only main categories that don't have a budget yet
-  const categoriasDisponiveis = mainCategorias.filter(
-    c => !orcamentos.some(o => o.categoria_id === c.id) || (editingId && orcamentos.find(o => o.id === editingId)?.categoria_id === c.id)
-  );
+  const mainCategorias = categorias.filter(c => !c.categoria_pai_id);
+  const getSubcategorias = (paiId: string) => categorias.filter(c => c.categoria_pai_id === paiId);
+
+  // Available categories: main + subcategories, excluding those that already have a budget
+  const categoriasDisponiveis = categorias.filter(c => {
+    const jaTemOrcamento = orcamentos.some(o => o.categoria_id === c.id);
+    const isEditingSame = editingId && orcamentos.find(o => o.id === editingId)?.categoria_id === c.id;
+    return !jaTemOrcamento || isEditingSame;
+  });
+
+  // Group available categories for the select: main categories first, then subcategories indented
+  const categoriasParaSelect = () => {
+    const result: { id: string; nome: string; isSubcat: boolean; cor: string }[] = [];
+    mainCategorias.forEach(main => {
+      if (categoriasDisponiveis.find(c => c.id === main.id)) {
+        result.push({ id: main.id, nome: main.nome, isSubcat: false, cor: main.cor });
+      }
+      getSubcategorias(main.id).forEach(sub => {
+        if (categoriasDisponiveis.find(c => c.id === sub.id)) {
+          result.push({ id: sub.id, nome: sub.nome, isSubcat: true, cor: sub.cor });
+        }
+      });
+    });
+    return result;
+  };
+
+  // Group budgets by main category for hierarchical display
+  const getOrcamentosHierarquicos = () => {
+    const groups: {
+      mainCatId: string;
+      mainOrcamento: OrcamentoType | null;
+      subOrcamentos: OrcamentoType[];
+    }[] = [];
+
+    const processedCatIds = new Set<string>();
+
+    // First, group by main category
+    mainCategorias.forEach(main => {
+      const mainOrc = orcamentos.find(o => o.categoria_id === main.id) || null;
+      const subs = getSubcategorias(main.id);
+      const subOrcs = orcamentos.filter(o => subs.some(s => s.id === o.categoria_id));
+
+      if (mainOrc || subOrcs.length > 0) {
+        groups.push({ mainCatId: main.id, mainOrcamento: mainOrc, subOrcamentos: subOrcs });
+        if (mainOrc) processedCatIds.add(mainOrc.categoria_id);
+        subOrcs.forEach(so => processedCatIds.add(so.categoria_id));
+      }
+    });
+
+    // Any orphan budgets (subcats whose parent has no budget and isn't grouped)
+    orcamentos.forEach(o => {
+      if (!processedCatIds.has(o.categoria_id)) {
+        const cat = getCategoria(o.categoria_id);
+        if (cat?.categoria_pai_id) {
+          const existing = groups.find(g => g.mainCatId === cat.categoria_pai_id);
+          if (existing) {
+            existing.subOrcamentos.push(o);
+          } else {
+            groups.push({ mainCatId: cat.categoria_pai_id!, mainOrcamento: null, subOrcamentos: [o] });
+          }
+        } else {
+          groups.push({ mainCatId: o.categoria_id, mainOrcamento: o, subOrcamentos: [] });
+        }
+      }
+    });
+
+    return groups;
+  };
+
+  const toggleExpand = (catId: string) => {
+    setExpandedCards(prev => {
+      const next = new Set(prev);
+      if (next.has(catId)) next.delete(catId);
+      else next.add(catId);
+      return next;
+    });
+  };
+
+  const renderStatusIcon = (percentual: number) => {
+    if (percentual >= 100) return <Badge variant="destructive" className="text-xs">Excedido</Badge>;
+    if (percentual >= 90) return <AlertTriangle className="h-4 w-4 text-warning" />;
+    return <CheckCircle className="h-4 w-4 text-success" />;
+  };
+
+  const renderProgressBar = (percentual: number) => {
+    const status = percentual >= 100 ? "excedido" : percentual >= 90 ? "alerta" : "ok";
+    return (
+      <Progress
+        value={Math.min(percentual, 100)}
+        className={`h-2 ${status === "excedido" ? "[&>div]:bg-destructive" : status === "alerta" ? "[&>div]:bg-warning" : ""}`}
+      />
+    );
+  };
 
   if (isLoading) {
     return (
@@ -230,6 +308,8 @@ const Orcamento = () => {
       </AppLayout>
     );
   }
+
+  const hierarquicos = getOrcamentosHierarquicos();
 
   return (
     <AppLayout>
@@ -249,117 +329,203 @@ const Orcamento = () => {
               />
               Incluir pendentes
             </label>
-          <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
-            <DialogTrigger asChild>
-              <Button className="gradient-primary text-primary-foreground" disabled={categoriasDisponiveis.length === 0}>
-                <Plus className="h-4 w-4 mr-2" />
-                Definir Limite
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle>{editingId ? "Editar" : "Novo"} Limite</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Categoria</Label>
-                  <Select value={formData.categoria_id} onValueChange={(v) => setFormData({ ...formData, categoria_id: v })}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione uma categoria" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categoriasDisponiveis.map((cat) => (
-                        <SelectItem key={cat.id} value={cat.id}>
-                          {cat.nome}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Valor Limite</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={formData.valor_limite}
-                    onChange={(e) => setFormData({ ...formData, valor_limite: e.target.value })}
-                    placeholder="0,00"
-                  />
-                </div>
-
-                <Button type="submit" className="w-full gradient-primary text-primary-foreground">
-                  {editingId ? "Atualizar" : "Criar"} Limite
+            <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
+              <DialogTrigger asChild>
+                <Button className="gradient-primary text-primary-foreground" disabled={categoriasDisponiveis.length === 0}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Definir Limite
                 </Button>
-              </form>
-            </DialogContent>
-          </Dialog>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>{editingId ? "Editar" : "Novo"} Limite</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Categoria</Label>
+                    <Select value={formData.categoria_id} onValueChange={(v) => setFormData({ ...formData, categoria_id: v })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione uma categoria" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categoriasParaSelect().map((cat) => (
+                          <SelectItem key={cat.id} value={cat.id}>
+                            <div className="flex items-center gap-2">
+                              {cat.isSubcat && <span className="text-muted-foreground">└</span>}
+                              <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: cat.cor }} />
+                              <span className={cat.isSubcat ? "text-sm" : "font-medium"}>{cat.nome}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Valor Limite</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={formData.valor_limite}
+                      onChange={(e) => setFormData({ ...formData, valor_limite: e.target.value })}
+                      placeholder="0,00"
+                    />
+                  </div>
+
+                  <Button type="submit" className="w-full gradient-primary text-primary-foreground">
+                    {editingId ? "Atualizar" : "Criar"} Limite
+                  </Button>
+                </form>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
 
-        {orcamentos.length === 0 ? (
+        {hierarquicos.length === 0 ? (
           <Card className="shadow-card">
             <CardContent className="flex flex-col items-center justify-center py-12">
               <h3 className="text-lg font-semibold text-foreground mb-2">Nenhum orçamento definido</h3>
               <p className="text-muted-foreground text-center mb-4">
-                Defina limites de gastos por categoria para controlar seu orçamento
+                Defina limites de gastos por categoria e subcategoria para controlar seu orçamento
               </p>
             </CardContent>
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {orcamentos.map((orcamento) => {
-              const gastos = getGastosCategoria(orcamento.categoria_id);
-              const limite = Number(orcamento.valor_limite);
-              const percentual = (gastos / limite) * 100;
-              const restante = limite - gastos;
-              const status = percentual >= 100 ? "excedido" : percentual >= 90 ? "alerta" : "ok";
+            {hierarquicos.map((group) => {
+              const mainCat = getCategoria(group.mainCatId);
+              const mainCor = mainCat?.cor || "#888";
+              const mainNome = mainCat?.nome || "-";
+              const hasSubOrcamentos = group.subOrcamentos.length > 0;
+              const isExpanded = expandedCards.has(group.mainCatId);
+
+              // Total spending for the main category (including all subs)
+              const gastosTotalMain = getGastosCategoria(group.mainCatId);
+
+              // Main budget values
+              const mainLimite = group.mainOrcamento ? Number(group.mainOrcamento.valor_limite) : 0;
+
+              // Sum of sub-budget limits
+              const subLimitesTotal = group.subOrcamentos.reduce((acc, so) => acc + Number(so.valor_limite), 0);
+              const limiteTotal = mainLimite + subLimitesTotal;
+
+              // If there's no main budget but has sub-budgets, use combined sub limits
+              const limiteExibido = limiteTotal > 0 ? limiteTotal : mainLimite;
+              const percentual = limiteExibido > 0 ? (gastosTotalMain / limiteExibido) * 100 : 0;
+              const restante = limiteExibido - gastosTotalMain;
 
               return (
-                <Card key={orcamento.id} className="shadow-card overflow-hidden">
-                  <div 
-                    className="h-2"
-                    style={{ backgroundColor: getCategoriaCor(orcamento.categoria_id) }}
-                  />
+                <Card key={group.mainCatId} className="shadow-card overflow-hidden">
+                  <div className="h-2" style={{ backgroundColor: mainCor }} />
                   <CardContent className="p-4">
+                    {/* Main category header */}
                     <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center gap-2">
-                        <div 
-                          className="w-3 h-3 rounded-full"
-                          style={{ backgroundColor: getCategoriaCor(orcamento.categoria_id) }}
-                        />
-                        <h3 className="font-semibold text-foreground">
-                          {getCategoriaNome(orcamento.categoria_id)}
-                        </h3>
+                      <div
+                        className={`flex items-center gap-2 ${hasSubOrcamentos ? "cursor-pointer" : ""}`}
+                        onClick={() => hasSubOrcamentos && toggleExpand(group.mainCatId)}
+                      >
+                        {hasSubOrcamentos && (
+                          isExpanded
+                            ? <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                            : <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        )}
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: mainCor }} />
+                        <h3 className="font-semibold text-foreground">{mainNome}</h3>
                       </div>
                       <div className="flex items-center gap-1">
-                        {status === "ok" && <CheckCircle className="h-4 w-4 text-success" />}
-                        {status === "alerta" && <AlertTriangle className="h-4 w-4 text-warning" />}
-                        {status === "excedido" && (
-                          <Badge variant="destructive" className="text-xs">
-                            Excedido
-                          </Badge>
+                        {limiteExibido > 0 && renderStatusIcon(percentual)}
+                      </div>
+                    </div>
+
+                    {/* Main category progress */}
+                    {limiteExibido > 0 && (
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Gasto total</span>
+                          <span className={`font-medium ${percentual >= 100 ? "text-destructive" : "text-foreground"}`}>
+                            {formatCurrency(gastosTotalMain)}
+                          </span>
+                        </div>
+                        {renderProgressBar(percentual)}
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>{percentual.toFixed(1)}%</span>
+                          <span>Limite: {formatCurrency(limiteExibido)}</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Subcategory budgets (expandable) */}
+                    {hasSubOrcamentos && isExpanded && (
+                      <div className="mt-4 pt-3 border-t border-border space-y-3">
+                        {/* If main cat has its own budget, show direct spending */}
+                        {group.mainOrcamento && (
+                          <div className="space-y-1.5 pl-2">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: mainCor }} />
+                                <span className="text-sm text-foreground">{mainNome} (direto)</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleEdit(group.mainOrcamento!)}>
+                                  <Edit className="h-3 w-3" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => handleDelete(group.mainOrcamento!.id)}>
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </div>
+                            {(() => {
+                              const gastoDir = getGastosDiretos(group.mainOrcamento!.categoria_id);
+                              const limDir = Number(group.mainOrcamento!.valor_limite);
+                              const pctDir = limDir > 0 ? (gastoDir / limDir) * 100 : 0;
+                              return (
+                                <>
+                                  <div className="flex justify-between text-xs text-muted-foreground">
+                                    <span>{formatCurrency(gastoDir)}</span>
+                                    <span>Limite: {formatCurrency(limDir)}</span>
+                                  </div>
+                                  {renderProgressBar(pctDir)}
+                                </>
+                              );
+                            })()}
+                          </div>
                         )}
-                      </div>
-                    </div>
 
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Gasto</span>
-                        <span className={`font-medium ${status === "excedido" ? "text-destructive" : "text-foreground"}`}>
-                          {formatCurrency(gastos)}
-                        </span>
-                      </div>
-                      <Progress 
-                        value={Math.min(percentual, 100)} 
-                        className={`h-2 ${status === "excedido" ? "[&>div]:bg-destructive" : status === "alerta" ? "[&>div]:bg-warning" : ""}`}
-                      />
-                      <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>{percentual.toFixed(1)}%</span>
-                        <span>Limite: {formatCurrency(limite)}</span>
-                      </div>
-                    </div>
+                        {group.subOrcamentos.map(subOrc => {
+                          const subCat = getCategoria(subOrc.categoria_id);
+                          const subGastos = getGastosCategoria(subOrc.categoria_id);
+                          const subLimite = Number(subOrc.valor_limite);
+                          const subPct = subLimite > 0 ? (subGastos / subLimite) * 100 : 0;
 
+                          return (
+                            <div key={subOrc.id} className="space-y-1.5 pl-2">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: subCat?.cor || "#888" }} />
+                                  <span className="text-sm text-foreground">{subCat?.nome || "-"}</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  {renderStatusIcon(subPct)}
+                                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleEdit(subOrc)}>
+                                    <Edit className="h-3 w-3" />
+                                  </Button>
+                                  <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => handleDelete(subOrc.id)}>
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              </div>
+                              <div className="flex justify-between text-xs text-muted-foreground">
+                                <span>{formatCurrency(subGastos)}</span>
+                                <span>Limite: {formatCurrency(subLimite)}</span>
+                              </div>
+                              {renderProgressBar(subPct)}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Footer with remaining and actions */}
                     <div className="flex justify-between items-center mt-4 pt-4 border-t border-border">
                       <div>
                         <p className="text-xs text-muted-foreground">Restante</p>
@@ -368,12 +534,17 @@ const Orcamento = () => {
                         </p>
                       </div>
                       <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => handleEdit(orcamento)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(orcamento.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {/* Only show edit/delete on main card if no subcategory expansion or if main has its own budget */}
+                        {group.mainOrcamento && !hasSubOrcamentos && (
+                          <>
+                            <Button variant="ghost" size="icon" onClick={() => handleEdit(group.mainOrcamento!)}>
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(group.mainOrcamento!.id)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </div>
                   </CardContent>
