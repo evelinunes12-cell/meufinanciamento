@@ -534,38 +534,12 @@ const QuickAddTransaction = ({ open, onOpenChange }: QuickAddTransactionProps) =
                   </DialogContent>
                 </Dialog>
               </div>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar categoria..."
-                  value={categorySearch}
-                  onChange={(e) => setCategorySearch(e.target.value)}
-                  className="pl-9 mb-2"
-                />
-              </div>
-              <Select value={formData.categoria_id} onValueChange={(v) => setFormData({ ...formData, categoria_id: v })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione uma categoria" />
-                </SelectTrigger>
-                <SelectContent>
-                  {finalCategoriaList.length === 0 ? (
-                    <div className="p-2 text-center text-muted-foreground text-sm">
-                      Nenhuma categoria encontrada
-                    </div>
-                  ) : (
-                    finalCategoriaList.map((cat) => (
-                      <SelectItem key={cat.id} value={cat.id}>
-                        <div className={`flex items-center gap-2 ${cat.level === 1 ? "pl-4" : ""}`}>
-                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.cor }} />
-                          <span className={cat.isMain ? "font-semibold" : ""}>
-                            {cat.level === 1 ? "↳ " : ""}{cat.nome}
-                          </span>
-                        </div>
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
+              <CategoryCombobox
+                categorias={categorias}
+                tipo={formData.tipo}
+                value={formData.categoria_id}
+                onValueChange={(v) => setFormData({ ...formData, categoria_id: v })}
+              />
             </div>
           )}
 
