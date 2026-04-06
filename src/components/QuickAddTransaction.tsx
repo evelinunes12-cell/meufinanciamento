@@ -75,7 +75,7 @@ const QuickAddTransaction = ({ open, onOpenChange }: QuickAddTransactionProps) =
 
   // Category inline creation
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
-  const [categorySearch, setCategorySearch] = useState("");
+  
   const [newCategoryName, setNewCategoryName] = useState("");
   const [newCategoryCor, setNewCategoryCor] = useState("#3B82F6");
 
@@ -398,23 +398,6 @@ const QuickAddTransaction = ({ open, onOpenChange }: QuickAddTransactionProps) =
     fetchData();
   };
 
-  // Hierarchical categories
-  const categoriasFiltered = categorias
-    .filter(c => c.tipo === formData.tipo)
-    .filter(c => c.nome.toLowerCase().includes(categorySearch.toLowerCase()));
-
-  const mainCategorias = categoriasFiltered.filter(c => !c.categoria_pai_id);
-  const getSubcategorias = (parentId: string) => categoriasFiltered.filter(c => c.categoria_pai_id === parentId);
-
-  const categoriaHierarchy = mainCategorias.flatMap(main => {
-    const subs = getSubcategorias(main.id);
-    return [
-      { ...main, isMain: true, level: 0 },
-      ...subs.map(sub => ({ ...sub, isMain: false, level: 1 }))
-    ];
-  });
-  const orphanSubs = categoriasFiltered.filter(c => c.categoria_pai_id && !mainCategorias.some(m => m.id === c.categoria_pai_id));
-  const finalCategoriaList = [...categoriaHierarchy, ...orphanSubs.map(s => ({ ...s, isMain: false, level: 1 }))];
 
   const showInstallmentFields = formData.forma_pagamento === 'credito' || formData.recorrencia !== 'nenhuma';
   const showTransferFields = formData.forma_pagamento === 'transferencia';
