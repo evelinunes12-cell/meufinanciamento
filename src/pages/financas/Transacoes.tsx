@@ -22,7 +22,6 @@ import ColorPicker from "@/components/ColorPicker";
 import ConfirmPaymentModal from "@/components/ConfirmPaymentModal";
 import DeleteSeriesDialog from "@/components/DeleteSeriesDialog";
 import { isPendente } from "@/lib/transactions";
-import CategoryCombobox from "@/components/CategoryCombobox";
 
 interface Transacao {
   id: string;

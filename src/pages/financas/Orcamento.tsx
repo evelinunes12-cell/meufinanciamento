@@ -75,8 +75,6 @@ const Orcamento = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [incluirPendentes, setIncluirPendentes] = useState(true);
-  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
-
   const [formData, setFormData] = useState({
     categoria_id: "",
     valor_limite: "",
@@ -329,55 +327,51 @@ const Orcamento = () => {
               />
               Incluir pendentes
             </label>
-            <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
-              <DialogTrigger asChild>
-                <Button className="gradient-primary text-primary-foreground" disabled={categoriasDisponiveis.length === 0}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Definir Limite
+          <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
+            <DialogTrigger asChild>
+              <Button className="gradient-primary text-primary-foreground" disabled={categoriasDisponiveis.length === 0}>
+                <Plus className="h-4 w-4 mr-2" />
+                Definir Limite
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>{editingId ? "Editar" : "Novo"} Limite</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Categoria</Label>
+                  <Select value={formData.categoria_id} onValueChange={(v) => setFormData({ ...formData, categoria_id: v })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione uma categoria" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categoriasDisponiveis.map((cat) => (
+                        <SelectItem key={cat.id} value={cat.id}>
+                          {cat.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Valor Limite</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={formData.valor_limite}
+                    onChange={(e) => setFormData({ ...formData, valor_limite: e.target.value })}
+                    placeholder="0,00"
+                  />
+                </div>
+
+                <Button type="submit" className="w-full gradient-primary text-primary-foreground">
+                  {editingId ? "Atualizar" : "Criar"} Limite
                 </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-md">
-                <DialogHeader>
-                  <DialogTitle>{editingId ? "Editar" : "Novo"} Limite</DialogTitle>
-                </DialogHeader>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Categoria</Label>
-                    <Select value={formData.categoria_id} onValueChange={(v) => setFormData({ ...formData, categoria_id: v })}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione uma categoria" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categoriasParaSelect().map((cat) => (
-                          <SelectItem key={cat.id} value={cat.id}>
-                            <div className="flex items-center gap-2">
-                              {cat.isSubcat && <span className="text-muted-foreground">└</span>}
-                              <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: cat.cor }} />
-                              <span className={cat.isSubcat ? "text-sm" : "font-medium"}>{cat.nome}</span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Valor Limite</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={formData.valor_limite}
-                      onChange={(e) => setFormData({ ...formData, valor_limite: e.target.value })}
-                      placeholder="0,00"
-                    />
-                  </div>
-
-                  <Button type="submit" className="w-full gradient-primary text-primary-foreground">
-                    {editingId ? "Atualizar" : "Criar"} Limite
-                  </Button>
-                </form>
-              </DialogContent>
-            </Dialog>
+              </form>
+            </DialogContent>
+          </Dialog>
           </div>
         </div>
 

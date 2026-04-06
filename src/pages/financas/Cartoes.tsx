@@ -16,6 +16,7 @@ import { format, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Link } from "react-router-dom";
 import PagarFaturaModal from "@/components/PagarFaturaModal";
+import { getDataEfetiva } from "@/lib/transactions";
 
 interface Conta {
   id: string;
@@ -203,7 +204,7 @@ const Cartoes = () => {
     });
   };
 
-  const getFaturaFechada = (cartao: Conta) => {
+const getFaturaFechada = (cartao: Conta) => {
     const isForced = forceClose[cartao.id] || false;
     const { fechada } = getFaturasInfo(cartao, new Date(), isForced);
     const transacoesCiclo = getTransacoesCiclo(cartao.id, fechada.inicio, fechada.fim);
@@ -596,7 +597,7 @@ const Cartoes = () => {
         cartaoNome={faturaModal.cartaoNome}
         valorFatura={faturaModal.valorFatura}
         vencimentoFatura={faturaModal.vencimentoFatura}
-        contasDisponiveis={todasContas}
+        contasDisponiveis={todasContas.filter(c => c.tipo !== "credito")}
       />
     </AppLayout>
   );

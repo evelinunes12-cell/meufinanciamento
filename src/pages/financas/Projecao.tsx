@@ -83,12 +83,14 @@ const Projecao = () => {
 
   // Identify recurring transactions
   const transacoesRecorrentes = useMemo(() => {
+    const hoje = new Date();
     return transacoes.filter(t => 
       t.recorrencia && 
       t.recorrencia !== "unica" && 
-      t.forma_pagamento !== "transferencia"
+      t.forma_pagamento !== "transferencia" &&
+      !isAfter(parseISO(getDataEfetiva(t, contas)), hoje)
     );
-  }, [transacoes]);
+  }, [transacoes, contas]);
 
   // Project future months
   const projecaoMensal = useMemo(() => {
