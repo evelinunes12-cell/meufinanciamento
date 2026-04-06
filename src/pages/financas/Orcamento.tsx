@@ -75,6 +75,7 @@ const Orcamento = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [incluirPendentes, setIncluirPendentes] = useState(true);
+  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
   const [formData, setFormData] = useState({
     categoria_id: "",
     valor_limite: "",

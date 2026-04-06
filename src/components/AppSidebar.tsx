@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
+import Notifications from "@/components/Notifications";
 
 interface NavItem {
   path: string;
@@ -161,14 +162,17 @@ const AppSidebar = () => {
           <Settings className="h-4 w-4" />
           <span>Configurações</span>
         </Link>
-        <Button
-          variant="ghost"
-          onClick={handleSignOut}
-          className="w-full justify-start text-muted-foreground hover:text-destructive"
-        >
-          <LogOut className="h-4 w-4 mr-2" />
-          Sair
-        </Button>
+        <div className="flex items-center gap-2">
+          <Notifications />
+          <Button
+            variant="ghost"
+            onClick={handleSignOut}
+            className="flex-1 justify-start text-muted-foreground hover:text-destructive"
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            Sair
+          </Button>
+        </div>
       </div>
     </div>
   );
