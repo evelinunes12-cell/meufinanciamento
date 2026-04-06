@@ -161,7 +161,7 @@ const QuickAddTransaction = ({ open, onOpenChange }: QuickAddTransactionProps) =
       conta_destino_id: "",
       data_pagamento: "",
     });
-    setCategorySearch("");
+    
   };
 
   const getNextDate = (baseDate: Date, recorrencia: string, index: number): Date => {
