@@ -64,6 +64,7 @@ const formasPagamento = [
   { value: "debito", label: "Débito" },
   { value: "credito", label: "Crédito" },
   { value: "dinheiro", label: "Dinheiro" },
+  { value: "rendimento", label: "Rendimento", onlyForTipo: "receita" as const },
   { value: "transferencia", label: "Transferência" },
   { value: "outro", label: "Outro" },
 ];
@@ -222,9 +223,17 @@ const Transacoes = () => {
   const invalidateQueries = () => {
     queryClient.invalidateQueries({ queryKey: ["transacoes"] });
     queryClient.invalidateQueries({ queryKey: ["saldo-contas"] });
+    queryClient.invalidateQueries({ queryKey: ["saldo"] });
+    queryClient.invalidateQueries({ queryKey: ["contas"] });
     queryClient.invalidateQueries({ queryKey: ["dashboard-financas"] });
     queryClient.invalidateQueries({ queryKey: ["orcamentos"] });
   };
+
+  useEffect(() => {
+    if (formData.tipo !== "receita" && formData.forma_pagamento === "rendimento") {
+      setFormData((prev) => ({ ...prev, forma_pagamento: "pix" }));
+    }
+  }, [formData.tipo, formData.forma_pagamento]);
 
   const resetForm = () => {
     setFormData({
@@ -811,9 +820,11 @@ const Transacoes = () => {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {formasPagamento.map((fp) => (
-                            <SelectItem key={fp.value} value={fp.value}>{fp.label}</SelectItem>
-                          ))}
+                          {formasPagamento
+                            .filter((fp) => !("onlyForTipo" in fp) || fp.onlyForTipo === formData.tipo)
+                            .map((fp) => (
+                              <SelectItem key={fp.value} value={fp.value}>{fp.label}</SelectItem>
+                            ))}
                         </SelectContent>
                       </Select>
                     </div>

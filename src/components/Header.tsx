@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
+import Notifications from "@/components/Notifications";
 
 const Header = () => {
   const location = useLocation();
@@ -59,6 +60,7 @@ const Header = () => {
               </Link>
             );
           })}
+          <Notifications />
           <Button
             variant="ghost"
             size="sm"

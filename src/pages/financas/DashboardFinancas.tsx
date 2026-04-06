@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { TrendingUp, TrendingDown, Wallet, PiggyBank, CreditCard, Info, Clock } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, PiggyBank, CreditCard, Info, Clock, HandCoins } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from "recharts";
 import { useState, useMemo, useEffect } from "react";
 import { AdvancedFilters, FilterState, getInitialFilterState, getDateRangeFromFilters, getCategoryIdsForFilter } from "@/components/AdvancedFilters";
@@ -173,6 +173,10 @@ const DashboardFinancas = () => {
 
   const totalReceitas = transacoesParaSaldo
     .filter(t => t.tipo === "receita")
+    .reduce((acc, t) => acc + Number(t.valor), 0);
+
+  const totalRendimentos = transacoesFiltradas
+    .filter((t) => t.tipo === "receita" && t.forma_pagamento === "rendimento" && t.is_pago_executado === true)
     .reduce((acc, t) => acc + Number(t.valor), 0);
   
   const totalDespesas = transacoesParaSaldo
@@ -354,6 +358,20 @@ const DashboardFinancas = () => {
                   <div>
                     <p className="text-xs text-muted-foreground">Receitas</p>
                     <p className="text-lg font-bold text-success">{formatCurrency(totalReceitas)}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-card">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-emerald-500/10">
+                    <HandCoins className="h-5 w-5 text-emerald-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Rendimentos</p>
+                    <p className="text-lg font-bold text-emerald-600">{formatCurrency(totalRendimentos)}</p>
                   </div>
                 </div>
               </CardContent>
