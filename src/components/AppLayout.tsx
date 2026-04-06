@@ -1,6 +1,7 @@
 import { ReactNode, useState, useMemo } from "react";
 import AppSidebar from "./AppSidebar";
 import QuickAddTransaction from "./QuickAddTransaction";
+import Notifications from "./Notifications";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
