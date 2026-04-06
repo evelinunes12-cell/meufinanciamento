@@ -22,6 +22,7 @@ import ColorPicker from "@/components/ColorPicker";
 import ConfirmPaymentModal from "@/components/ConfirmPaymentModal";
 import DeleteSeriesDialog from "@/components/DeleteSeriesDialog";
 import { isPendente } from "@/lib/transactions";
+import CategoryCombobox from "@/components/CategoryCombobox";
 
 interface Transacao {
   id: string;
@@ -118,7 +119,7 @@ const Transacoes = () => {
 
   // Category inline creation
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
-  const [categorySearch, setCategorySearch] = useState("");
+  
   const [newCategoryName, setNewCategoryName] = useState("");
   const [newCategoryCor, setNewCategoryCor] = useState("#3B82F6");
 
@@ -240,7 +241,7 @@ const Transacoes = () => {
       data_pagamento: "",
     });
     setEditingId(null);
-    setCategorySearch("");
+    
   };
 
   const getNextDate = (baseDate: Date, recorrencia: string, index: number): Date => {
@@ -558,26 +559,6 @@ const Transacoes = () => {
   const getCategoriaNome = (id: string | null) => id ? categorias.find(c => c.id === id)?.nome || "-" : "-";
   const getCategoriaCor = (id: string | null) => id ? categorias.find(c => c.id === id)?.cor || "#888" : "#888";
 
-  // Filter categories by tipo and organize hierarchically
-  const categoriasFiltered = categorias
-    .filter(c => c.tipo === formData.tipo)
-    .filter(c => c.nome.toLowerCase().includes(categorySearch.toLowerCase()));
-
-  // Organize categories: main categories first, then subcategories grouped under them
-  const mainCategorias = categoriasFiltered.filter(c => !c.categoria_pai_id);
-  const getSubcategorias = (parentId: string) => categoriasFiltered.filter(c => c.categoria_pai_id === parentId);
-  
-  // Build hierarchical list for display
-  const categoriaHierarchy = mainCategorias.flatMap(main => {
-    const subs = getSubcategorias(main.id);
-    return [
-      { ...main, isMain: true, level: 0 },
-      ...subs.map(sub => ({ ...sub, isMain: false, level: 1 }))
-    ];
-  });
-  // Include orphan subcategories (parent might be filtered out by search)
-  const orphanSubs = categoriasFiltered.filter(c => c.categoria_pai_id && !mainCategorias.some(m => m.id === c.categoria_pai_id));
-  const finalCategoriaList = [...categoriaHierarchy, ...orphanSubs.map(s => ({ ...s, isMain: false, level: 1 }))];
 
   // Show installment fields when credit or has recurrence
   const showInstallmentFields = formData.forma_pagamento === 'credito' || formData.recorrencia !== 'nenhuma';
@@ -794,38 +775,12 @@ const Transacoes = () => {
                           </DialogContent>
                         </Dialog>
                       </div>
-                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          placeholder="Buscar categoria..."
-                          value={categorySearch}
-                          onChange={(e) => setCategorySearch(e.target.value)}
-                          className="pl-9 mb-2"
-                        />
-                      </div>
-                      <Select value={formData.categoria_id} onValueChange={(v) => setFormData({ ...formData, categoria_id: v })}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione uma categoria" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {finalCategoriaList.length === 0 ? (
-                            <div className="p-2 text-center text-muted-foreground text-sm">
-                              Nenhuma categoria encontrada
-                            </div>
-                          ) : (
-                            finalCategoriaList.map((cat) => (
-                              <SelectItem key={cat.id} value={cat.id}>
-                                <div className={`flex items-center gap-2 ${cat.level === 1 ? "pl-4" : ""}`}>
-                                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.cor }} />
-                                  <span className={cat.isMain ? "font-semibold" : ""}>
-                                    {cat.level === 1 ? "↳ " : ""}{cat.nome}
-                                  </span>
-                                </div>
-                              </SelectItem>
-                            ))
-                          )}
-                        </SelectContent>
-                      </Select>
+                      <CategoryCombobox
+                        categorias={categorias}
+                        tipo={formData.tipo}
+                        value={formData.categoria_id}
+                        onValueChange={(v) => setFormData({ ...formData, categoria_id: v })}
+                      />
                     </div>
                   )}
 
