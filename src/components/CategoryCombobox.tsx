@@ -28,37 +28,14 @@ interface CategoryComboboxProps {
   placeholder?: string;
 }
 
-const MIN_SEARCH_LENGTH = 3;
-
 const CategoryCombobox = ({ categorias, tipo, value, onValueChange, placeholder = "Selecione uma categoria" }: CategoryComboboxProps) => {
   const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState("");
-
-  useEffect(() => {
-    if (!open) {
-      setSearch("");
-    }
-  }, [open]);
 
   const allByType = useMemo(() => categorias.filter((categoria) => categoria.tipo === tipo), [categorias, tipo]);
 
-  const visibleCategories = useMemo(() => {
-    const trimmedSearch = search.trim().toLowerCase();
-
-    if (!trimmedSearch) {
-      return allByType;
-    }
-
-    if (trimmedSearch.length < MIN_SEARCH_LENGTH) {
-      return [];
-    }
-
-    return allByType.filter((categoria) => categoria.nome.toLowerCase().includes(trimmedSearch));
-  }, [allByType, search]);
-
   const hierarchy = useMemo(() => {
-    const mainCats = visibleCategories.filter((categoria) => !categoria.categoria_pai_id);
-    const getSubs = (parentId: string) => visibleCategories.filter((categoria) => categoria.categoria_pai_id === parentId);
+    const mainCats = allByType.filter((categoria) => !categoria.categoria_pai_id);
+    const getSubs = (parentId: string) => allByType.filter((categoria) => categoria.categoria_pai_id === parentId);
 
     const result = mainCats.flatMap((main) => {
       const subs = getSubs(main.id);
@@ -68,15 +45,14 @@ const CategoryCombobox = ({ categorias, tipo, value, onValueChange, placeholder 
       ];
     });
 
-    const orphans = visibleCategories.filter(
+    const orphans = allByType.filter(
       (categoria) => categoria.categoria_pai_id && !mainCats.some((main) => main.id === categoria.categoria_pai_id),
     );
 
     return [...result, ...orphans.map((sub) => ({ ...sub, isMain: false, level: 1 }))];
-  }, [visibleCategories]);
+  }, [allByType]);
 
   const selectedCat = allByType.find((categoria) => categoria.id === value);
-  const shouldShowMinSearchHint = search.trim().length > 0 && search.trim().length < MIN_SEARCH_LENGTH;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -99,47 +75,37 @@ const CategoryCombobox = ({ categorias, tipo, value, onValueChange, placeholder 
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-        <Command shouldFilter={false}>
-          <CommandInput
-            value={search}
-            onValueChange={setSearch}
-            placeholder="Digite 3+ letras para buscar..."
-            autoFocus
-          />
-          <CommandList>
-            {shouldShowMinSearchHint ? (
-              <CommandEmpty>Digite pelo menos 3 caracteres...</CommandEmpty>
-            ) : hierarchy.length === 0 ? (
-              <CommandEmpty>Nenhuma categoria encontrada</CommandEmpty>
-            ) : (
-              <CommandGroup>
-                {hierarchy.map((cat) => (
-                  <CommandItem
-                    key={cat.id}
-                    value={`${cat.nome}-${cat.id}`}
-                    onSelect={() => {
-                      onValueChange(cat.id);
-                      setOpen(false);
-                    }}
-                    className={cn(cat.level === 1 && "pl-6")}
-                  >
-                    <div className="flex min-w-0 items-center gap-2">
-                      <div className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: cat.cor }} />
-                      <span className={cn("truncate", cat.isMain && "font-semibold")}>
-                        {cat.level === 1 ? "↳ " : ""}
-                        {cat.nome}
-                      </span>
-                    </div>
-                    <Check
-                      className={cn(
-                        "ml-auto h-4 w-4 shrink-0",
-                        value === cat.id ? "opacity-100" : "opacity-0",
-                      )}
-                    />
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            )}
+        <Command>
+          <CommandInput placeholder="Buscar categoria..." autoFocus />
+          <CommandList className="max-h-[300px] overflow-y-auto overflow-x-hidden">
+            <CommandEmpty>Nenhuma categoria encontrada</CommandEmpty>
+            <CommandGroup>
+              {hierarchy.map((cat) => (
+                <CommandItem
+                  key={cat.id}
+                  value={`${cat.level === 1 ? "subcategoria " : "categoria "}${cat.nome}`}
+                  onSelect={() => {
+                    onValueChange(cat.id);
+                    setOpen(false);
+                  }}
+                  className={cn(cat.level === 1 && "pl-6")}
+                >
+                  <div className="flex min-w-0 items-center gap-2">
+                    <div className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: cat.cor }} />
+                    <span className={cn("truncate", cat.isMain && "font-semibold")}>
+                      {cat.level === 1 ? "↳ " : ""}
+                      {cat.nome}
+                    </span>
+                  </div>
+                  <Check
+                    className={cn(
+                      "ml-auto h-4 w-4 shrink-0",
+                      value === cat.id ? "opacity-100" : "opacity-0",
+                    )}
+                  />
+                </CommandItem>
+              ))}
+            </CommandGroup>
           </CommandList>
         </Command>
       </PopoverContent>
