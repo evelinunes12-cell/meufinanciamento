@@ -119,7 +119,7 @@ const Transacoes = () => {
 
   // Category inline creation
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
-  const [categorySearch, setCategorySearch] = useState("");
+  
   const [newCategoryName, setNewCategoryName] = useState("");
   const [newCategoryCor, setNewCategoryCor] = useState("#3B82F6");
 
@@ -241,7 +241,7 @@ const Transacoes = () => {
       data_pagamento: "",
     });
     setEditingId(null);
-    setCategorySearch("");
+    
   };
 
   const getNextDate = (baseDate: Date, recorrencia: string, index: number): Date => {
@@ -559,26 +559,6 @@ const Transacoes = () => {
   const getCategoriaNome = (id: string | null) => id ? categorias.find(c => c.id === id)?.nome || "-" : "-";
   const getCategoriaCor = (id: string | null) => id ? categorias.find(c => c.id === id)?.cor || "#888" : "#888";
 
-  // Filter categories by tipo and organize hierarchically
-  const categoriasFiltered = categorias
-    .filter(c => c.tipo === formData.tipo)
-    .filter(c => c.nome.toLowerCase().includes(categorySearch.toLowerCase()));
-
-  // Organize categories: main categories first, then subcategories grouped under them
-  const mainCategorias = categoriasFiltered.filter(c => !c.categoria_pai_id);
-  const getSubcategorias = (parentId: string) => categoriasFiltered.filter(c => c.categoria_pai_id === parentId);
-  
-  // Build hierarchical list for display
-  const categoriaHierarchy = mainCategorias.flatMap(main => {
-    const subs = getSubcategorias(main.id);
-    return [
-      { ...main, isMain: true, level: 0 },
-      ...subs.map(sub => ({ ...sub, isMain: false, level: 1 }))
-    ];
-  });
-  // Include orphan subcategories (parent might be filtered out by search)
-  const orphanSubs = categoriasFiltered.filter(c => c.categoria_pai_id && !mainCategorias.some(m => m.id === c.categoria_pai_id));
-  const finalCategoriaList = [...categoriaHierarchy, ...orphanSubs.map(s => ({ ...s, isMain: false, level: 1 }))];
 
   // Show installment fields when credit or has recurrence
   const showInstallmentFields = formData.forma_pagamento === 'credito' || formData.recorrencia !== 'nenhuma';
