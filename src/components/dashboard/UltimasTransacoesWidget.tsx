@@ -12,6 +12,7 @@ interface Transacao {
   data: string;
   descricao: string | null;
   categoria_id: string | null;
+  conta_id: string;
 }
 
 interface Categoria {
@@ -23,19 +24,22 @@ interface Categoria {
 interface UltimasTransacoesWidgetProps {
   transacoes: Transacao[];
   categorias: Categoria[];
+  contas: { id: string; nome_conta: string }[];
 }
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 };
 
-export function UltimasTransacoesWidget({ transacoes, categorias }: UltimasTransacoesWidgetProps) {
-  const ultimasTransacoes = transacoes.slice(0, 5);
+export function UltimasTransacoesWidget({ transacoes, categorias, contas }: UltimasTransacoesWidgetProps) {
+  const ultimasTransacoes = transacoes.slice(0, 10);
 
   const getCategoriaNome = (id: string | null) => {
     if (!id) return null;
     return categorias.find(c => c.id === id)?.nome || null;
   };
+
+  const getContaNome = (id: string) => contas.find(c => c.id === id)?.nome_conta || "Conta";
 
   return (
     <Card className="shadow-card">
@@ -66,7 +70,7 @@ export function UltimasTransacoesWidget({ transacoes, categorias }: UltimasTrans
                           {t.descricao || (t.tipo === "receita" ? "Receita" : "Despesa")}
                         </p>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <span>{format(parseISO(t.data), "dd/MM", { locale: ptBR })}</span>
+                          <span>{format(parseISO(t.data), "dd/MM/yyyy", { locale: ptBR })}</span>
                           {categoriaNome && (
                             <>
                               <span>•</span>
@@ -75,6 +79,8 @@ export function UltimasTransacoesWidget({ transacoes, categorias }: UltimasTrans
                               </Badge>
                             </>
                           )}
+                          <span>•</span>
+                          <span>{getContaNome(t.conta_id)}</span>
                         </div>
                       </div>
                     </div>

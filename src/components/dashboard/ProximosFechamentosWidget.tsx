@@ -1,10 +1,12 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
 import { CreditCard, Calendar, AlertTriangle } from "lucide-react";
-import { format, addMonths, setDate, isBefore, differenceInDays, parseISO, startOfMonth } from "date-fns";
+import { format, addMonths, setDate, isBefore, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import PagarFaturaModal from "@/components/PagarFaturaModal";
 
 interface Conta {
   id: string;
@@ -30,6 +32,15 @@ interface ProximosFechamentosWidgetProps {
 }
 
 export function ProximosFechamentosWidget({ contas, transacoes }: ProximosFechamentosWidgetProps) {
+  const [faturaModal, setFaturaModal] = useState<{
+    open: boolean;
+    cartaoId: string;
+    cartaoNome: string;
+    valorFatura: number;
+    vencimentoFatura: string;
+  }>({ open: false, cartaoId: "", cartaoNome: "", valorFatura: 0, vencimentoFatura: "" });
+  const [fechamentosConfirmados, setFechamentosConfirmados] = useState<Record<string, boolean>>({});
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
   };
@@ -54,16 +65,11 @@ export function ProximosFechamentosWidget({ contas, transacoes }: ProximosFecham
         proximoVencimento = addMonths(proximoVencimento, 1);
       }
 
-      // Calculate current invoice period
-      const inicioFatura = addMonths(setDate(startOfMonth(proximoFechamento), diaFechamento), -1);
-      const fimFatura = proximoFechamento;
-
-      // Sum expenses in current invoice period
+      // Open invoice amount (all unpaid)
       const gastosFatura = transacoes
         .filter(t => {
           if (t.conta_id !== cartao.id || t.tipo !== "despesa") return false;
-          const dataTransacao = parseISO(t.data);
-          return !isBefore(dataTransacao, inicioFatura) && isBefore(dataTransacao, fimFatura);
+          return t.is_pago_executado !== true;
         })
         .reduce((acc, t) => acc + Number(t.valor), 0);
 
@@ -77,6 +83,7 @@ export function ProximosFechamentosWidget({ contas, transacoes }: ProximosFecham
         diasParaFechamento,
         diasParaVencimento,
         gastosFatura,
+        vencimentoFaturaISO: format(proximoVencimento, "yyyy-MM-dd"),
         urgente: diasParaFechamento <= 5,
       };
     }).sort((a, b) => a.diasParaFechamento - b.diasParaFechamento);
@@ -148,12 +155,39 @@ export function ProximosFechamentosWidget({ contas, transacoes }: ProximosFecham
                   </div>
                 </div>
 
-                <div className="mt-3 pt-3 border-t border-border/50">
+                <div className="mt-3 pt-3 border-t border-border/50 space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">Fatura Parcial</span>
+                    <span className="text-xs text-muted-foreground">Fatura em aberto</span>
                     <span className="text-sm font-bold text-destructive">
                       {formatCurrency(cartao.gastosFatura)}
                     </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <Button
+                      variant={fechamentosConfirmados[cartao.id] ? "default" : "outline"}
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() =>
+                        setFechamentosConfirmados(prev => ({ ...prev, [cartao.id]: !prev[cartao.id] }))
+                      }
+                    >
+                      {fechamentosConfirmados[cartao.id] ? "Fatura fechada" : "Marcar fechamento"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() =>
+                        setFaturaModal({
+                          open: true,
+                          cartaoId: cartao.id,
+                          cartaoNome: cartao.nome_conta,
+                          valorFatura: Math.max(0, cartao.gastosFatura),
+                          vencimentoFatura: cartao.vencimentoFaturaISO,
+                        })
+                      }
+                    >
+                      Pagar fatura
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -161,6 +195,15 @@ export function ProximosFechamentosWidget({ contas, transacoes }: ProximosFecham
           </div>
         </ScrollArea>
       </CardContent>
+      <PagarFaturaModal
+        open={faturaModal.open}
+        onOpenChange={(open) => setFaturaModal(prev => ({ ...prev, open }))}
+        cartaoId={faturaModal.cartaoId}
+        cartaoNome={faturaModal.cartaoNome}
+        valorFatura={faturaModal.valorFatura}
+        vencimentoFatura={faturaModal.vencimentoFatura}
+        contasDisponiveis={contas.filter(c => c.tipo !== "credito")}
+      />
     </Card>
   );
 }

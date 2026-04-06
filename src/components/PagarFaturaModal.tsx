@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
@@ -19,10 +20,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Wallet } from "lucide-react";
+import { Wallet, Info } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/calculations";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface Conta {
   id: string;
@@ -36,6 +38,7 @@ interface PagarFaturaModalProps {
   cartaoId: string;
   cartaoNome: string;
   valorFatura: number;
+  vencimentoFatura: string;
   contasDisponiveis: Conta[];
 }
 
@@ -45,34 +48,48 @@ const PagarFaturaModal = ({
   cartaoId,
   cartaoNome,
   valorFatura,
-  contasDisponiveis,
+  vencimentoFatura,
+  contasDisponiveis = [],
 }: PagarFaturaModalProps) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [contaOrigem, setContaOrigem] = useState("");
+  const [valorPagamento, setValorPagamento] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Reset valor when modal opens
+  useEffect(() => {
+    if (open) {
+      setValorPagamento(valorFatura.toFixed(2).replace(".", ","));
+    }
+  }, [open, valorFatura]);
 
   // Filter only accounts that can be used as payment origin
   const contasValidas = contasDisponiveis.filter(
     (c) => c.tipo === "corrente" || c.tipo === "poupanca" || c.tipo === "carteira"
   );
 
+  const parseValor = (val: string): number => {
+    return Number(val.replace(/\./g, "").replace(",", ".")) || 0;
+  };
+
+  const valorPago = parseValor(valorPagamento);
+  const isParcial = valorPago > 0 && valorPago < valorFatura;
+  const isTotal = valorPago >= valorFatura;
+
   const handlePagarFatura = async () => {
     if (!contaOrigem) {
-      toast({
-        title: "Erro",
-        description: "Selecione a conta de origem",
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: "Selecione a conta de origem", variant: "destructive" });
       return;
     }
 
-    if (valorFatura <= 0) {
-      toast({
-        title: "Erro",
-        description: "Não há fatura a ser paga",
-        variant: "destructive",
-      });
+    if (valorPago <= 0) {
+      toast({ title: "Erro", description: "Informe um valor válido", variant: "destructive" });
+      return;
+    }
+
+    if (valorPago > valorFatura) {
+      toast({ title: "Erro", description: "O valor não pode ser maior que a fatura", variant: "destructive" });
       return;
     }
 
@@ -81,18 +98,19 @@ const PagarFaturaModal = ({
     try {
       const contaOrigemNome = contasValidas.find((c) => c.id === contaOrigem)?.nome_conta || "";
       const dataHoje = format(new Date(), "yyyy-MM-dd");
+      const descricaoTipo = isParcial ? "Pagamento parcial" : "Pagamento";
 
       // Create outgoing transaction (from origin account)
       const transacaoSaida = {
         user_id: user?.id as string,
         conta_id: contaOrigem,
         categoria_id: null,
-        valor: valorFatura,
+        valor: valorPago,
         tipo: "despesa",
         data: dataHoje,
         forma_pagamento: "transferencia",
         recorrencia: "nenhuma",
-        descricao: `Pagamento fatura ${cartaoNome}`,
+        descricao: `${descricaoTipo} fatura ${cartaoNome}`,
         is_pago_executado: true,
         conta_destino_id: cartaoId,
       };
@@ -102,12 +120,12 @@ const PagarFaturaModal = ({
         user_id: user?.id as string,
         conta_id: cartaoId,
         categoria_id: null,
-        valor: valorFatura,
+        valor: valorPago,
         tipo: "receita",
         data: dataHoje,
         forma_pagamento: "transferencia",
         recorrencia: "nenhuma",
-        descricao: `Pagamento fatura de ${contaOrigemNome}`,
+        descricao: `${descricaoTipo} fatura de ${contaOrigemNome}`,
         is_pago_executado: true,
         conta_destino_id: null,
       };
@@ -118,29 +136,40 @@ const PagarFaturaModal = ({
       const { error: errorEntrada } = await supabase.from("transacoes").insert(transacaoEntrada);
       if (errorEntrada) throw errorEntrada;
 
-      // IMPORTANT: Mark all unpaid credit card transactions as paid
-      // This settles all purchases in the current invoice
-      const { error: updateError, data: updatedTransactions } = await supabase
-        .from("transacoes")
-        .update({
-          is_pago_executado: true,
-          data_execucao_pagamento: dataHoje,
-        })
-        .eq("conta_id", cartaoId)
-        .eq("is_pago_executado", false)
-        .lte("data_pagamento", dataHoje)
-        .select("id");
+      // Se pagamento total, marcar transações da fatura como pagas
+      if (isTotal) {
+        // Marca TODAS as transações não pagas do cartão com data_pagamento <= vencimento da fatura
+        // Isso inclui faturas anteriores acumuladas
+        const cutoffDate = vencimentoFatura || dataHoje;
+        
+        const { error: updateError, data: updatedTransactions } = await supabase
+          .from("transacoes")
+          .update({
+            is_pago_executado: true,
+            data_execucao_pagamento: dataHoje,
+          })
+          .eq("conta_id", cartaoId)
+          .eq("tipo", "despesa")
+          .eq("is_pago_executado", false)
+          .select("id");
 
-      if (updateError) {
-        console.warn("Warning: Could not update transaction status:", updateError);
+        if (updateError) {
+          console.warn("Warning: Could not update transaction status:", updateError);
+        }
+
+        const transacoesQuitadas = updatedTransactions?.length || 0;
+        
+        toast({
+          title: "Fatura paga!",
+          description: `${formatCurrency(valorPago)} pago com sucesso${transacoesQuitadas > 0 ? ` (${transacoesQuitadas} transações quitadas)` : ""}`,
+        });
+      } else {
+        // Pagamento parcial: não quita as transações individuais
+        toast({
+          title: "Pagamento parcial registrado",
+          description: `${formatCurrency(valorPago)} de ${formatCurrency(valorFatura)} pago. Restam ${formatCurrency(valorFatura - valorPago)}.`,
+        });
       }
-
-      const transacoesQuitadas = updatedTransactions?.length || 0;
-      
-      toast({
-        title: "Sucesso",
-        description: `Fatura de ${formatCurrency(valorFatura)} paga com sucesso${transacoesQuitadas > 0 ? ` (${transacoesQuitadas} transações quitadas)` : ""}`,
-      });
 
       queryClient.invalidateQueries({ queryKey: ["transacoes"] });
       queryClient.invalidateQueries({ queryKey: ["saldo-contas"] });
@@ -148,19 +177,21 @@ const PagarFaturaModal = ({
       queryClient.invalidateQueries({ queryKey: ["cartoes"] });
 
       setContaOrigem("");
+      setValorPagamento("");
       onOpenChange(false);
     } catch (error) {
       if (import.meta.env.DEV) {
         console.error("Error paying invoice:", error);
       }
-      toast({
-        title: "Erro",
-        description: "Erro ao pagar fatura",
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: "Erro ao pagar fatura", variant: "destructive" });
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleValorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value.replace(/[^\d,]/g, "");
+    setValorPagamento(value);
   };
 
   return (
@@ -175,8 +206,61 @@ const PagarFaturaModal = ({
 
         <div className="space-y-4 py-4">
           <div className="p-4 bg-muted/50 rounded-lg">
-            <p className="text-sm text-muted-foreground">Valor da Fatura</p>
+            <p className="text-sm text-muted-foreground">Valor Total da Fatura</p>
             <p className="text-2xl font-bold text-foreground">{formatCurrency(valorFatura)}</p>
+            {vencimentoFatura && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Vencimento: {format(new Date(vencimentoFatura + "T12:00:00"), "dd/MM/yyyy")}
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center gap-1">
+              <Label>Valor do Pagamento *</Label>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="max-w-xs text-xs">
+                    Pague o valor total para quitar todas as transações da fatura, ou um valor parcial (mínimo).
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+            <Input
+              type="text"
+              inputMode="decimal"
+              placeholder="0,00"
+              value={valorPagamento}
+              onChange={handleValorChange}
+            />
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="text-xs"
+                onClick={() => setValorPagamento(valorFatura.toFixed(2).replace(".", ","))}
+              >
+                Valor total
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="text-xs"
+                onClick={() => setValorPagamento((valorFatura * 0.15).toFixed(2).replace(".", ","))}
+              >
+                Mínimo (~15%)
+              </Button>
+            </div>
+            {isParcial && (
+              <p className="text-xs text-warning">
+                ⚠ Pagamento parcial: as transações da fatura continuarão pendentes. Restarão {formatCurrency(valorFatura - valorPago)}.
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -212,9 +296,6 @@ const PagarFaturaModal = ({
                 )}
               </SelectContent>
             </Select>
-            <p className="text-xs text-muted-foreground">
-              Apenas contas corrente, poupança ou carteira podem ser usadas
-            </p>
           </div>
         </div>
 
@@ -224,10 +305,10 @@ const PagarFaturaModal = ({
           </Button>
           <Button
             onClick={handlePagarFatura}
-            disabled={loading || !contaOrigem || valorFatura <= 0}
+            disabled={loading || !contaOrigem || valorPago <= 0}
             className="gradient-primary text-primary-foreground"
           >
-            {loading ? "Pagando..." : "Pagar Fatura"}
+            {loading ? "Pagando..." : isParcial ? "Pagar Parcial" : "Pagar Fatura"}
           </Button>
         </DialogFooter>
       </DialogContent>

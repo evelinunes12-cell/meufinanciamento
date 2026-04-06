@@ -8,6 +8,7 @@ import { SaldoProvider } from "@/contexts/SaldoContext";
 import { ThemeProvider } from "next-themes";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Auth from "./pages/Auth";
+import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 
 // Finanças Pessoais
@@ -38,7 +39,8 @@ const App = () => (
           <SaldoProvider>
             <SidebarProvider>
               <Routes>
-            <Route path="/auth" element={<Auth />} />
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
             
             {/* Redirect root to financas dashboard */}
             <Route

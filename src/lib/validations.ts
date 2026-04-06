@@ -9,7 +9,7 @@ export const transacaoSchema = z.object({
     .max(999999999.99, { message: "Valor máximo excedido" }),
   tipo: z.enum(['receita', 'despesa'], { message: "Tipo deve ser receita ou despesa" }),
   data: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: "Data inválida" }),
-  forma_pagamento: z.enum(['pix', 'debito', 'credito', 'dinheiro', 'transferencia', 'outro'], { message: "Forma de pagamento inválida" }),
+  forma_pagamento: z.enum(['pix', 'debito', 'credito', 'dinheiro', 'rendimento', 'transferencia', 'outro'], { message: "Forma de pagamento inválida" }),
   recorrencia: z.enum(['nenhuma', 'semanal', 'mensal', 'anual', 'fixa'], { message: "Recorrência inválida" }),
   descricao: z.string().max(500, { message: "Descrição muito longa" }).nullable().optional(),
   // External ID for duplicate prevention (OFX FITID)
