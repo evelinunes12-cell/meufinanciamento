@@ -18,9 +18,11 @@ import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
 import { formatCurrencyInput, parseCurrencyInput, calculateCardDueDate, calculateInstallmentDueDate } from "@/lib/calculations";
 import { AdvancedFilters, FilterState, getDateRangeFromFilters, getInitialFilterState, getCategoryIdsForFilter } from "@/components/AdvancedFilters";
+import ColorPicker from "@/components/ColorPicker";
 import ConfirmPaymentModal from "@/components/ConfirmPaymentModal";
 import DeleteSeriesDialog from "@/components/DeleteSeriesDialog";
 import { isPendente } from "@/lib/transactions";
+import CategoryCombobox from "@/components/CategoryCombobox";
 
 interface Transacao {
   id: string;
@@ -62,6 +64,7 @@ const formasPagamento = [
   { value: "debito", label: "Débito" },
   { value: "credito", label: "Crédito" },
   { value: "dinheiro", label: "Dinheiro" },
+  { value: "rendimento", label: "Rendimento", onlyForTipo: "receita" as const },
   { value: "transferencia", label: "Transferência" },
   { value: "outro", label: "Outro" },
 ];
@@ -74,10 +77,6 @@ const recorrencias = [
   { value: "fixa", label: "Recorrência Fixa (Ilimitada)" },
 ];
 
-const cores = [
-  "#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", 
-  "#EC4899", "#06B6D4", "#84CC16", "#F97316", "#6366F1"
-];
 
 const ITEMS_PER_PAGE = 10;
 
@@ -121,7 +120,7 @@ const Transacoes = () => {
 
   // Category inline creation
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
-  const [categorySearch, setCategorySearch] = useState("");
+  
   const [newCategoryName, setNewCategoryName] = useState("");
   const [newCategoryCor, setNewCategoryCor] = useState("#3B82F6");
 
@@ -224,9 +223,17 @@ const Transacoes = () => {
   const invalidateQueries = () => {
     queryClient.invalidateQueries({ queryKey: ["transacoes"] });
     queryClient.invalidateQueries({ queryKey: ["saldo-contas"] });
+    queryClient.invalidateQueries({ queryKey: ["saldo"] });
+    queryClient.invalidateQueries({ queryKey: ["contas"] });
     queryClient.invalidateQueries({ queryKey: ["dashboard-financas"] });
     queryClient.invalidateQueries({ queryKey: ["orcamentos"] });
   };
+
+  useEffect(() => {
+    if (formData.tipo !== "receita" && formData.forma_pagamento === "rendimento") {
+      setFormData((prev) => ({ ...prev, forma_pagamento: "pix" }));
+    }
+  }, [formData.tipo, formData.forma_pagamento]);
 
   const resetForm = () => {
     setFormData({
@@ -243,7 +250,7 @@ const Transacoes = () => {
       data_pagamento: "",
     });
     setEditingId(null);
-    setCategorySearch("");
+    
   };
 
   const getNextDate = (baseDate: Date, recorrencia: string, index: number): Date => {
@@ -561,26 +568,6 @@ const Transacoes = () => {
   const getCategoriaNome = (id: string | null) => id ? categorias.find(c => c.id === id)?.nome || "-" : "-";
   const getCategoriaCor = (id: string | null) => id ? categorias.find(c => c.id === id)?.cor || "#888" : "#888";
 
-  // Filter categories by tipo and organize hierarchically
-  const categoriasFiltered = categorias
-    .filter(c => c.tipo === formData.tipo)
-    .filter(c => c.nome.toLowerCase().includes(categorySearch.toLowerCase()));
-
-  // Organize categories: main categories first, then subcategories grouped under them
-  const mainCategorias = categoriasFiltered.filter(c => !c.categoria_pai_id);
-  const getSubcategorias = (parentId: string) => categoriasFiltered.filter(c => c.categoria_pai_id === parentId);
-  
-  // Build hierarchical list for display
-  const categoriaHierarchy = mainCategorias.flatMap(main => {
-    const subs = getSubcategorias(main.id);
-    return [
-      { ...main, isMain: true, level: 0 },
-      ...subs.map(sub => ({ ...sub, isMain: false, level: 1 }))
-    ];
-  });
-  // Include orphan subcategories (parent might be filtered out by search)
-  const orphanSubs = categoriasFiltered.filter(c => c.categoria_pai_id && !mainCategorias.some(m => m.id === c.categoria_pai_id));
-  const finalCategoriaList = [...categoriaHierarchy, ...orphanSubs.map(s => ({ ...s, isMain: false, level: 1 }))];
 
   // Show installment fields when credit or has recurrence
   const showInstallmentFields = formData.forma_pagamento === 'credito' || formData.recorrencia !== 'nenhuma';
@@ -788,17 +775,7 @@ const Transacoes = () => {
                               </div>
                               <div className="space-y-2">
                                 <Label>Cor</Label>
-                                <div className="flex flex-wrap gap-2">
-                                  {cores.map((cor) => (
-                                    <button
-                                      key={cor}
-                                      type="button"
-                                      className={`w-8 h-8 rounded-full border-2 ${newCategoryCor === cor ? "border-foreground" : "border-transparent"}`}
-                                      style={{ backgroundColor: cor }}
-                                      onClick={() => setNewCategoryCor(cor)}
-                                    />
-                                  ))}
-                                </div>
+                                <ColorPicker value={newCategoryCor} onChange={setNewCategoryCor} />
                               </div>
                               <Button type="button" onClick={handleCreateCategory} className="w-full gradient-primary text-primary-foreground">
                                 Criar Categoria
@@ -807,38 +784,12 @@ const Transacoes = () => {
                           </DialogContent>
                         </Dialog>
                       </div>
-                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          placeholder="Buscar categoria..."
-                          value={categorySearch}
-                          onChange={(e) => setCategorySearch(e.target.value)}
-                          className="pl-9 mb-2"
-                        />
-                      </div>
-                      <Select value={formData.categoria_id} onValueChange={(v) => setFormData({ ...formData, categoria_id: v })}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione uma categoria" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {finalCategoriaList.length === 0 ? (
-                            <div className="p-2 text-center text-muted-foreground text-sm">
-                              Nenhuma categoria encontrada
-                            </div>
-                          ) : (
-                            finalCategoriaList.map((cat) => (
-                              <SelectItem key={cat.id} value={cat.id}>
-                                <div className={`flex items-center gap-2 ${cat.level === 1 ? "pl-4" : ""}`}>
-                                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.cor }} />
-                                  <span className={cat.isMain ? "font-semibold" : ""}>
-                                    {cat.level === 1 ? "↳ " : ""}{cat.nome}
-                                  </span>
-                                </div>
-                              </SelectItem>
-                            ))
-                          )}
-                        </SelectContent>
-                      </Select>
+                      <CategoryCombobox
+                        categorias={categorias}
+                        tipo={formData.tipo}
+                        value={formData.categoria_id}
+                        onValueChange={(v) => setFormData({ ...formData, categoria_id: v })}
+                      />
                     </div>
                   )}
 
@@ -869,9 +820,11 @@ const Transacoes = () => {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {formasPagamento.map((fp) => (
-                            <SelectItem key={fp.value} value={fp.value}>{fp.label}</SelectItem>
-                          ))}
+                          {formasPagamento
+                            .filter((fp) => !("onlyForTipo" in fp) || fp.onlyForTipo === formData.tipo)
+                            .map((fp) => (
+                              <SelectItem key={fp.value} value={fp.value}>{fp.label}</SelectItem>
+                            ))}
                         </SelectContent>
                       </Select>
                     </div>

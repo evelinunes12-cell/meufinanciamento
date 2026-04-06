@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Trash2, Edit, TrendingUp, TrendingDown, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import ColorPicker from "@/components/ColorPicker";
 import { toast } from "@/hooks/use-toast";
 import { categoriaSchema } from "@/lib/validations";
 
@@ -24,10 +25,6 @@ interface Categoria {
   is_default: boolean;
 }
 
-const cores = [
-  "#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", 
-  "#EC4899", "#06B6D4", "#84CC16", "#F97316", "#6366F1"
-];
 
 const ITEMS_PER_PAGE = 10;
 
@@ -277,17 +274,7 @@ const Categorias = () => {
 
                 <div className="space-y-2">
                   <Label>Cor</Label>
-                  <div className="flex flex-wrap gap-2">
-                    {cores.map((cor) => (
-                      <button
-                        key={cor}
-                        type="button"
-                        className={`w-8 h-8 rounded-full border-2 ${formData.cor === cor ? "border-foreground" : "border-transparent"}`}
-                        style={{ backgroundColor: cor }}
-                        onClick={() => setFormData({ ...formData, cor })}
-                      />
-                    ))}
-                  </div>
+                  <ColorPicker value={formData.cor} onChange={(cor) => setFormData({ ...formData, cor })} />
                 </div>
 
                 <div className="space-y-2">

@@ -202,7 +202,7 @@ export function ProximosFechamentosWidget({ contas, transacoes }: ProximosFecham
         cartaoNome={faturaModal.cartaoNome}
         valorFatura={faturaModal.valorFatura}
         vencimentoFatura={faturaModal.vencimentoFatura}
-        contasDisponiveis={contas}
+        contasDisponiveis={contas.filter(c => c.tipo !== "credito")}
       />
     </Card>
   );

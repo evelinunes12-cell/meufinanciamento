@@ -16,6 +16,7 @@ interface Transacao {
   valor: number;
   tipo: string;
   conta_id: string;
+  conta_destino_id: string | null;
   forma_pagamento: string;
   is_pago_executado: boolean | null;
 }
@@ -35,7 +36,7 @@ async function fetchSaldoData(userId: string | undefined) {
     supabase.from("contas").select("*"),
     supabase
       .from("transacoes")
-      .select("id, valor, tipo, conta_id, forma_pagamento, is_pago_executado"),
+      .select("id, valor, tipo, conta_id, conta_destino_id, forma_pagamento, is_pago_executado"),
   ]);
 
   return {
@@ -45,22 +46,30 @@ async function fetchSaldoData(userId: string | undefined) {
 }
 
 function calculateSaldoContas(contas: Conta[], transacoes: Transacao[]): number {
-  // Exclude transfers from balance calculation to avoid double counting
-  const transacoesValidas = transacoes.filter(
-    (t) =>
-      t.forma_pagamento !== "transferencia" &&
-      t.is_pago_executado !== false
-  );
+  const transacoesValidas = transacoes.filter((t) => t.is_pago_executado !== false);
 
   return contas.reduce((acc, conta) => {
-    const transacoesConta = transacoesValidas.filter((t) => t.conta_id === conta.id);
-    const receitas = transacoesConta
-      .filter((t) => t.tipo === "receita")
-      .reduce((a, t) => a + Number(t.valor), 0);
-    const despesas = transacoesConta
-      .filter((t) => t.tipo === "despesa")
-      .reduce((a, t) => a + Number(t.valor), 0);
-    return acc + Number(conta.saldo_inicial) + receitas - despesas;
+    const saldoConta = transacoesValidas.reduce((saldo, transacao) => {
+      const valor = Number(transacao.valor);
+
+      if (transacao.forma_pagamento === "transferencia" && transacao.conta_destino_id) {
+        if (transacao.conta_id === conta.id) return saldo - valor;
+        if (transacao.conta_destino_id === conta.id) return saldo + valor;
+        return saldo;
+      }
+
+      if (transacao.tipo === "receita" && transacao.conta_id === conta.id) {
+        return saldo + valor;
+      }
+
+      if (transacao.tipo === "despesa" && transacao.conta_id === conta.id) {
+        return saldo - valor;
+      }
+
+      return saldo;
+    }, Number(conta.saldo_inicial));
+
+    return acc + saldoConta;
   }, 0);
 }
 
