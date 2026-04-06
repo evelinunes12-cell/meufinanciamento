@@ -2,6 +2,7 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { Check, ChevronsUpDown, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -42,7 +43,6 @@ const CategoryCombobox = ({ categorias, tipo, value, onValueChange, placeholder 
     return allByType.filter(c => c.nome.toLowerCase().includes(term));
   }, [allByType, search]);
 
-  // Build hierarchy
   const hierarchy = useMemo(() => {
     const mainCats = filtered.filter(c => !c.categoria_pai_id);
     const getSubs = (parentId: string) => filtered.filter(c => c.categoria_pai_id === parentId);
@@ -55,7 +55,6 @@ const CategoryCombobox = ({ categorias, tipo, value, onValueChange, placeholder 
       ];
     });
 
-    // Orphan subcategories
     const orphans = filtered.filter(c => c.categoria_pai_id && !mainCats.some(m => m.id === c.categoria_pai_id));
     return [...result, ...orphans.map(s => ({ ...s, isMain: false, level: 1 }))];
   }, [filtered]);
@@ -95,37 +94,39 @@ const CategoryCombobox = ({ categorias, tipo, value, onValueChange, placeholder 
             />
           </div>
         </div>
-        <div className="max-h-[200px] overflow-y-auto px-1 pb-1">
-          {hierarchy.length === 0 ? (
-            <div className="py-4 text-center text-sm text-muted-foreground">
-              {search.length > 0 && search.length < 3
-                ? "Digite pelo menos 3 caracteres..."
-                : "Nenhuma categoria encontrada"}
-            </div>
-          ) : (
-            hierarchy.map((cat) => (
-              <button
-                key={cat.id}
-                type="button"
-                className={cn(
-                  "flex items-center gap-2 w-full rounded-sm px-2 py-1.5 text-sm cursor-pointer hover:bg-accent hover:text-accent-foreground",
-                  cat.level === 1 && "pl-6",
-                  value === cat.id && "bg-accent text-accent-foreground"
-                )}
-                onClick={() => {
-                  onValueChange(cat.id);
-                  setOpen(false);
-                }}
-              >
-                <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: cat.cor }} />
-                <span className={cn("truncate", cat.isMain && "font-semibold")}>
-                  {cat.level === 1 ? "↳ " : ""}{cat.nome}
-                </span>
-                {value === cat.id && <Check className="ml-auto h-4 w-4 shrink-0" />}
-              </button>
-            ))
-          )}
-        </div>
+        <ScrollArea className="max-h-[220px]">
+          <div className="px-1 pb-1">
+            {hierarchy.length === 0 ? (
+              <div className="py-4 text-center text-sm text-muted-foreground">
+                {search.length > 0 && search.length < 3
+                  ? "Digite pelo menos 3 caracteres..."
+                  : "Nenhuma categoria encontrada"}
+              </div>
+            ) : (
+              hierarchy.map((cat) => (
+                <button
+                  key={cat.id}
+                  type="button"
+                  className={cn(
+                    "flex items-center gap-2 w-full rounded-sm px-2 py-1.5 text-sm cursor-pointer hover:bg-accent hover:text-accent-foreground",
+                    cat.level === 1 && "pl-6",
+                    value === cat.id && "bg-accent text-accent-foreground"
+                  )}
+                  onClick={() => {
+                    onValueChange(cat.id);
+                    setOpen(false);
+                  }}
+                >
+                  <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: cat.cor }} />
+                  <span className={cn("truncate", cat.isMain && "font-semibold")}>
+                    {cat.level === 1 ? "↳ " : ""}{cat.nome}
+                  </span>
+                  {value === cat.id && <Check className="ml-auto h-4 w-4 shrink-0" />}
+                </button>
+              ))
+            )}
+          </div>
+        </ScrollArea>
       </PopoverContent>
     </Popover>
   );
