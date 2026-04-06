@@ -1,6 +1,7 @@
 import { ReactNode, useState, useMemo } from "react";
 import AppSidebar from "./AppSidebar";
 import QuickAddTransaction from "./QuickAddTransaction";
+import Notifications from "./Notifications";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -135,8 +136,9 @@ const AppLayout = ({ children }: AppLayoutProps) => {
       <AppSidebar />
       
       {/* Mobile Header Bar with saldo */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-40 h-14 bg-background/95 backdrop-blur-sm border-b border-border/50">
-        <div className="flex items-center justify-end h-full px-4 pr-16">
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-40 h-14 bg-background/95 backdrop-blur-sm border-b border-border/50 overflow-visible">
+        <div className="flex items-center justify-end h-full px-4 pr-16 gap-2 overflow-visible">
+          <Notifications />
           <Tooltip>
             <TooltipTrigger asChild>
               <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border ${
@@ -183,8 +185,9 @@ const AppLayout = ({ children }: AppLayoutProps) => {
 
       <main className="lg:pl-64 pt-14 lg:pt-0">
         {/* Desktop Header with saldo */}
-        <div className="hidden lg:block sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-border/30">
-          <div className="flex items-center justify-end h-16 px-8">
+        <div className="hidden lg:block sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-border/30 overflow-visible">
+          <div className="flex items-center justify-end h-16 px-8 gap-3 overflow-visible">
+            <Notifications />
             <Tooltip>
               <TooltipTrigger asChild>
                 <div className={`flex items-center gap-3 px-4 py-2 rounded-xl border shadow-sm ${
