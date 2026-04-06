@@ -21,6 +21,7 @@ import { AdvancedFilters, FilterState, getDateRangeFromFilters, getInitialFilter
 import ColorPicker from "@/components/ColorPicker";
 import ConfirmPaymentModal from "@/components/ConfirmPaymentModal";
 import DeleteSeriesDialog from "@/components/DeleteSeriesDialog";
+import CategoryCombobox from "@/components/CategoryCombobox";
 import { isPendente } from "@/lib/transactions";
 
 interface Transacao {
