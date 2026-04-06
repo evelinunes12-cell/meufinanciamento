@@ -95,7 +95,7 @@ const CategoryCombobox = ({ categorias, tipo, value, onValueChange, placeholder 
             />
           </div>
         </div>
-        <div className="max-h-[200px] overflow-y-auto px-1 pb-1">
+        <div className="max-h-[200px] overflow-y-auto overscroll-contain px-1 pb-1" style={{ WebkitOverflowScrolling: 'touch' }}>
           {hierarchy.length === 0 ? (
             <div className="py-4 text-center text-sm text-muted-foreground">
               {search.length > 0 && search.length < 3
