@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import CategoryCombobox from "@/components/CategoryCombobox";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
