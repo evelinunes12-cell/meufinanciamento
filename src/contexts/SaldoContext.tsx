@@ -58,6 +58,10 @@ function calculateSaldoContas(contas: Conta[], transacoes: Transacao[]): number 
         return saldo;
       }
 
+      if (transacao.forma_pagamento === "transferencia" && transacao.tipo === "receita") {
+        return saldo;
+      }
+
       if (transacao.tipo === "receita" && transacao.conta_id === conta.id) {
         return saldo + valor;
       }
