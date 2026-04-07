@@ -74,16 +74,16 @@ const CategoryCombobox = ({ categorias, tipo, value, onValueChange, placeholder 
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+      <PopoverContent className="w-[250px] p-0 pointer-events-auto" align="start">
         <Command>
           <CommandInput placeholder="Buscar categoria..." autoFocus />
-          <CommandList className="max-h-[300px] overflow-y-auto overflow-x-hidden">
+          <CommandList className="max-h-[300px] overflow-y-auto overflow-x-hidden touch-auto">
             <CommandEmpty>Nenhuma categoria encontrada</CommandEmpty>
             <CommandGroup>
               {hierarchy.map((cat) => (
                 <CommandItem
                   key={cat.id}
-                  value={`${cat.level === 1 ? "subcategoria " : "categoria "}${cat.nome}`}
+                  value={cat.nome}
                   onSelect={() => {
                     onValueChange(cat.id);
                     setOpen(false);
