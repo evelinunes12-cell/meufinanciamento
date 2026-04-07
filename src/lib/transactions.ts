@@ -138,8 +138,17 @@ export function calcularSaldoRealConta(
     const isTransferencia = t.forma_pagamento === "transferencia" || t.tipo === "transferencia";
 
     if (isTransferencia) {
-      if (t.conta_id === conta.id) return acc - valor;
-      if (t.conta_destino_id === conta.id) return acc + valor;
+      // Two-row transfer flow:
+      // - origem:  despesa (debit) on conta_id
+      // - destino: receita (credit) on conta_id
+      // Single-row transfer flow:
+      // - conta_id (origem) debit + conta_destino_id (destino) credit
+      if (t.tipo === "despesa" && t.conta_id === conta.id) return acc - valor;
+      if (t.tipo === "receita" && t.conta_id === conta.id) return acc + valor;
+      if (t.tipo === "transferencia") {
+        if (t.conta_id === conta.id) return acc - valor;
+        if (t.conta_destino_id === conta.id) return acc + valor;
+      }
       return acc;
     }
 

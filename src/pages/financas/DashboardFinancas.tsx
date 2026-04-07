@@ -689,8 +689,16 @@ const DashboardFinancas = () => {
                           const isTransferencia = t.forma_pagamento === "transferencia" || t.tipo === "transferencia";
 
                           if (isTransferencia) {
-                            if (t.conta_id === conta.id) return acc - valor;
-                            if (t.conta_destino_id === conta.id) return acc + valor;
+                            // Two-row transfer flow:
+                            // - origem: despesa na conta de origem (debita)
+                            // - destino: receita na conta de destino (credita)
+                            // Single-row flow keeps the transferencia tipo fallback.
+                            if (t.tipo === "despesa" && t.conta_id === conta.id) return acc - valor;
+                            if (t.tipo === "receita" && t.conta_id === conta.id) return acc + valor;
+                            if (t.tipo === "transferencia") {
+                              if (t.conta_id === conta.id) return acc - valor;
+                              if (t.conta_destino_id === conta.id) return acc + valor;
+                            }
                             return acc;
                           }
 
