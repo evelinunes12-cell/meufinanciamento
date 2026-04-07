@@ -1,8 +1,9 @@
-import { useMemo } from "react";
-import { Bell } from "lucide-react";
+import { useState, useMemo, useCallback } from "react";
+import { Bell, Trash2, ExternalLink } from "lucide-react";
 import { addDays, differenceInCalendarDays, format, parseISO, setDate, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -34,10 +35,13 @@ interface Notificacao {
   id: string;
   message: string;
   dateTag: string;
+  route: string;
 }
 
 const Notifications = () => {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
 
   const transacoes = useMemo(() => {
     const entradas = queryClient.getQueriesData({ queryKey: ["transacoes"] });
@@ -56,7 +60,7 @@ const Notifications = () => {
     return Array.from(new Map(todas.map((c) => [c.id, c])).values());
   }, [queryClient]);
 
-  const notifications = useMemo(() => {
+  const allNotifications = useMemo(() => {
     const hoje = startOfDay(new Date());
     const limite = startOfDay(addDays(hoje, 3));
 
@@ -71,16 +75,15 @@ const Notifications = () => {
         id: `despesa-${transacao.id}`,
         message: `Despesa ${transacao.descricao || "sem descrição"} vence dia ${format(dataVencimento, "dd/MM/yyyy")}`,
         dateTag: format(dataVencimento, "yyyy-MM-dd"),
+        route: "/financas/transacoes",
       }));
 
     const diasAFrente = (dia: number) => {
       const base = startOfDay(new Date());
       let dataAlvo = setDate(base, dia);
-
       if (dataAlvo < base) {
         dataAlvo = setDate(addDays(base, 31), dia);
       }
-
       return differenceInCalendarDays(dataAlvo, base);
     };
 
@@ -95,6 +98,7 @@ const Notifications = () => {
               id: `fechamento-${conta.id}`,
               message: `A fatura do cartão ${conta.nome_conta} fecha em breve.`,
               dateTag: `${dias}`,
+              route: "/financas/cartoes",
             });
           }
         }
@@ -105,6 +109,7 @@ const Notifications = () => {
               id: `vencimento-${conta.id}`,
               message: `A fatura do cartão ${conta.nome_conta} vence em breve.`,
               dateTag: `${dias}`,
+              route: "/financas/cartoes",
             });
           }
         }
@@ -113,6 +118,22 @@ const Notifications = () => {
 
     return [...alertasDespesas, ...alertasFatura].sort((a, b) => a.dateTag.localeCompare(b.dateTag));
   }, [contas, transacoes]);
+
+  const notifications = useMemo(
+    () => allNotifications.filter((n) => !dismissed.has(n.id)),
+    [allNotifications, dismissed]
+  );
+
+  const handleClearAll = useCallback(() => {
+    setDismissed(new Set(allNotifications.map((n) => n.id)));
+  }, [allNotifications]);
+
+  const handleNavigate = useCallback(
+    (route: string) => {
+      navigate(route);
+    },
+    [navigate]
+  );
 
   return (
     <DropdownMenu>
@@ -127,7 +148,20 @@ const Notifications = () => {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-[360px]">
-        <DropdownMenuLabel>Notificações</DropdownMenuLabel>
+        <div className="flex items-center justify-between px-2">
+          <DropdownMenuLabel className="px-0">Notificações</DropdownMenuLabel>
+          {notifications.length > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs text-muted-foreground hover:text-destructive gap-1"
+              onClick={handleClearAll}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Limpar
+            </Button>
+          )}
+        </div>
         <DropdownMenuSeparator />
         {notifications.length === 0 ? (
           <p className="px-2 py-3 text-sm text-muted-foreground">Sem alertas para os próximos dias.</p>
@@ -135,9 +169,14 @@ const Notifications = () => {
           <ScrollArea className="max-h-[320px]">
             <div className="space-y-2 p-2">
               {notifications.map((notification) => (
-                <div key={notification.id} className="rounded-md border p-3 text-sm">
-                  {notification.message}
-                </div>
+                <button
+                  key={notification.id}
+                  onClick={() => handleNavigate(notification.route)}
+                  className="flex items-center gap-2 w-full rounded-md border p-3 text-sm text-left hover:bg-accent transition-colors cursor-pointer"
+                >
+                  <span className="flex-1">{notification.message}</span>
+                  <ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                </button>
               ))}
             </div>
           </ScrollArea>
