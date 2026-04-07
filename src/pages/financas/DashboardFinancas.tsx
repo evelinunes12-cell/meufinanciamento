@@ -30,6 +30,7 @@ interface Transacao {
   data: string;
   categoria_id: string | null;
   conta_id: string;
+  conta_destino_id: string | null;
   forma_pagamento: string;
   is_pago_executado: boolean | null;
   descricao: string | null;
@@ -163,6 +164,8 @@ const DashboardFinancas = () => {
     t.forma_pagamento !== "transferencia" && 
     isExecutado(t.is_pago_executado)
   );
+
+  const transacoesExecutadasPeriodo = transacoesFiltradas.filter((t) => isExecutado(t.is_pago_executado));
 
   // For balance calculation, also exclude credit card expenses (they go to invoice, not immediate balance)
   const transacoesParaSaldo = transacoesValidas.filter(t => {
@@ -662,40 +665,40 @@ const DashboardFinancas = () => {
               <CardContent>
                 <div className="space-y-4">
                   {contas.map((conta) => {
-                    // Build transaction data with dates for calculation
-                    const transacoesContaComData = todasTransacoes.filter(t => t.conta_id === conta.id);
-                    
+                    const transacoesContaComData = todasTransacoes.filter((t) => t.conta_id === conta.id);
+
                     // Choose which transactions to use based on mode
                     let saldo = 0;
-                    
+
                     if (saldoContasMode === "total") {
-                      // Use helper for real balance calculation
-                      const transacoesParaCalculo = transacoesContaComData.map(t => ({
-                        valor: t.valor,
-                        tipo: t.tipo,
-                        conta_id: t.conta_id,
-                        forma_pagamento: t.forma_pagamento,
-                        is_pago_executado: t.is_pago_executado,
-                        data: t.data
-                      }));
                       if (conta.tipo === "credito") {
                         saldo = transacoesContaComData
-                          .filter(t => t.tipo === "despesa" && t.is_pago_executado !== true)
+                          .filter((t) => t.tipo === "despesa" && t.is_pago_executado !== true)
                           .reduce((acc, t) => acc + Number(t.valor), 0);
                       } else {
-                        saldo = calcularSaldoRealConta(conta, transacoesParaCalculo);
+                        saldo = calcularSaldoRealConta(conta, todasTransacoes);
                       }
                     } else {
-                      // Period mode: only filtered transactions
-                      const transacoesParaCalculo = transacoesValidas.filter(t => t.conta_id === conta.id);
-                      const receitas = transacoesParaCalculo.filter(t => t.tipo === "receita").reduce((a, t) => a + Number(t.valor), 0);
-                      const despesas = transacoesParaCalculo.filter(t => t.tipo === "despesa").reduce((a, t) => a + Number(t.valor), 0);
                       if (conta.tipo === "credito") {
                         saldo = transacoesContaComData
-                          .filter(t => t.tipo === "despesa" && t.is_pago_executado !== true)
+                          .filter((t) => t.tipo === "despesa" && t.is_pago_executado !== true)
                           .reduce((acc, t) => acc + Number(t.valor), 0);
                       } else {
-                        saldo = receitas - despesas;
+                        saldo = transacoesExecutadasPeriodo.reduce((acc, t) => {
+                          const valor = Number(t.valor);
+                          const isTransferencia = t.forma_pagamento === "transferencia" || t.tipo === "transferencia";
+
+                          if (isTransferencia) {
+                            if (t.conta_id === conta.id) return acc - valor;
+                            if (t.conta_destino_id === conta.id) return acc + valor;
+                            return acc;
+                          }
+
+                          if (t.tipo === "receita" && t.conta_id === conta.id) return acc + valor;
+                          if (t.tipo === "despesa" && t.conta_id === conta.id) return acc - valor;
+
+                          return acc;
+                        }, 0);
                       }
                     }
 

@@ -108,6 +108,7 @@ interface TransacaoSaldo {
   valor: number;
   tipo: string;
   conta_id: string;
+  conta_destino_id?: string | null;
   forma_pagamento: string;
   is_pago_executado: boolean | null;
   data: string;
@@ -130,19 +131,25 @@ export function calcularSaldoRealConta(
   // Credit accounts don't count toward patrimony
   if (conta.tipo === "credito") return 0;
   
-  const transacoesConta = filterTransacoesExecutadas(
-    todasTransacoes.filter(t => t.conta_id === conta.id)
-  );
-  
-  const receitas = transacoesConta
-    .filter(t => t.tipo === "receita")
-    .reduce((acc, t) => acc + Number(t.valor), 0);
-  
-  const despesas = transacoesConta
-    .filter(t => t.tipo === "despesa")
-    .reduce((acc, t) => acc + Number(t.valor), 0);
-  
-  return Number(conta.saldo_inicial) + receitas - despesas;
+  const transacoesExecutadas = todasTransacoes.filter(t => isExecutado(t.is_pago_executado));
+
+  const saldoMovimentacoes = transacoesExecutadas.reduce((acc, t) => {
+    const valor = Number(t.valor);
+    const isTransferencia = t.forma_pagamento === "transferencia" || t.tipo === "transferencia";
+
+    if (isTransferencia) {
+      if (t.conta_id === conta.id) return acc - valor;
+      if (t.conta_destino_id === conta.id) return acc + valor;
+      return acc;
+    }
+
+    if (t.tipo === "receita" && t.conta_id === conta.id) return acc + valor;
+    if (t.tipo === "despesa" && t.conta_id === conta.id) return acc - valor;
+
+    return acc;
+  }, 0);
+
+  return Number(conta.saldo_inicial) + saldoMovimentacoes;
 }
 
 /**
