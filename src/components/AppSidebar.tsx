@@ -23,7 +23,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
-import Notifications from "@/components/Notifications";
+
 
 interface NavItem {
   path: string;
@@ -163,7 +163,6 @@ const AppSidebar = () => {
           <span>Configurações</span>
         </Link>
         <div className="flex items-center gap-2">
-          <Notifications />
           <Button
             variant="ghost"
             onClick={handleSignOut}
