@@ -132,8 +132,11 @@ export function calcularSaldoRealConta(
   if (conta.tipo === "credito") return 0;
   
   const transacoesExecutadas = todasTransacoes.filter(t => isExecutado(t.is_pago_executado));
+  const transacoesConta = transacoesExecutadas.filter(
+    t => t.conta_id === conta.id || t.conta_destino_id === conta.id
+  );
 
-  const saldoMovimentacoes = transacoesExecutadas.reduce((acc, t) => {
+  const saldoMovimentacoes = transacoesConta.reduce((acc, t) => {
     const valor = Number(t.valor);
     const isTransferencia = t.forma_pagamento === "transferencia" || t.tipo === "transferencia";
 

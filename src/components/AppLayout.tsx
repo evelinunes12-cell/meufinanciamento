@@ -28,6 +28,7 @@ interface Transacao {
   valor: number;
   tipo: string;
   conta_id: string;
+  conta_destino_id?: string | null;
   forma_pagamento: string;
   is_pago_executado: boolean | null;
   data: string;
@@ -67,7 +68,7 @@ const AppLayout = ({ children }: AppLayoutProps) => {
       
       const [contasRes, transacoesRes] = await Promise.all([
         supabase.from("contas").select("*"),
-        supabase.from("transacoes").select("id, valor, tipo, conta_id, forma_pagamento, is_pago_executado, data"),
+        supabase.from("transacoes").select("id, valor, tipo, conta_id, conta_destino_id, forma_pagamento, is_pago_executado, data"),
       ]);
 
       return {
@@ -92,7 +93,7 @@ const AppLayout = ({ children }: AppLayoutProps) => {
     const contasBaixo = contas
       .filter(c => c.tipo !== "credito")
       .map(conta => {
-        const transacoesConta = transacoesValidas.filter(t => t.conta_id === conta.id);
+        const transacoesConta = transacoesValidas.filter(t => t.conta_id === conta.id || t.conta_destino_id === conta.id);
         const receitas = transacoesConta.filter(t => t.tipo === "receita").reduce((a, t) => a + Number(t.valor), 0);
         const despesas = transacoesConta.filter(t => t.tipo === "despesa").reduce((a, t) => a + Number(t.valor), 0);
         const saldo = Number(conta.saldo_inicial) + receitas - despesas;

@@ -30,7 +30,7 @@ interface Transacao {
   data: string;
   categoria_id: string | null;
   conta_id: string;
-  conta_destino_id: string | null;
+  conta_destino_id?: string | null;
   forma_pagamento: string;
   is_pago_executado: boolean | null;
   descricao: string | null;
@@ -665,7 +665,7 @@ const DashboardFinancas = () => {
               <CardContent>
                 <div className="space-y-4">
                   {contas.map((conta) => {
-                    const transacoesContaComData = todasTransacoes.filter((t) => t.conta_id === conta.id);
+                    const transacoesContaComData = todasTransacoes.filter((t) => t.conta_id === conta.id || t.conta_destino_id === conta.id);
 
                     // Choose which transactions to use based on mode
                     let saldo = 0;
@@ -684,7 +684,11 @@ const DashboardFinancas = () => {
                           .filter((t) => t.tipo === "despesa" && t.is_pago_executado !== true)
                           .reduce((acc, t) => acc + Number(t.valor), 0);
                       } else {
-                        saldo = transacoesExecutadasPeriodo.reduce((acc, t) => {
+                        const transacoesParaCalculo = transacoesExecutadasPeriodo.filter(
+                          t => t.conta_id === conta.id || t.conta_destino_id === conta.id
+                        );
+
+                        saldo = transacoesParaCalculo.reduce((acc, t) => {
                           const valor = Number(t.valor);
                           const isTransferencia = t.forma_pagamento === "transferencia" || t.tipo === "transferencia";
 
