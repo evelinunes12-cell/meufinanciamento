@@ -140,8 +140,8 @@ export function formatCurrencyInput(value: string): string {
  * baseado na data da compra, dia de fechamento e dia de vencimento
  * 
  * Lógica:
- * - Se o dia da compra >= dia de fechamento: vencimento no mês seguinte
- * - Se o dia da compra < dia de fechamento: vencimento no mês atual
+ * - Se o dia da compra > dia de fechamento: vencimento no mês seguinte
+ * - Se o dia da compra <= dia de fechamento: vencimento no mês atual
  * - Trata corretamente a virada de ano (Dezembro -> Janeiro)
  */
 export function calculateCardDueDate(
@@ -156,7 +156,7 @@ export function calculateCardDueDate(
   let dueMonth: number;
   let dueYear: number;
 
-  if (purchaseDay >= closingDay) {
+  if (purchaseDay > closingDay) {
     // Compra após o fechamento: vencimento no mês seguinte
     dueMonth = purchaseMonth + 1;
     dueYear = purchaseYear;
