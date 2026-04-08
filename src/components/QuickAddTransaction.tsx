@@ -272,16 +272,18 @@ const QuickAddTransaction = ({ open, onOpenChange }: QuickAddTransactionProps) =
     if (needsInstallments) {
       const baseDate = parseISO(formData.data);
       const transacoesToInsert = [];
+      const firstInstallmentDueDate = (isCreditCard && isCardAccount)
+        ? calculateCardDueDate(baseDate, closingDay, dueDay)
+        : null;
 
       for (let i = 0; i < parsedParcelas; i++) {
         const installmentDate = addMonths(baseDate, i);
         let transactionDate: string;
         let paymentDate: string | null = null;
 
-        if (isCreditCard && isCardAccount) {
-          transactionDate = format(installmentDate, "yyyy-MM-dd");
-          const installmentDueDate = calculateCardDueDate(installmentDate, closingDay, dueDay);
-          paymentDate = format(installmentDueDate, 'yyyy-MM-dd');
+        if (isCreditCard && isCardAccount && firstInstallmentDueDate) {
+          transactionDate = format(baseDate, "yyyy-MM-dd");
+          paymentDate = format(addMonths(firstInstallmentDueDate, i), "yyyy-MM-dd");
         } else {
           const nextDate = getNextDate(baseDate, formData.recorrencia, i);
           transactionDate = format(nextDate, 'yyyy-MM-dd');

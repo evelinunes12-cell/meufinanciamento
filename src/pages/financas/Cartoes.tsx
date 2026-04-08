@@ -201,7 +201,8 @@ const Cartoes = () => {
   const getTransacoesCiclo = (cartaoId: string, inicio: string, fim: string) => {
     return transacoes.filter(t => {
       if (t.conta_id !== cartaoId) return false;
-      return t.data >= inicio && t.data <= fim;
+      const dataEfetiva = getDataEfetiva(t, todasContas);
+      return dataEfetiva >= inicio && dataEfetiva <= fim;
     });
   };
 

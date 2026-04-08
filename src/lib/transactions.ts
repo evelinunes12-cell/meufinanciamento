@@ -74,7 +74,7 @@ export function getDataEfetiva(transacao: TransacaoComDatas, contas: ContaCartao
   const conta = contas.find(c => c.id === transacao.conta_id);
   
   // For credit card transactions, use data_pagamento if available
-  if (conta?.tipo === "credito" && transacao.data_pagamento) {
+  if (conta?.tipo === "credito" && transacao.data_pagamento !== null && transacao.data_pagamento !== undefined && transacao.data_pagamento !== "") {
     return transacao.data_pagamento;
   }
   
