@@ -23,7 +23,7 @@ import {
 import { Plus, Search } from "lucide-react";
 import { format, parseISO, addWeeks, addMonths, addYears } from "date-fns";
 import { toast } from "@/hooks/use-toast";
-import { formatCurrencyInput, parseCurrencyInput, calculateCardDueDate, calculateInstallmentDueDate } from "@/lib/calculations";
+import { formatCurrencyInput, parseCurrencyInput, calculateCardDueDate } from "@/lib/calculations";
 import ColorPicker from "@/components/ColorPicker";
 
 interface Conta {
@@ -273,18 +273,14 @@ const QuickAddTransaction = ({ open, onOpenChange }: QuickAddTransactionProps) =
       const baseDate = parseISO(formData.data);
       const transacoesToInsert = [];
 
-      let baseDueDate: Date | null = null;
-      if (isCreditCard && isCardAccount) {
-        baseDueDate = calculateCardDueDate(baseDate, closingDay, dueDay);
-      }
-
       for (let i = 0; i < parsedParcelas; i++) {
+        const installmentDate = addMonths(baseDate, i);
         let transactionDate: string;
         let paymentDate: string | null = null;
 
-        if (isCreditCard && baseDueDate) {
-          transactionDate = formData.data;
-          const installmentDueDate = calculateInstallmentDueDate(baseDueDate, i, dueDay);
+        if (isCreditCard && isCardAccount) {
+          transactionDate = format(installmentDate, "yyyy-MM-dd");
+          const installmentDueDate = calculateCardDueDate(installmentDate, closingDay, dueDay);
           paymentDate = format(installmentDueDate, 'yyyy-MM-dd');
         } else {
           const nextDate = getNextDate(baseDate, formData.recorrencia, i);
