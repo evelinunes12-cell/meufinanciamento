@@ -17,7 +17,7 @@ import { format, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Link } from "react-router-dom";
 import PagarFaturaModal from "@/components/PagarFaturaModal";
-import { getDataEfetiva } from "@/lib/transactions";
+import { getDataCompetenciaTransacao } from "@/lib/transactions";
 
 interface Conta {
   id: string;
@@ -198,12 +198,35 @@ const Cartoes = () => {
     });
   };
 
+  const getDataCompetencia = (transacao: Transacao) => {
+    return getDataCompetenciaTransacao(
+      {
+        data: transacao.data,
+        data_pagamento: transacao.data_pagamento,
+        conta_id: transacao.conta_id,
+        parcela_atual: transacao.parcela_atual,
+      },
+      todasContas
+    );
+  };
+
   const getTransacoesCiclo = (cartaoId: string, inicio: string, fim: string) => {
-    return transacoes.filter(t => {
-      if (t.conta_id !== cartaoId) return false;
-      const dataEfetiva = getDataEfetiva(t, todasContas);
-      return dataEfetiva >= inicio && dataEfetiva <= fim;
-    });
+    return transacoes
+      .filter(t => {
+        if (t.conta_id !== cartaoId) return false;
+        const dataCompetencia = getDataCompetencia(t);
+        return dataCompetencia >= inicio && dataCompetencia <= fim;
+      })
+      .sort((a, b) => {
+        const dataCompetenciaA = getDataCompetencia(a);
+        const dataCompetenciaB = getDataCompetencia(b);
+
+        if (dataCompetenciaA !== dataCompetenciaB) {
+          return dataCompetenciaB.localeCompare(dataCompetenciaA);
+        }
+
+        return b.data.localeCompare(a.data);
+      });
   };
 
 const getFaturaFechada = (cartao: Conta) => {
@@ -221,8 +244,8 @@ const getFaturaFechada = (cartao: Conta) => {
     return transacoes
       .filter(t => {
         if (t.conta_id !== cartao.id) return false;
-        const dataEfetiva = getDataEfetiva(t, todasContas);
-        return dataEfetiva < fechada.inicio && t.is_pago_executado !== true;
+        const dataCompetencia = getDataCompetencia(t);
+        return dataCompetencia < fechada.inicio && t.is_pago_executado !== true;
       })
       .reduce((acc, t) => acc + Number(t.valor), 0);
   };
