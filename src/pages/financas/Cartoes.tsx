@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Switch } from "@/components/ui/switch";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CreditCard, Calendar, AlertTriangle, Banknote, Info, History, Lock, LockOpen } from "lucide-react";
 import { format, subMonths } from "date-fns";
@@ -237,6 +238,40 @@ const getFaturaFechada = (cartao: Conta) => {
       .reduce((acc, t) => acc + Number(t.valor), 0);
   };
 
+  const renderFaturaDetalhes = (transacoesCiclo: Transacao[], emptyText: string) => {
+    if (transacoesCiclo.length === 0) {
+      return <p className="text-xs text-muted-foreground py-2">{emptyText}</p>;
+    }
+
+    return (
+      <div className="space-y-2 pt-1">
+        {transacoesCiclo.map((transacao) => (
+          <div
+            key={transacao.id}
+            className="flex items-center justify-between gap-2 text-xs border-b border-border/60 pb-2 last:border-0 last:pb-0"
+          >
+            <div className="min-w-0">
+              <p className="font-medium text-foreground truncate">
+                {transacao.descricao || "Sem descrição"}
+              </p>
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <span>{format(new Date(transacao.data), "dd/MM")}</span>
+                {transacao.parcelas_total && transacao.parcela_atual && transacao.parcelas_total > 1 && (
+                  <Badge variant="outline" className="text-[10px] px-1 py-0">
+                    {transacao.parcela_atual}/{transacao.parcelas_total}
+                  </Badge>
+                )}
+              </div>
+            </div>
+            <p className="font-semibold text-foreground whitespace-nowrap">
+              {formatCurrency(Number(transacao.valor))}
+            </p>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   const handlePagarFatura = (cartao: Conta) => {
     const isForced = forceClose[cartao.id] || false;
     const { fechada } = getFaturasInfo(cartao, new Date(), isForced);
@@ -336,6 +371,8 @@ const getFaturaFechada = (cartao: Conta) => {
                   const diaFechamento = cartao.dia_fechamento || 1;
                   const jaFechouNaturalmente = diaHoje >= diaFechamento;
                   const faturasInfo = getFaturasInfo(cartao, new Date(), isForced);
+                  const transacoesFechada = getTransacoesCiclo(cartao.id, faturasInfo.fechada.inicio, faturasInfo.fechada.fim);
+                  const transacoesAberta = getTransacoesCiclo(cartao.id, faturasInfo.aberta.inicio, faturasInfo.aberta.fim);
                   const faturaFechada = getFaturaFechada(cartao);
                   const faturasAnteriores = getFaturasAnterioresNaoPagas(cartao);
                   const totalFechada = faturaFechada + faturasAnteriores;
@@ -451,6 +488,19 @@ const getFaturaFechada = (cartao: Conta) => {
                               </Button>
                             )}
                           </div>
+                          <Accordion type="single" collapsible className="mt-2">
+                            <AccordionItem value="detalhes-fatura-fechada" className="border-0">
+                              <AccordionTrigger className="py-1 text-xs text-muted-foreground hover:no-underline">
+                                Ver detalhes da fatura fechada
+                              </AccordionTrigger>
+                              <AccordionContent>
+                                {renderFaturaDetalhes(
+                                  transacoesFechada,
+                                  "Nenhuma transação encontrada nesta fatura fechada.",
+                                )}
+                              </AccordionContent>
+                            </AccordionItem>
+                          </Accordion>
                         </div>
 
                         {/* Fatura Aberta (ciclo atual) */}
@@ -482,6 +532,19 @@ const getFaturaFechada = (cartao: Conta) => {
                             <span className="text-muted-foreground">{percentualUsado.toFixed(1)}% usado</span>
                             <span className="text-muted-foreground">Limite: {formatCurrency(limite)}</span>
                           </div>
+                          <Accordion type="single" collapsible className="mt-2">
+                            <AccordionItem value="detalhes-fatura-aberta" className="border-0">
+                              <AccordionTrigger className="py-1 text-xs text-muted-foreground hover:no-underline">
+                                Ver detalhes da fatura atual
+                              </AccordionTrigger>
+                              <AccordionContent>
+                                {renderFaturaDetalhes(
+                                  transacoesAberta,
+                                  "Nenhuma transação encontrada na fatura em aberto.",
+                                )}
+                              </AccordionContent>
+                            </AccordionItem>
+                          </Accordion>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4 pt-2 border-t border-border">
