@@ -221,7 +221,8 @@ const getFaturaFechada = (cartao: Conta) => {
     return transacoes
       .filter(t => {
         if (t.conta_id !== cartao.id) return false;
-        return t.data < fechada.inicio && t.is_pago_executado !== true;
+        const dataEfetiva = getDataEfetiva(t, todasContas);
+        return dataEfetiva < fechada.inicio && t.is_pago_executado !== true;
       })
       .reduce((acc, t) => acc + Number(t.valor), 0);
   };

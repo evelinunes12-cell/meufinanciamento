@@ -22,7 +22,7 @@ import ColorPicker from "@/components/ColorPicker";
 import ConfirmPaymentModal from "@/components/ConfirmPaymentModal";
 import DeleteSeriesDialog from "@/components/DeleteSeriesDialog";
 import CategoryCombobox from "@/components/CategoryCombobox";
-import { isPendente } from "@/lib/transactions";
+import { isPendente, getDataEfetiva } from "@/lib/transactions";
 
 interface Transacao {
   id: string;
@@ -87,12 +87,13 @@ async function fetchTransacoesData(
 ) {
   if (!userId) return null;
 
+  // Fetch transactions where `data` OR `data_pagamento` falls in range
+  // This ensures credit card installments with future data_pagamento are included
   const [transacoesRes, contasRes, categoriasRes] = await Promise.all([
     supabase
       .from("transacoes")
       .select("*")
-      .gte("data", startDate)
-      .lte("data", endDate)
+      .or(`and(data.gte.${startDate},data.lte.${endDate}),and(data_pagamento.gte.${startDate},data_pagamento.lte.${endDate})`)
       .order("data", { ascending: false })
       .order("created_at", { ascending: false }),
     supabase.from("contas").select("*"),
@@ -576,6 +577,17 @@ const Transacoes = () => {
   // Apply advanced filters client-side
   const filteredTransacoes = useMemo(() => {
     let result = data?.transacoes || [];
+    const allContas = data?.contas || [];
+    
+    // Filter by effective date (data_pagamento for credit cards, data for others)
+    // This ensures credit card installments appear in the correct month
+    result = result.filter(t => {
+      const dataEfetiva = getDataEfetiva(
+        { data: t.data, data_pagamento: t.data_pagamento, conta_id: t.conta_id },
+        allContas.map(c => ({ id: c.id, tipo: c.tipo, dia_fechamento: c.dia_fechamento }))
+      );
+      return dataEfetiva >= startDate && dataEfetiva <= endDate;
+    });
     
     if (filters.tipo) {
       result = result.filter(t => t.tipo === filters.tipo);
@@ -605,7 +617,7 @@ const Transacoes = () => {
     }
     
     return result;
-  }, [data?.transacoes, data?.categorias, filters.tipo, filters.categoriaId, filters.subcategoriaId, filters.contaId, filters.formaPagamento, filters.statusPagamento]);
+  }, [data?.transacoes, data?.contas, data?.categorias, startDate, endDate, filters.tipo, filters.categoriaId, filters.subcategoriaId, filters.contaId, filters.formaPagamento, filters.statusPagamento]);
 
   // Pagination
   const totalPages = Math.ceil(filteredTransacoes.length / ITEMS_PER_PAGE);
