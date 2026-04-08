@@ -136,10 +136,9 @@ const PagarFaturaModal = ({
       const { error: errorEntrada } = await supabase.from("transacoes").insert(transacaoEntrada);
       if (errorEntrada) throw errorEntrada;
 
-      // Se pagamento total, marcar transações da fatura como pagas
+      // Se pagamento total, marcar apenas as compras do cartão que já venceram
+      // ou que pertencem à fatura fechada/anteriores.
       if (isTotal) {
-        // Marca TODAS as transações não pagas do cartão com data_pagamento <= vencimento da fatura
-        // Isso inclui faturas anteriores acumuladas
         const cutoffDate = vencimentoFatura || dataHoje;
         
         const { error: updateError, data: updatedTransactions } = await supabase
@@ -150,7 +149,9 @@ const PagarFaturaModal = ({
           })
           .eq("conta_id", cartaoId)
           .eq("tipo", "despesa")
-          .eq("is_pago_executado", false)
+          .eq("forma_pagamento", "credito")
+          .lte("data_pagamento", cutoffDate)
+          .or("is_pago_executado.is.false,is_pago_executado.is.null")
           .select("id");
 
         if (updateError) {

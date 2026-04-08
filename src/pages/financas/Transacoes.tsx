@@ -22,7 +22,7 @@ import ColorPicker from "@/components/ColorPicker";
 import ConfirmPaymentModal from "@/components/ConfirmPaymentModal";
 import DeleteSeriesDialog from "@/components/DeleteSeriesDialog";
 import CategoryCombobox from "@/components/CategoryCombobox";
-import { isPendente, getDataEfetiva } from "@/lib/transactions";
+import { isPendente, getDataCompetenciaTransacao } from "@/lib/transactions";
 
 interface Transacao {
   id: string;
@@ -87,13 +87,15 @@ async function fetchTransacoesData(
 ) {
   if (!userId) return null;
 
-  // Fetch transactions where `data` OR `data_pagamento` falls in range
-  // This ensures credit card installments with future data_pagamento are included
+  const endDateWithInvoiceBuffer = format(addMonths(parseISO(endDate), 1), "yyyy-MM-dd");
+
+  // Include the next invoice window so credit card installments can be shown
+  // in the correct invoice-competence month, even when payment happens later.
   const [transacoesRes, contasRes, categoriasRes] = await Promise.all([
     supabase
       .from("transacoes")
       .select("*")
-      .or(`and(data.gte.${startDate},data.lte.${endDate}),and(data_pagamento.gte.${startDate},data_pagamento.lte.${endDate})`)
+      .or(`and(data.gte.${startDate},data.lte.${endDate}),and(data_pagamento.gte.${startDate},data_pagamento.lte.${endDateWithInvoiceBuffer})`)
       .order("data", { ascending: false })
       .order("created_at", { ascending: false }),
     supabase.from("contas").select("*"),
@@ -578,15 +580,37 @@ const Transacoes = () => {
   const filteredTransacoes = useMemo(() => {
     let result = data?.transacoes || [];
     const allContas = data?.contas || [];
-    
-    // Filter by effective date (data_pagamento for credit cards, data for others)
-    // This ensures credit card installments appear in the correct month
-    result = result.filter(t => {
-      const dataEfetiva = getDataEfetiva(
-        { data: t.data, data_pagamento: t.data_pagamento, conta_id: t.conta_id },
-        allContas.map(c => ({ id: c.id, tipo: c.tipo, dia_fechamento: c.dia_fechamento }))
+    const getDataCompetencia = (transacao: Transacao) =>
+      getDataCompetenciaTransacao(
+        {
+          data: transacao.data,
+          data_pagamento: transacao.data_pagamento,
+          conta_id: transacao.conta_id,
+          parcela_atual: transacao.parcela_atual,
+        },
+        allContas
       );
-      return dataEfetiva >= startDate && dataEfetiva <= endDate;
+    
+    // Filter by invoice competence date so credit card installments appear
+    // in the month of the invoice cycle, not only in the payment month.
+    result = result.filter(t => {
+      const dataCompetencia = getDataCompetencia(t);
+      return dataCompetencia >= startDate && dataCompetencia <= endDate;
+    });
+
+    result = [...result].sort((a, b) => {
+      const dataCompetenciaA = getDataCompetencia(a);
+      const dataCompetenciaB = getDataCompetencia(b);
+
+      if (dataCompetenciaA !== dataCompetenciaB) {
+        return dataCompetenciaB.localeCompare(dataCompetenciaA);
+      }
+
+      if (a.data !== b.data) {
+        return b.data.localeCompare(a.data);
+      }
+
+      return (a.parcela_atual ?? 1) - (b.parcela_atual ?? 1);
     });
     
     if (filters.tipo) {

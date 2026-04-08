@@ -3,7 +3,7 @@
  * Provides unified rules for transaction status and balance calculations
  */
 
-import { endOfMonth, startOfMonth, subMonths, parseISO, isBefore, isAfter, format } from "date-fns";
+import { addMonths, endOfMonth, startOfMonth, subMonths, parseISO, isBefore, isAfter, format } from "date-fns";
 
 // ==========================================
 // Transaction Status Helpers
@@ -59,6 +59,10 @@ interface TransacaoComDatas {
   conta_id: string;
 }
 
+interface TransacaoComCompetencia extends TransacaoComDatas {
+  parcela_atual?: number | null;
+}
+
 interface ContaCartao {
   id: string;
   tipo: string;
@@ -82,6 +86,32 @@ export function getDataEfetiva(transacao: TransacaoComDatas, contas: ContaCartao
 }
 
 /**
+ * Gets the invoice competence date used to place credit card purchases
+ * in the correct open/closed invoice cycle.
+ *
+ * For credit card installments, the purchase date stays fixed for all rows,
+ * but each installment belongs to a future invoice cycle.
+ */
+export function getDataCompetenciaTransacao(
+  transacao: TransacaoComCompetencia,
+  contas: ContaCartao[]
+): string {
+  const conta = contas.find(c => c.id === transacao.conta_id);
+
+  if (conta?.tipo !== "credito") {
+    return transacao.data;
+  }
+
+  const indiceParcela = Math.max(0, (transacao.parcela_atual ?? 1) - 1);
+
+  if (indiceParcela === 0) {
+    return transacao.data;
+  }
+
+  return format(addMonths(parseISO(transacao.data), indiceParcela), "yyyy-MM-dd");
+}
+
+/**
  * Filters transactions by effective date range
  * For credit cards, uses data_pagamento; for others, uses data
  */
@@ -97,6 +127,25 @@ export function filterTransacoesPorPeriodoEfetivo<T extends TransacaoComDatas>(
   return transacoes.filter(t => {
     const dataEfetiva = parseISO(getDataEfetiva(t, contas));
     return !isBefore(dataEfetiva, start) && !isAfter(dataEfetiva, end);
+  });
+}
+
+/**
+ * Filters transactions by invoice competence date.
+ * Used for transaction listing and credit card invoice cycles.
+ */
+export function filterTransacoesPorPeriodoCompetencia<T extends TransacaoComCompetencia>(
+  transacoes: T[],
+  contas: ContaCartao[],
+  startDate: string,
+  endDate: string
+): T[] {
+  const start = parseISO(startDate);
+  const end = parseISO(endDate);
+
+  return transacoes.filter(t => {
+    const dataCompetencia = parseISO(getDataCompetenciaTransacao(t, contas));
+    return !isBefore(dataCompetencia, start) && !isAfter(dataCompetencia, end);
   });
 }
 
