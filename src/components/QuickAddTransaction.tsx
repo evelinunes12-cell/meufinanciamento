@@ -277,6 +277,7 @@ const QuickAddTransaction = ({ open, onOpenChange }: QuickAddTransactionProps) =
         : null;
 
       for (let i = 0; i < parsedParcelas; i++) {
+        const installmentDate = addMonths(baseDate, i);
         let transactionDate: string;
         let paymentDate: string | null = null;
 
