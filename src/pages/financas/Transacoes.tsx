@@ -577,6 +577,17 @@ const Transacoes = () => {
   // Apply advanced filters client-side
   const filteredTransacoes = useMemo(() => {
     let result = data?.transacoes || [];
+    const allContas = data?.contas || [];
+    
+    // Filter by effective date (data_pagamento for credit cards, data for others)
+    // This ensures credit card installments appear in the correct month
+    result = result.filter(t => {
+      const dataEfetiva = getDataEfetiva(
+        { data: t.data, data_pagamento: t.data_pagamento, conta_id: t.conta_id },
+        allContas.map(c => ({ id: c.id, tipo: c.tipo, dia_fechamento: c.dia_fechamento }))
+      );
+      return dataEfetiva >= startDate && dataEfetiva <= endDate;
+    });
     
     if (filters.tipo) {
       result = result.filter(t => t.tipo === filters.tipo);
@@ -606,7 +617,7 @@ const Transacoes = () => {
     }
     
     return result;
-  }, [data?.transacoes, data?.categorias, filters.tipo, filters.categoriaId, filters.subcategoriaId, filters.contaId, filters.formaPagamento, filters.statusPagamento]);
+  }, [data?.transacoes, data?.contas, data?.categorias, startDate, endDate, filters.tipo, filters.categoriaId, filters.subcategoriaId, filters.contaId, filters.formaPagamento, filters.statusPagamento]);
 
   // Pagination
   const totalPages = Math.ceil(filteredTransacoes.length / ITEMS_PER_PAGE);
