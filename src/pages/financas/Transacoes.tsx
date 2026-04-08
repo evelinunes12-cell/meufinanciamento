@@ -22,7 +22,7 @@ import ColorPicker from "@/components/ColorPicker";
 import ConfirmPaymentModal from "@/components/ConfirmPaymentModal";
 import DeleteSeriesDialog from "@/components/DeleteSeriesDialog";
 import CategoryCombobox from "@/components/CategoryCombobox";
-import { isPendente } from "@/lib/transactions";
+import { isPendente, getDataEfetiva } from "@/lib/transactions";
 
 interface Transacao {
   id: string;
@@ -87,12 +87,13 @@ async function fetchTransacoesData(
 ) {
   if (!userId) return null;
 
+  // Fetch transactions where `data` OR `data_pagamento` falls in range
+  // This ensures credit card installments with future data_pagamento are included
   const [transacoesRes, contasRes, categoriasRes] = await Promise.all([
     supabase
       .from("transacoes")
       .select("*")
-      .gte("data", startDate)
-      .lte("data", endDate)
+      .or(`and(data.gte.${startDate},data.lte.${endDate}),and(data_pagamento.gte.${startDate},data_pagamento.lte.${endDate})`)
       .order("data", { ascending: false })
       .order("created_at", { ascending: false }),
     supabase.from("contas").select("*"),
