@@ -159,6 +159,7 @@ const App = () => (
 
                 <Route path="*" element={<NotFound />} />
                 </Routes>
+                </main>
               </Suspense>
             </SidebarProvider>
           </SaldoProvider>
