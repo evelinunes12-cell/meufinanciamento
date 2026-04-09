@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Switch } from "@/components/ui/switch";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CreditCard, Calendar, AlertTriangle, Banknote, Info, History, Lock, LockOpen, Zap } from "lucide-react";
+import { CreditCard, Calendar, AlertTriangle, Banknote, Info, History, Lock, LockOpen, Zap, Check } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 import { format, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Link } from "react-router-dom";
@@ -165,6 +166,7 @@ function setForceCloseState(state: Record<string, boolean>) {
 
 const Cartoes = () => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("faturas");
   const [forceClose, setForceClose] = useState<Record<string, boolean>>(getForceCloseState);
   const [faturaModal, setFaturaModal] = useState<{
@@ -542,7 +544,7 @@ const getFaturaFechada = (cartao: Conta) => {
                                 </p>
                               )}
                             </div>
-                            {totalFechada > 0 && (
+                            {totalFechada > 0 ? (
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -552,6 +554,49 @@ const getFaturaFechada = (cartao: Conta) => {
                                 <Banknote className="h-4 w-4" />
                                 Pagar
                               </Button>
+                            ) : (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="gap-1 border-success text-success hover:bg-success hover:text-success-foreground"
+                                    onClick={() => {
+                                      // Mark all credit transactions in this closed cycle as paid
+                                      const isForced = forceClose[cartao.id] || false;
+                                      const { fechada } = getFaturasInfo(cartao, new Date(), isForced);
+                                      const transacoesCiclo = getTransacoesCiclo(cartao.id, fechada.inicio, fechada.fim);
+                                      const pendentes = transacoesCiclo.filter(t => t.is_pago_executado !== true);
+                                      
+                                      if (pendentes.length === 0) {
+                                        toast({ title: "Fatura já está quitada", description: "Não há transações pendentes nesta fatura." });
+                                        return;
+                                      }
+                                      
+                                      const dataHoje = format(new Date(), "yyyy-MM-dd");
+                                      Promise.all(
+                                        pendentes.map(t =>
+                                          supabase
+                                            .from("transacoes")
+                                            .update({ is_pago_executado: true, data_execucao_pagamento: dataHoje })
+                                            .eq("id", t.id)
+                                        )
+                                      ).then(() => {
+                                        toast({ title: "Fatura marcada como paga", description: `${pendentes.length} transação(ões) quitada(s).` });
+                                        queryClient.invalidateQueries({ queryKey: ["cartoes"] });
+                                        queryClient.invalidateQueries({ queryKey: ["transacoes"] });
+                                        queryClient.invalidateQueries({ queryKey: ["saldo-contas"] });
+                                      });
+                                    }}
+                                  >
+                                    <Check className="h-4 w-4" />
+                                    Paga
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p className="text-xs">Marcar fatura R$ 0,00 como paga</p>
+                                </TooltipContent>
+                              </Tooltip>
                             )}
                           </div>
                           <Accordion type="single" collapsible className="mt-2">
