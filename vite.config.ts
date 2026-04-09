@@ -55,6 +55,13 @@ export default defineConfig(({ mode }) => ({
   },
   build: {
     sourcemap: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          recharts: ['recharts'],
+        },
+      },
+    },
   },
   plugins: [react(), inlineInitialCss(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {
