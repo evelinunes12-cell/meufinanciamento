@@ -173,7 +173,8 @@ const Cartoes = () => {
     cartaoNome: string;
     valorFatura: number;
     vencimentoFatura: string;
-  }>({ open: false, cartaoId: "", cartaoNome: "", valorFatura: 0, vencimentoFatura: "" });
+    tipo: "fechada" | "aberta" | "antecipada";
+  }>({ open: false, cartaoId: "", cartaoNome: "", valorFatura: 0, vencimentoFatura: "", tipo: "fechada" });
 
   const { data, isLoading } = useQuery({
     queryKey: ["cartoes", user?.id],
