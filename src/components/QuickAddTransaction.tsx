@@ -455,7 +455,10 @@ const QuickAddTransaction = ({ open, onOpenChange }: QuickAddTransactionProps) =
 
           <div className="space-y-2">
             <Label>Conta Origem *</Label>
-            <Select value={formData.conta_id} onValueChange={(v) => setFormData({ ...formData, conta_id: v })}>
+            <Select value={formData.conta_id} onValueChange={(v) => {
+              const conta = contas.find(c => c.id === v);
+              setFormData({ ...formData, conta_id: v, forma_pagamento: conta?.tipo === 'credito' ? 'credito' : formData.forma_pagamento });
+            }}>
               <SelectTrigger>
                 <SelectValue placeholder="Selecione uma conta" />
               </SelectTrigger>
