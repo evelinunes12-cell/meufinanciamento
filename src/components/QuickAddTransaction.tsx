@@ -455,7 +455,10 @@ const QuickAddTransaction = ({ open, onOpenChange }: QuickAddTransactionProps) =
 
           <div className="space-y-2">
             <Label>Conta Origem *</Label>
-            <Select value={formData.conta_id} onValueChange={(v) => setFormData({ ...formData, conta_id: v })}>
+            <Select value={formData.conta_id} onValueChange={(v) => {
+              const conta = contas.find(c => c.id === v);
+              setFormData({ ...formData, conta_id: v, forma_pagamento: conta?.tipo === 'credito' ? 'credito' : formData.forma_pagamento });
+            }}>
               <SelectTrigger>
                 <SelectValue placeholder="Selecione uma conta" />
               </SelectTrigger>
@@ -562,7 +565,12 @@ const QuickAddTransaction = ({ open, onOpenChange }: QuickAddTransactionProps) =
                 </SelectTrigger>
                 <SelectContent>
                   {formasPagamento
-                    .filter((fp) => !("onlyForTipo" in fp) || fp.onlyForTipo === formData.tipo)
+                    .filter((fp) => {
+                      const isCardAccount = contas.find(c => c.id === formData.conta_id)?.tipo === 'credito';
+                      if (isCardAccount) return fp.value === 'credito';
+                      if ("onlyForTipo" in fp) return fp.onlyForTipo === formData.tipo;
+                      return true;
+                    })
                     .map((fp) => (
                       <SelectItem key={fp.value} value={fp.value}>{fp.label}</SelectItem>
                     ))}
