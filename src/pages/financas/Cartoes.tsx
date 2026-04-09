@@ -542,7 +542,7 @@ const getFaturaFechada = (cartao: Conta) => {
                                 </p>
                               )}
                             </div>
-                            {totalFechada > 0 && (
+                            {totalFechada > 0 ? (
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -552,6 +552,50 @@ const getFaturaFechada = (cartao: Conta) => {
                                 <Banknote className="h-4 w-4" />
                                 Pagar
                               </Button>
+                            ) : (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="gap-1 border-success text-success hover:bg-success hover:text-success-foreground"
+                                    onClick={() => {
+                                      // Mark all credit transactions in this closed cycle as paid
+                                      const isForced = forceClose[cartao.id] || false;
+                                      const { fechada } = getFaturasInfo(cartao, new Date(), isForced);
+                                      const transacoesCiclo = getTransacoesCiclo(cartao.id, fechada.inicio, fechada.fim);
+                                      const pendentes = transacoesCiclo.filter(t => t.is_pago_executado !== true);
+                                      
+                                      if (pendentes.length === 0) {
+                                        // No pending transactions, just show success
+                                        const { toast } = require("@/hooks/use-toast");
+                                        toast({ title: "Fatura já está quitada", description: "Não há transações pendentes nesta fatura." });
+                                        return;
+                                      }
+                                      
+                                      const dataHoje = format(new Date(), "yyyy-MM-dd");
+                                      Promise.all(
+                                        pendentes.map(t =>
+                                          supabase
+                                            .from("transacoes")
+                                            .update({ is_pago_executado: true, data_execucao_pagamento: dataHoje })
+                                            .eq("id", t.id)
+                                        )
+                                      ).then(() => {
+                                        const { toast } = require("@/hooks/use-toast");
+                                        toast({ title: "Fatura marcada como paga", description: `${pendentes.length} transação(ões) quitada(s).` });
+                                        const { useQueryClient } = require("@tanstack/react-query");
+                                      });
+                                    }}
+                                  >
+                                    <Check className="h-4 w-4" />
+                                    Paga
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p className="text-xs">Marcar fatura R$ 0,00 como paga</p>
+                                </TooltipContent>
+                              </Tooltip>
                             )}
                           </div>
                           <Accordion type="single" collapsible className="mt-2">
