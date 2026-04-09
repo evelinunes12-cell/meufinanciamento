@@ -166,6 +166,7 @@ function setForceCloseState(state: Record<string, boolean>) {
 
 const Cartoes = () => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("faturas");
   const [forceClose, setForceClose] = useState<Record<string, boolean>>(getForceCloseState);
   const [faturaModal, setFaturaModal] = useState<{
