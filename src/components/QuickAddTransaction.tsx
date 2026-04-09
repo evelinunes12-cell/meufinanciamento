@@ -562,7 +562,12 @@ const QuickAddTransaction = ({ open, onOpenChange }: QuickAddTransactionProps) =
                 </SelectTrigger>
                 <SelectContent>
                   {formasPagamento
-                    .filter((fp) => !("onlyForTipo" in fp) || fp.onlyForTipo === formData.tipo)
+                    .filter((fp) => {
+                      const isCardAccount = contas.find(c => c.id === formData.conta_id)?.tipo === 'credito';
+                      if (isCardAccount) return fp.value === 'credito';
+                      if ("onlyForTipo" in fp) return fp.onlyForTipo === formData.tipo;
+                      return true;
+                    })
                     .map((fp) => (
                       <SelectItem key={fp.value} value={fp.value}>{fp.label}</SelectItem>
                     ))}
