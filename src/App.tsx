@@ -42,6 +42,7 @@ const App = () => (
           <SaldoProvider>
             <SidebarProvider>
               <Suspense fallback={<div className="flex items-center justify-center min-h-screen bg-background"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}>
+                <main className="contents">
                 <Routes>
                   <Route path="/auth" element={<Auth />} />
                   <Route path="/reset-password" element={<ResetPassword />} />
@@ -158,6 +159,7 @@ const App = () => (
 
                 <Route path="*" element={<NotFound />} />
                 </Routes>
+                </main>
               </Suspense>
             </SidebarProvider>
           </SaldoProvider>
