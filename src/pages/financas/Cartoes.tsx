@@ -12,7 +12,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Switch } from "@/components/ui/switch";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CreditCard, Calendar, AlertTriangle, Banknote, Info, History, Lock, LockOpen } from "lucide-react";
+import { CreditCard, Calendar, AlertTriangle, Banknote, Info, History, Lock, LockOpen, Zap } from "lucide-react";
 import { format, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Link } from "react-router-dom";
@@ -173,7 +173,8 @@ const Cartoes = () => {
     cartaoNome: string;
     valorFatura: number;
     vencimentoFatura: string;
-  }>({ open: false, cartaoId: "", cartaoNome: "", valorFatura: 0, vencimentoFatura: "" });
+    tipo: "fechada" | "aberta" | "antecipada";
+  }>({ open: false, cartaoId: "", cartaoNome: "", valorFatura: 0, vencimentoFatura: "", tipo: "fechada" });
 
   const { data, isLoading } = useQuery({
     queryKey: ["cartoes", user?.id],
@@ -310,6 +311,46 @@ const getFaturaFechada = (cartao: Conta) => {
       cartaoNome: cartao.nome_conta,
       valorFatura: Math.max(0, valorTotal),
       vencimentoFatura: format(fechada.vencimento, "yyyy-MM-dd"),
+      tipo: "fechada",
+    });
+  };
+
+  const handleFecharEPagarAberta = (cartao: Conta) => {
+    // Force close the invoice first
+    if (!forceClose[cartao.id]) {
+      toggleForceClose(cartao.id);
+    }
+    // After force close, the "aberta" becomes "fechada" with different dates
+    // So we recalculate with forceClose = true
+    const { fechada } = getFaturasInfo(cartao, new Date(), true);
+    const transacoesCiclo = getTransacoesCiclo(cartao.id, fechada.inicio, fechada.fim);
+    const valor = transacoesCiclo
+      .filter(t => t.is_pago_executado !== true)
+      .reduce((acc, t) => acc + Number(t.valor), 0);
+    const faturasAnteriores = getFaturasAnterioresNaoPagas(cartao);
+    
+    setFaturaModal({
+      open: true,
+      cartaoId: cartao.id,
+      cartaoNome: cartao.nome_conta,
+      valorFatura: Math.max(0, valor + faturasAnteriores),
+      vencimentoFatura: format(fechada.vencimento, "yyyy-MM-dd"),
+      tipo: "fechada",
+    });
+  };
+
+  const handleAnteciparFatura = (cartao: Conta) => {
+    const isForced = forceClose[cartao.id] || false;
+    const { aberta } = getFaturasInfo(cartao, new Date(), isForced);
+    const valorAberta = getFaturaAberta(cartao);
+    
+    setFaturaModal({
+      open: true,
+      cartaoId: cartao.id,
+      cartaoNome: cartao.nome_conta,
+      valorFatura: Math.max(0, valorAberta),
+      vencimentoFatura: format(new Date(aberta.fim), "yyyy-MM-dd"),
+      tipo: "antecipada",
     });
   };
 
@@ -529,29 +570,67 @@ const getFaturaFechada = (cartao: Conta) => {
                         </div>
 
                         {/* Fatura Aberta (ciclo atual) */}
-                        <div>
-                          <div className="flex justify-between text-sm mb-2">
-                            <div className="flex items-center gap-1">
-                              <span className="text-muted-foreground">Fatura Atual (em aberto)</span>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Info className="h-3 w-3 text-muted-foreground cursor-help" />
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p className="max-w-xs text-xs">
-                                    Compras de {format(new Date(faturasInfo.aberta.inicio), "dd/MM")} a {format(new Date(faturasInfo.aberta.fim), "dd/MM")}.
-                                    Esta fatura ainda não fechou.
-                                  </p>
-                                </TooltipContent>
-                              </Tooltip>
+                        <div className="p-3 rounded-lg bg-muted/30 border border-border">
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <div className="flex items-center gap-1">
+                                <span className="text-xs text-muted-foreground">Fatura Atual (em aberto)</span>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p className="max-w-xs text-xs">
+                                      Compras de {format(new Date(faturasInfo.aberta.inicio), "dd/MM")} a {format(new Date(faturasInfo.aberta.fim), "dd/MM")}.
+                                      Esta fatura ainda não fechou.
+                                    </p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </div>
+                              <p className="text-lg font-bold text-foreground">
+                                {formatCurrency(faturaAberta)}
+                              </p>
                             </div>
-                            <span className="font-medium text-foreground">
-                              {formatCurrency(faturaAberta)}
-                            </span>
+                            {faturaAberta > 0 && (
+                              <div className="flex gap-1">
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="gap-1 text-xs"
+                                      onClick={() => handleFecharEPagarAberta(cartao)}
+                                    >
+                                      <Lock className="h-3 w-3" />
+                                      Fechar e Pagar
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p className="max-w-xs text-xs">Fecha a fatura atual e abre o pagamento</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="gap-1 text-xs border-primary/50 text-primary hover:bg-primary hover:text-primary-foreground"
+                                      onClick={() => handleAnteciparFatura(cartao)}
+                                    >
+                                      <Zap className="h-3 w-3" />
+                                      Antecipar
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p className="max-w-xs text-xs">Pagar a fatura antes do fechamento</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </div>
+                            )}
                           </div>
                           <Progress 
                             value={Math.min(percentualUsado, 100)} 
-                            className="h-2"
+                            className="h-2 mt-2"
                           />
                           <div className="flex justify-between text-xs mt-1">
                             <span className="text-muted-foreground">{percentualUsado.toFixed(1)}% usado</span>
