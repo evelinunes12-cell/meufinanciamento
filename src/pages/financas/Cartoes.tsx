@@ -569,8 +569,6 @@ const getFaturaFechada = (cartao: Conta) => {
                                       const pendentes = transacoesCiclo.filter(t => t.is_pago_executado !== true);
                                       
                                       if (pendentes.length === 0) {
-                                        // No pending transactions, just show success
-                                        const { toast } = require("@/hooks/use-toast");
                                         toast({ title: "Fatura já está quitada", description: "Não há transações pendentes nesta fatura." });
                                         return;
                                       }
@@ -584,9 +582,10 @@ const getFaturaFechada = (cartao: Conta) => {
                                             .eq("id", t.id)
                                         )
                                       ).then(() => {
-                                        const { toast } = require("@/hooks/use-toast");
                                         toast({ title: "Fatura marcada como paga", description: `${pendentes.length} transação(ões) quitada(s).` });
-                                        const { useQueryClient } = require("@tanstack/react-query");
+                                        queryClient.invalidateQueries({ queryKey: ["cartoes"] });
+                                        queryClient.invalidateQueries({ queryKey: ["transacoes"] });
+                                        queryClient.invalidateQueries({ queryKey: ["saldo-contas"] });
                                       });
                                     }}
                                   >
