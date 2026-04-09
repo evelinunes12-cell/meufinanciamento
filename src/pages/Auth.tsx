@@ -219,6 +219,7 @@ const Auth = () => {
                       required
                     />
                     <button
+                      aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
                       type="button"
                       tabIndex={-1}
                       onClick={() => setShowPassword(!showPassword)}
@@ -290,6 +291,7 @@ const Auth = () => {
                       required
                     />
                     <button
+                      aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
                       type="button"
                       tabIndex={-1}
                       onClick={() => setShowPassword(!showPassword)}
