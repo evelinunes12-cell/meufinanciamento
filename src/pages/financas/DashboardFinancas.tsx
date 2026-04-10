@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { TrendingUp, TrendingDown, Wallet, PiggyBank, CreditCard, ArrowUpDown, Info, Clock, LineChart, HandCoins } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, PiggyBank, CreditCard, ArrowUpDown, Info, Clock, HandCoins } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from "recharts";
 import { useState, useMemo, useEffect } from "react";
 import { AdvancedFilters, FilterState, getInitialFilterState, getDateRangeFromFilters, getCategoryIdsForFilter } from "@/components/AdvancedFilters";
@@ -211,7 +211,7 @@ const DashboardFinancas = () => {
     .reduce((acc, t) => acc + Number(t.valor), 0);
 
   const pendenteMes = despesasPendentes - receitasPendentes;
-  const saldoPrevisto = saldoMes + receitasPendentes - despesasPendentes;
+  
   // Calculate total account balance using ALL executed transactions (real balance)
   const saldoContas = useMemo(() => {
     return calcularSaldoTotalReal(contas, todasTransacoes);
