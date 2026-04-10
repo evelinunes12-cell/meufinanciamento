@@ -13,6 +13,7 @@ interface Transacao {
   descricao: string | null;
   categoria_id: string | null;
   conta_id: string;
+  is_pago_executado?: boolean | null;
 }
 
 interface Categoria {
@@ -32,7 +33,7 @@ const formatCurrency = (value: number) => {
 };
 
 export function UltimasTransacoesWidget({ transacoes, categorias, contas }: UltimasTransacoesWidgetProps) {
-  const ultimasTransacoes = transacoes.slice(0, 10);
+  const ultimasTransacoes = transacoes.filter(t => t.is_pago_executado === true).slice(0, 10);
 
   const getCategoriaNome = (id: string | null) => {
     if (!id) return null;
