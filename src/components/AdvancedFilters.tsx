@@ -145,14 +145,14 @@ export const AdvancedFilters = ({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 sm:space-y-4">
       {/* Period Filter */}
       <div className="flex flex-wrap gap-2 items-center">
         <Select 
           value={filters.filterMode} 
           onValueChange={(value: "month" | "range") => updateFilter("filterMode", value)}
         >
-          <SelectTrigger className="w-40">
+          <SelectTrigger className="w-28 sm:w-40">
             <SelectValue placeholder="Modo de filtro" />
           </SelectTrigger>
           <SelectContent>

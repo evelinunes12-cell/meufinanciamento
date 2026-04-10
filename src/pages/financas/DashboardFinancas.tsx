@@ -713,7 +713,7 @@ const DashboardFinancas = () => {
         )}
 
         {/* New Widgets Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           {visibility.ultimasTransacoes && (
             <UltimasTransacoesWidget 
               transacoes={transacoesFiltradasGerais} 
@@ -729,7 +729,7 @@ const DashboardFinancas = () => {
 
         {/* Credit Card Widget */}
         {visibility.proximosFechamentos && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
             <ProximosFechamentosWidget 
               contas={contas} 
               transacoes={todasTransacoes} 
