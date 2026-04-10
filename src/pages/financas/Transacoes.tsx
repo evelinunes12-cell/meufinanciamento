@@ -660,12 +660,12 @@ const Transacoes = () => {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="space-y-4 sm:space-y-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Transações</h1>
-            <p className="text-muted-foreground">Gerencie suas receitas e despesas ({filteredTransacoes.length} lançamentos)</p>
-            <div className="flex flex-wrap gap-2 mt-3">
+            <h1 className="text-xl sm:text-2xl font-bold text-foreground">Transações</h1>
+            <p className="text-sm text-muted-foreground">Gerencie suas receitas e despesas ({filteredTransacoes.length} lançamentos)</p>
+            <div className="flex flex-wrap gap-2 mt-2 sm:mt-3">
               <Button
                 variant={!filters.statusPagamento ? "default" : "outline"}
                 size="sm"
@@ -953,7 +953,108 @@ const Transacoes = () => {
           showStatusPagamento
         />
 
-        <Card className="shadow-card">
+        {/* Mobile Card Layout */}
+        <div className="md:hidden space-y-3">
+          {paginatedTransacoes.length > 0 ? paginatedTransacoes.map((transacao, index) => (
+            <Card key={transacao.id} className="shadow-card">
+              <CardContent className="p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <div className={`p-1.5 rounded-lg shrink-0 ${
+                      transacao.forma_pagamento === 'transferencia' ? 'bg-primary/10' :
+                      transacao.tipo === 'receita' ? 'bg-success/10' : 'bg-destructive/10'
+                    }`}>
+                      {transacao.forma_pagamento === 'transferencia' ? (
+                        <ArrowRightLeft className="h-4 w-4 text-primary" />
+                      ) : transacao.tipo === 'receita' ? (
+                        <TrendingUp className="h-4 w-4 text-success" />
+                      ) : (
+                        <TrendingDown className="h-4 w-4 text-destructive" />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-sm text-foreground truncate">
+                        {transacao.descricao || (transacao.forma_pagamento === 'transferencia' ? 'Transferência' : transacao.tipo === 'receita' ? 'Receita' : 'Despesa')}
+                      </p>
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5 flex-wrap">
+                        <span>{formatDate(transacao.data)}</span>
+                        {transacao.data_pagamento && (
+                          <>
+                            <span>•</span>
+                            <span>Venc: {formatDate(transacao.data_pagamento)}</span>
+                          </>
+                        )}
+                        {transacao.parcelas_total && (
+                          <>
+                            <span>•</span>
+                            <span>{transacao.parcela_atual}/{transacao.parcelas_total}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className={`font-bold text-sm ${transacao.tipo === 'receita' ? 'text-success' : 'text-destructive'}`}>
+                      {transacao.tipo === 'receita' ? '+' : '-'}{formatCurrency(Number(transacao.valor))}
+                    </p>
+                    {isPendente(transacao.is_pago_executado) ? (
+                      <Badge className="bg-warning/10 text-warning text-[10px] px-1.5 py-0 h-4 mt-0.5">
+                        Pendente
+                      </Badge>
+                    ) : (
+                      <Badge className="bg-success/10 text-success text-[10px] px-1.5 py-0 h-4 mt-0.5">
+                        Executado
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/50">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-1">
+                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: getCategoriaCor(transacao.categoria_id) }} />
+                      <span>{getCategoriaNome(transacao.categoria_id)}</span>
+                    </div>
+                    <span>•</span>
+                    <span>{getContaNome(transacao.conta_id)}</span>
+                  </div>
+                  <div className="flex items-center gap-0.5">
+                    {transacao.is_pago_executado === false && (
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-success" onClick={() => handleConfirmPayment(transacao)} title="Confirmar">
+                        <Check className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(transacao)}>
+                      <Edit className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(transacao)}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )) : (
+            <Card className="shadow-card">
+              <CardContent className="p-8">
+                <div className="flex flex-col items-center gap-4 text-center">
+                  <div className="p-4 rounded-full bg-muted">
+                    <ArrowRightLeft className="h-10 w-10 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-foreground mb-1">Nenhuma transação registada</h3>
+                    <p className="text-muted-foreground mb-4">Comece a registar suas receitas e despesas.</p>
+                  </div>
+                  <Button onClick={() => setDialogOpen(true)} className="gradient-primary text-primary-foreground">
+                    <Plus className="h-4 w-4 mr-2" /> Criar Primeira Transação
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        {/* Desktop Table Layout */}
+        <Card className="shadow-card hidden md:block">
           <CardContent className="p-0 overflow-x-auto">
             <Table>
               <TableHeader>
@@ -1095,11 +1196,11 @@ const Transacoes = () => {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
             <p className="text-sm text-muted-foreground">
               Mostrando {startIndex + 1} - {Math.min(startIndex + ITEMS_PER_PAGE, transacoes.length)} de {transacoes.length}
             </p>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <Button
                 variant="outline"
                 size="sm"
@@ -1107,7 +1208,7 @@ const Transacoes = () => {
                 disabled={currentPage === 1}
               >
                 <ChevronLeft className="h-4 w-4" />
-                Anterior
+                <span className="hidden sm:inline">Anterior</span>
               </Button>
               <div className="flex items-center gap-1">
                 {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
@@ -1140,7 +1241,7 @@ const Transacoes = () => {
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
               >
-                Próxima
+                <span className="hidden sm:inline">Próxima</span>
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>

@@ -325,12 +325,12 @@ const DashboardFinancas = () => {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="space-y-4 sm:space-y-6">
+        <div className="flex flex-col gap-3 sm:gap-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-foreground">Dashboard Financeiro</h1>
-              <p className="text-muted-foreground">Visão geral das suas finanças</p>
+              <h1 className="text-xl sm:text-2xl font-bold text-foreground">Dashboard Financeiro</h1>
+              <p className="text-sm text-muted-foreground">Visão geral das suas finanças</p>
             </div>
             <CustomizeDashboardModal visibility={visibility} onVisibilityChange={setVisibility} />
           </div>
@@ -351,61 +351,61 @@ const DashboardFinancas = () => {
 
         {/* KPIs */}
         {visibility.kpis && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
             <Card className="shadow-card">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-success/10">
-                    <TrendingUp className="h-5 w-5 text-success" />
+              <CardContent className="p-3 sm:p-4">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="p-1.5 sm:p-2 rounded-lg bg-success/10">
+                    <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-success" />
                   </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Receitas</p>
-                    <p className="text-lg font-bold text-success">{formatCurrency(totalReceitas)}</p>
+                  <div className="min-w-0">
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">Receitas</p>
+                    <p className="text-sm sm:text-lg font-bold text-success truncate">{formatCurrency(totalReceitas)}</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
             <Card className="shadow-card">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-emerald-500/10">
-                    <HandCoins className="h-5 w-5 text-emerald-600" />
+              <CardContent className="p-3 sm:p-4">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="p-1.5 sm:p-2 rounded-lg bg-emerald-500/10">
+                    <HandCoins className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600" />
                   </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Rendimentos</p>
-                    <p className="text-lg font-bold text-emerald-600">{formatCurrency(totalRendimentos)}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-card">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-destructive/10">
-                    <TrendingDown className="h-5 w-5 text-destructive" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Despesas</p>
-                    <p className="text-lg font-bold text-destructive">{formatCurrency(totalDespesas)}</p>
+                  <div className="min-w-0">
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">Rendimentos</p>
+                    <p className="text-sm sm:text-lg font-bold text-emerald-600 truncate">{formatCurrency(totalRendimentos)}</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
             <Card className="shadow-card">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-primary/10">
-                    <Wallet className="h-5 w-5 text-primary" />
+              <CardContent className="p-3 sm:p-4">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="p-1.5 sm:p-2 rounded-lg bg-destructive/10">
+                    <TrendingDown className="h-4 w-4 sm:h-5 sm:w-5 text-destructive" />
                   </div>
-                  <div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">Despesas</p>
+                    <p className="text-sm sm:text-lg font-bold text-destructive truncate">{formatCurrency(totalDespesas)}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-card">
+              <CardContent className="p-3 sm:p-4">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="p-1.5 sm:p-2 rounded-lg bg-primary/10">
+                    <Wallet className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                  </div>
+                  <div className="min-w-0">
                     <div className="flex items-center gap-1">
-                      <p className="text-xs text-muted-foreground">Saldo Conta Corrente</p>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground truncate">Saldo Conta Corrente</p>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                          <Info className="h-3 w-3 text-muted-foreground cursor-help shrink-0" />
                         </TooltipTrigger>
                         <TooltipContent>
                           <p className="max-w-xs text-xs">
@@ -414,7 +414,7 @@ const DashboardFinancas = () => {
                         </TooltipContent>
                       </Tooltip>
                     </div>
-                    <p className={`text-lg font-bold ${saldoContasCorrentes >= 0 ? "text-success" : "text-destructive"}`}>
+                    <p className={`text-sm sm:text-lg font-bold truncate ${saldoContasCorrentes >= 0 ? "text-success" : "text-destructive"}`}>
                       {formatCurrency(saldoContasCorrentes)}
                     </p>
                   </div>
@@ -423,17 +423,17 @@ const DashboardFinancas = () => {
             </Card>
 
             <Card className="shadow-card">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-warning/10">
-                    <Clock className="h-5 w-5 text-warning" />
+              <CardContent className="p-3 sm:p-4">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="p-1.5 sm:p-2 rounded-lg bg-warning/10">
+                    <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-warning" />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <div className="flex items-center gap-1">
-                      <p className="text-xs text-muted-foreground">Pendente do Mês</p>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">Pendente do Mês</p>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                          <Info className="h-3 w-3 text-muted-foreground cursor-help shrink-0" />
                         </TooltipTrigger>
                         <TooltipContent>
                           <p className="max-w-xs text-xs">
@@ -442,7 +442,7 @@ const DashboardFinancas = () => {
                         </TooltipContent>
                       </Tooltip>
                     </div>
-                    <p className={`text-lg font-bold ${pendenteMes <= 0 ? "text-success" : "text-warning"}`}>
+                    <p className={`text-sm sm:text-lg font-bold truncate ${pendenteMes <= 0 ? "text-success" : "text-warning"}`}>
                       {formatCurrency(pendenteMes)}
                     </p>
                   </div>
@@ -450,19 +450,18 @@ const DashboardFinancas = () => {
               </CardContent>
             </Card>
 
-
             <Card className="shadow-card">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-primary/10">
-                    <PiggyBank className="h-5 w-5 text-primary" />
+              <CardContent className="p-3 sm:p-4">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="p-1.5 sm:p-2 rounded-lg bg-primary/10">
+                    <PiggyBank className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <div className="flex items-center gap-1">
-                      <p className="text-xs text-muted-foreground">Poupado</p>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">Poupado</p>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                          <Info className="h-3 w-3 text-muted-foreground cursor-help shrink-0" />
                         </TooltipTrigger>
                         <TooltipContent>
                           <p className="max-w-xs text-xs">
@@ -471,7 +470,7 @@ const DashboardFinancas = () => {
                         </TooltipContent>
                       </Tooltip>
                     </div>
-                    <p className={`text-lg font-bold ${economiaTotal > 0 ? "text-success" : "text-muted-foreground"}`}>
+                    <p className={`text-sm sm:text-lg font-bold truncate ${economiaTotal > 0 ? "text-success" : "text-muted-foreground"}`}>
                       {formatCurrency(economiaTotal)}
                     </p>
                   </div>
@@ -480,18 +479,18 @@ const DashboardFinancas = () => {
             </Card>
 
             <Card className="shadow-card">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-primary/10">
-                    <Wallet className="h-5 w-5 text-primary" />
+              <CardContent className="p-3 sm:p-4">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="p-1.5 sm:p-2 rounded-lg bg-primary/10">
+                    <Wallet className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                   </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className="text-xs text-muted-foreground">Saldo Total</p>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">Saldo Total</p>
                       {variacaoPatrimonial !== null && (
                         <Badge 
                           variant="outline" 
-                          className={`text-[10px] px-1.5 py-0 h-4 ${
+                          className={`text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0 h-3.5 sm:h-4 ${
                             variacaoPatrimonial >= 0 
                               ? "border-success/50 text-success bg-success/10" 
                               : "border-destructive/50 text-destructive bg-destructive/10"
@@ -501,21 +500,21 @@ const DashboardFinancas = () => {
                         </Badge>
                       )}
                     </div>
-                    <p className="text-lg font-bold text-foreground">{formatCurrency(saldoContas)}</p>
+                    <p className="text-sm sm:text-lg font-bold text-foreground truncate">{formatCurrency(saldoContas)}</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
             <Card className="shadow-card">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-warning/10">
-                    <CreditCard className="h-5 w-5 text-warning" />
+              <CardContent className="p-3 sm:p-4">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="p-1.5 sm:p-2 rounded-lg bg-warning/10">
+                    <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 text-warning" />
                   </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Cartão</p>
-                    <p className="text-lg font-bold text-warning">{formatCurrency(gastosCartao)}</p>
+                  <div className="min-w-0">
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">Cartão</p>
+                    <p className="text-sm sm:text-lg font-bold text-warning truncate">{formatCurrency(gastosCartao)}</p>
                   </div>
                 </div>
               </CardContent>
@@ -524,7 +523,7 @@ const DashboardFinancas = () => {
         )}
 
         {/* Charts Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           {visibility.graficoCategoria && (
             <Card className="shadow-card">
               <CardHeader className="pb-2">
@@ -714,7 +713,7 @@ const DashboardFinancas = () => {
         )}
 
         {/* New Widgets Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           {visibility.ultimasTransacoes && (
             <UltimasTransacoesWidget 
               transacoes={transacoesFiltradasGerais} 
@@ -730,7 +729,7 @@ const DashboardFinancas = () => {
 
         {/* Credit Card Widget */}
         {visibility.proximosFechamentos && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
             <ProximosFechamentosWidget 
               contas={contas} 
               transacoes={todasTransacoes} 
