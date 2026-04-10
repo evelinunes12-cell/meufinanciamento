@@ -329,8 +329,8 @@ const DashboardFinancas = () => {
         <div className="flex flex-col gap-4">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-foreground">Dashboard Financeiro</h1>
-              <p className="text-muted-foreground">Visão geral das suas finanças</p>
+              <h1 className="text-xl sm:text-2xl font-bold text-foreground">Dashboard Financeiro</h1>
+              <p className="text-sm text-muted-foreground">Visão geral das suas finanças</p>
             </div>
             <CustomizeDashboardModal visibility={visibility} onVisibilityChange={setVisibility} />
           </div>
@@ -351,7 +351,7 @@ const DashboardFinancas = () => {
 
         {/* KPIs */}
         {visibility.kpis && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
             <Card className="shadow-card">
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
