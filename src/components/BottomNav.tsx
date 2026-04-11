@@ -16,7 +16,7 @@ const BottomNav = () => {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border safe-area-bottom">
+    <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-md border-t border-border/50 safe-area-bottom">
       <div className="flex items-center justify-around h-16 px-1">
         {bottomNavItems.map((item) => {
           const Icon = item.icon;
@@ -26,14 +26,28 @@ const BottomNav = () => {
               key={item.path}
               to={item.path}
               className={cn(
-                "flex flex-col items-center justify-center gap-0.5 flex-1 py-1.5 rounded-lg transition-colors",
+                "relative flex flex-col items-center justify-center gap-0.5 flex-1 py-1.5 rounded-lg transition-all duration-200",
                 active
                   ? "text-primary"
-                  : "text-muted-foreground hover:text-foreground"
+                  : "text-muted-foreground active:scale-95"
               )}
             >
-              <Icon className={cn("h-5 w-5", active && "stroke-[2.5]")} />
-              <span className={cn("text-[10px] leading-tight", active ? "font-semibold" : "font-medium")}>
+              {/* Animated active indicator bar */}
+              <span
+                className={cn(
+                  "absolute -top-[1px] left-1/2 -translate-x-1/2 h-[3px] rounded-full bg-primary transition-all duration-300 ease-out",
+                  active ? "w-8 opacity-100" : "w-0 opacity-0"
+                )}
+              />
+              <span
+                className={cn(
+                  "flex items-center justify-center rounded-full transition-all duration-200",
+                  active ? "bg-primary/10 w-10 h-7" : "w-10 h-7"
+                )}
+              >
+                <Icon className={cn("h-[18px] w-[18px] transition-all duration-200", active && "stroke-[2.5] scale-110")} />
+              </span>
+              <span className={cn("text-[10px] leading-tight transition-all duration-200", active ? "font-bold" : "font-medium")}>
                 {item.label}
               </span>
             </Link>
