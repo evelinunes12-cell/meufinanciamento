@@ -316,108 +316,185 @@ const Relatorios = () => {
               {tipoRelatorio === "pagamento" && "Por Forma de Pagamento"}
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-0">
+          <CardContent className="p-0 sm:p-0">
             {tipoRelatorio === "geral" && (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Data</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead>Descrição</TableHead>
-                    <TableHead>Categoria</TableHead>
-                    <TableHead>Conta</TableHead>
-                    <TableHead className="text-right">Valor</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+              <>
+                {/* Mobile cards */}
+                <div className="md:hidden divide-y divide-border">
                   {filteredTransacoes.map((t) => (
-                    <TableRow key={t.id}>
-                      <TableCell>{formatDate(t.data)}</TableCell>
-                      <TableCell className="capitalize">{t.tipo}</TableCell>
-                      <TableCell>{t.descricao || "-"}</TableCell>
-                      <TableCell>{getCategoriaNome(t.categoria_id)}</TableCell>
-                      <TableCell>{getContaNome(t.conta_id)}</TableCell>
-                      <TableCell className={`text-right font-medium ${t.tipo === "receita" ? "text-success" : "text-destructive"}`}>
-                        {t.tipo === "receita" ? "+" : "-"}{formatCurrency(Number(t.valor))}
-                      </TableCell>
-                    </TableRow>
+                    <div key={t.id} className="p-3 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-foreground truncate max-w-[60%]">{t.descricao || "-"}</span>
+                        <span className={`text-sm font-bold ${t.tipo === "receita" ? "text-success" : "text-destructive"}`}>
+                          {t.tipo === "receita" ? "+" : "-"}{formatCurrency(Number(t.valor))}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span>{formatDate(t.data)}</span>
+                        <span>·</span>
+                        <span className="truncate">{getCategoriaNome(t.categoria_id)}</span>
+                        <span>·</span>
+                        <span className="truncate">{getContaNome(t.conta_id)}</span>
+                      </div>
+                    </div>
                   ))}
-                </TableBody>
-              </Table>
+                </div>
+                {/* Desktop table */}
+                <div className="hidden md:block">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Data</TableHead>
+                        <TableHead>Tipo</TableHead>
+                        <TableHead>Descrição</TableHead>
+                        <TableHead>Categoria</TableHead>
+                        <TableHead>Conta</TableHead>
+                        <TableHead className="text-right">Valor</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredTransacoes.map((t) => (
+                        <TableRow key={t.id}>
+                          <TableCell>{formatDate(t.data)}</TableCell>
+                          <TableCell className="capitalize">{t.tipo}</TableCell>
+                          <TableCell>{t.descricao || "-"}</TableCell>
+                          <TableCell>{getCategoriaNome(t.categoria_id)}</TableCell>
+                          <TableCell>{getContaNome(t.conta_id)}</TableCell>
+                          <TableCell className={`text-right font-medium ${t.tipo === "receita" ? "text-success" : "text-destructive"}`}>
+                            {t.tipo === "receita" ? "+" : "-"}{formatCurrency(Number(t.valor))}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </>
             )}
 
             {tipoRelatorio === "categoria" && (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Categoria</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead className="text-right">Total</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+              <>
+                <div className="md:hidden divide-y divide-border">
                   {relatorioCategoria.map((r, i) => (
-                    <TableRow key={i}>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: r.cor }} />
-                          {r.categoria}
+                    <div key={i} className="flex items-center justify-between p-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: r.cor }} />
+                        <div>
+                          <span className="text-sm font-medium">{r.categoria}</span>
+                          <p className="text-xs text-muted-foreground capitalize">{r.tipo}</p>
                         </div>
-                      </TableCell>
-                      <TableCell className="capitalize">{r.tipo}</TableCell>
-                      <TableCell className={`text-right font-medium ${r.total >= 0 ? "text-success" : "text-destructive"}`}>
+                      </div>
+                      <span className={`text-sm font-bold ${r.total >= 0 ? "text-success" : "text-destructive"}`}>
                         {formatCurrency(Math.abs(r.total))}
-                      </TableCell>
-                    </TableRow>
+                      </span>
+                    </div>
                   ))}
-                </TableBody>
-              </Table>
+                </div>
+                <div className="hidden md:block">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Categoria</TableHead>
+                        <TableHead>Tipo</TableHead>
+                        <TableHead className="text-right">Total</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {relatorioCategoria.map((r, i) => (
+                        <TableRow key={i}>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: r.cor }} />
+                              {r.categoria}
+                            </div>
+                          </TableCell>
+                          <TableCell className="capitalize">{r.tipo}</TableCell>
+                          <TableCell className={`text-right font-medium ${r.total >= 0 ? "text-success" : "text-destructive"}`}>
+                            {formatCurrency(Math.abs(r.total))}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </>
             )}
 
             {tipoRelatorio === "conta" && (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Conta</TableHead>
-                    <TableHead className="text-right">Receitas</TableHead>
-                    <TableHead className="text-right">Despesas</TableHead>
-                    <TableHead className="text-right">Saldo</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+              <>
+                <div className="md:hidden divide-y divide-border">
                   {relatorioConta.map((r, i) => (
-                    <TableRow key={i}>
-                      <TableCell>{r.conta}</TableCell>
-                      <TableCell className="text-right text-success">{formatCurrency(r.receitas)}</TableCell>
-                      <TableCell className="text-right text-destructive">{formatCurrency(r.despesas)}</TableCell>
-                      <TableCell className={`text-right font-medium ${r.saldo >= 0 ? "text-success" : "text-destructive"}`}>
-                        {formatCurrency(r.saldo)}
-                      </TableCell>
-                    </TableRow>
+                    <div key={i} className="p-3 space-y-1">
+                      <p className="text-sm font-semibold">{r.conta}</p>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-success">Rec: {formatCurrency(r.receitas)}</span>
+                        <span className="text-destructive">Desp: {formatCurrency(r.despesas)}</span>
+                        <span className={`font-bold ${r.saldo >= 0 ? "text-success" : "text-destructive"}`}>
+                          {formatCurrency(r.saldo)}
+                        </span>
+                      </div>
+                    </div>
                   ))}
-                </TableBody>
-              </Table>
+                </div>
+                <div className="hidden md:block">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Conta</TableHead>
+                        <TableHead className="text-right">Receitas</TableHead>
+                        <TableHead className="text-right">Despesas</TableHead>
+                        <TableHead className="text-right">Saldo</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {relatorioConta.map((r, i) => (
+                        <TableRow key={i}>
+                          <TableCell>{r.conta}</TableCell>
+                          <TableCell className="text-right text-success">{formatCurrency(r.receitas)}</TableCell>
+                          <TableCell className="text-right text-destructive">{formatCurrency(r.despesas)}</TableCell>
+                          <TableCell className={`text-right font-medium ${r.saldo >= 0 ? "text-success" : "text-destructive"}`}>
+                            {formatCurrency(r.saldo)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </>
             )}
 
             {tipoRelatorio === "pagamento" && (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Forma de Pagamento</TableHead>
-                    <TableHead className="text-right">Total</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+              <>
+                <div className="md:hidden divide-y divide-border">
                   {relatorioFormaPagamento.map((r, i) => (
-                    <TableRow key={i}>
-                      <TableCell className="capitalize">{r.forma}</TableCell>
-                      <TableCell className={`text-right font-medium ${r.total >= 0 ? "text-success" : "text-destructive"}`}>
+                    <div key={i} className="flex items-center justify-between p-3">
+                      <span className="text-sm font-medium capitalize">{r.forma}</span>
+                      <span className={`text-sm font-bold ${r.total >= 0 ? "text-success" : "text-destructive"}`}>
                         {formatCurrency(Math.abs(r.total))}
-                      </TableCell>
-                    </TableRow>
+                      </span>
+                    </div>
                   ))}
-                </TableBody>
-              </Table>
+                </div>
+                <div className="hidden md:block">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Forma de Pagamento</TableHead>
+                        <TableHead className="text-right">Total</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {relatorioFormaPagamento.map((r, i) => (
+                        <TableRow key={i}>
+                          <TableCell className="capitalize">{r.forma}</TableCell>
+                          <TableCell className={`text-right font-medium ${r.total >= 0 ? "text-success" : "text-destructive"}`}>
+                            {formatCurrency(Math.abs(r.total))}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </>
             )}
 
             {tipoRelatorio !== "projecao" && filteredTransacoes.length === 0 && (
