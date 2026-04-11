@@ -30,7 +30,14 @@ const FinanciamentoConfig = lazy(() => import("./pages/financiamento/Financiamen
 const FinanciamentoParcelas = lazy(() => import("./pages/financiamento/FinanciamentoParcelas"));
 const FinanciamentoDashboard = lazy(() => import("./pages/financiamento/FinanciamentoDashboard"));
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 0,
+      refetchOnMount: "always",
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
