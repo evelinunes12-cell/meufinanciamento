@@ -262,42 +262,42 @@ const Relatorios = () => {
         />
 
         {/* Resumo */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
           <Card className="shadow-card">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-success/10">
-                  <TrendingUp className="h-5 w-5 text-success" />
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="p-1.5 sm:p-2 rounded-lg bg-success/10">
+                  <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-success" />
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Receitas</p>
-                  <p className="text-xl font-bold text-success">{formatCurrency(totalReceitas)}</p>
+                <div className="min-w-0">
+                  <p className="text-xs sm:text-sm text-muted-foreground">Receitas</p>
+                  <p className="text-sm sm:text-xl font-bold text-success truncate">{formatCurrency(totalReceitas)}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
           <Card className="shadow-card">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-destructive/10">
-                  <TrendingDown className="h-5 w-5 text-destructive" />
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="p-1.5 sm:p-2 rounded-lg bg-destructive/10">
+                  <TrendingDown className="h-4 w-4 sm:h-5 sm:w-5 text-destructive" />
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Despesas</p>
-                  <p className="text-xl font-bold text-destructive">{formatCurrency(totalDespesas)}</p>
+                <div className="min-w-0">
+                  <p className="text-xs sm:text-sm text-muted-foreground">Despesas</p>
+                  <p className="text-sm sm:text-xl font-bold text-destructive truncate">{formatCurrency(totalDespesas)}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          <Card className="shadow-card">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <FileText className="h-5 w-5 text-primary" />
+          <Card className="shadow-card col-span-2 sm:col-span-1">
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="p-1.5 sm:p-2 rounded-lg bg-primary/10">
+                  <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Saldo</p>
-                  <p className={`text-xl font-bold ${saldo >= 0 ? "text-success" : "text-destructive"}`}>
+                <div className="min-w-0">
+                  <p className="text-xs sm:text-sm text-muted-foreground">Saldo</p>
+                  <p className={`text-sm sm:text-xl font-bold truncate ${saldo >= 0 ? "text-success" : "text-destructive"}`}>
                     {formatCurrency(saldo)}
                   </p>
                 </div>
