@@ -1,5 +1,6 @@
 import { ReactNode, useState, useMemo } from "react";
 import AppSidebar from "./AppSidebar";
+import BottomNav from "./BottomNav";
 import QuickAddTransaction from "./QuickAddTransaction";
 import Notifications from "./Notifications";
 import { Button } from "@/components/ui/button";
@@ -238,15 +239,17 @@ const AppLayout = ({ children }: AppLayoutProps) => {
           </div>
         </div>
 
-        <div className="p-4 sm:p-6 lg:p-8">
+        <div className="p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8">
           {children}
         </div>
       </main>
 
+      <BottomNav />
+
       {/* FAB - Quick Add Button */}
       <Button
         onClick={() => setQuickAddOpen(true)}
-        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg gradient-primary text-primary-foreground z-40"
+        className="fixed bottom-24 lg:bottom-6 right-6 h-14 w-14 rounded-full shadow-lg gradient-primary text-primary-foreground z-40"
         size="icon"
       >
         <Plus className="h-6 w-6" />
