@@ -93,16 +93,20 @@ function calculateSaldoContas(contas: Conta[], transacoes: Transacao[]): number 
   });
 
   return contas.reduce((acc, conta) => {
+    // Skip credit accounts from total balance
+    if (conta.tipo === "credito") return acc;
+
     const saldoConta = transacoesValidas.reduce((saldo, transacao) => {
       const valor = Number(transacao.valor);
+      const isTransferencia = transacao.forma_pagamento === "transferencia";
 
-      if (transacao.forma_pagamento === "transferencia" && transacao.conta_destino_id) {
-        if (transacao.conta_id === conta.id) return saldo - valor;
-        if (transacao.conta_destino_id === conta.id) return saldo + valor;
-        return saldo;
-      }
-
-      if (duplicatedTransferIncomeIds.has(transacao.id)) {
+      if (isTransferencia) {
+        // Only process the expense record (has conta_destino_id).
+        // The auto-generated receipt record is a duplicate – skip it.
+        if (transacao.conta_destino_id) {
+          if (transacao.conta_id === conta.id) return saldo - valor;
+          if (transacao.conta_destino_id === conta.id) return saldo + valor;
+        }
         return saldo;
       }
 
