@@ -240,7 +240,7 @@ const DashboardFinancas = () => {
   const getSubcategoriaIds = (mainId: string) => categorias.filter(c => c.categoria_pai_id === mainId).map(c => c.id);
 
   // Pie chart data based on view mode
-  const despesasPorCategoria = categoryViewMode === "main"
+  const despesasPorCategoria = (categoryViewMode === "main"
     ? mainCategoriasDesp
         .map(cat => {
           const subcatIds = getSubcategoriaIds(cat.id);
@@ -263,9 +263,10 @@ const DashboardFinancas = () => {
           const displayName = parentCat ? `${parentCat.nome} > ${cat.nome}` : cat.nome;
           return { name: displayName, value: total, color: cat.cor };
         })
-        .filter(item => item.value > 0);
+        .filter(item => item.value > 0)
+  ).sort((a, b) => b.value - a.value);
 
-  const receitasPorCategoria = categoryViewMode === "main"
+  const receitasPorCategoria = (categoryViewMode === "main"
     ? categorias
         .filter(c => c.tipo === "receita" && !c.categoria_pai_id)
         .map(cat => {
@@ -287,7 +288,8 @@ const DashboardFinancas = () => {
           const displayName = parentCat ? `${parentCat.nome} > ${cat.nome}` : cat.nome;
           return { name: displayName, value: total, color: cat.cor };
         })
-        .filter(item => item.value > 0);
+        .filter(item => item.value > 0)
+  ).sort((a, b) => b.value - a.value);
 
   const renderLegendList = (dataList: Array<{ name: string; value: number; color?: string }>) => {
     const total = dataList.reduce((sum, item) => sum + item.value, 0);
