@@ -665,8 +665,10 @@ const DashboardFinancas = () => {
                           const isTransferencia = t.forma_pagamento === "transferencia" || t.tipo === "transferencia";
 
                           if (isTransferencia) {
-                            if (t.conta_id === conta.id) return acc - valor;
-                            if (t.conta_destino_id === conta.id) return acc + valor;
+                            if (t.conta_destino_id) {
+                              if (t.conta_id === conta.id) return acc - valor;
+                              if (t.conta_destino_id === conta.id) return acc + valor;
+                            }
                             return acc;
                           }
 
