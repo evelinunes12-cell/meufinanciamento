@@ -190,8 +190,13 @@ export function calcularSaldoRealConta(
     const isTransferencia = t.forma_pagamento === "transferencia" || t.tipo === "transferencia";
 
     if (isTransferencia) {
-      if (t.conta_id === conta.id) return acc - valor;
-      if (t.conta_destino_id === conta.id) return acc + valor;
+      // Only process the expense record (has conta_destino_id).
+      // The auto-generated receipt record (no conta_destino_id) is a
+      // duplicate used for listing only – skip it to avoid double-counting.
+      if (t.conta_destino_id) {
+        if (t.conta_id === conta.id) return acc - valor;
+        if (t.conta_destino_id === conta.id) return acc + valor;
+      }
       return acc;
     }
 

@@ -48,61 +48,22 @@ async function fetchSaldoData(userId: string | undefined) {
 
 function calculateSaldoContas(contas: Conta[], transacoes: Transacao[]): number {
   const transacoesValidas = transacoes.filter((t) => t.is_pago_executado !== false);
-  const duplicatedTransferIncomeIds = new Set<string>();
-  const transferExpenseCounts = new Map<string, number>();
-
-  const getTransferKey = (contaId: string, valor: number, data: string) =>
-    `${contaId}|${valor}|${data}`;
-
-  transacoesValidas.forEach((transacao) => {
-    const isTransferExpense =
-      transacao.forma_pagamento === "transferencia" &&
-      transacao.tipo === "despesa" &&
-      !!transacao.conta_destino_id;
-
-    if (!isTransferExpense) return;
-
-    const key = getTransferKey(
-      transacao.conta_destino_id as string,
-      Number(transacao.valor),
-      transacao.data,
-    );
-
-    transferExpenseCounts.set(key, (transferExpenseCounts.get(key) || 0) + 1);
-  });
-
-  transacoesValidas.forEach((transacao) => {
-    const isPotentialDuplicatedIncome =
-      transacao.forma_pagamento === "transferencia" &&
-      transacao.tipo === "receita" &&
-      !transacao.conta_destino_id;
-
-    if (!isPotentialDuplicatedIncome) return;
-
-    const key = getTransferKey(
-      transacao.conta_id,
-      Number(transacao.valor),
-      transacao.data,
-    );
-    const availableMatches = transferExpenseCounts.get(key) || 0;
-
-    if (availableMatches > 0) {
-      duplicatedTransferIncomeIds.add(transacao.id);
-      transferExpenseCounts.set(key, availableMatches - 1);
-    }
-  });
 
   return contas.reduce((acc, conta) => {
+    // Skip credit accounts from total balance
+    if (conta.tipo === "credito") return acc;
+
     const saldoConta = transacoesValidas.reduce((saldo, transacao) => {
       const valor = Number(transacao.valor);
+      const isTransferencia = transacao.forma_pagamento === "transferencia";
 
-      if (transacao.forma_pagamento === "transferencia" && transacao.conta_destino_id) {
-        if (transacao.conta_id === conta.id) return saldo - valor;
-        if (transacao.conta_destino_id === conta.id) return saldo + valor;
-        return saldo;
-      }
-
-      if (duplicatedTransferIncomeIds.has(transacao.id)) {
+      if (isTransferencia) {
+        // Only process the expense record (has conta_destino_id).
+        // The auto-generated receipt record is a duplicate – skip it.
+        if (transacao.conta_destino_id) {
+          if (transacao.conta_id === conta.id) return saldo - valor;
+          if (transacao.conta_destino_id === conta.id) return saldo + valor;
+        }
         return saldo;
       }
 
