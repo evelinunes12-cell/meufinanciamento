@@ -21,7 +21,8 @@ import {
   isPendente, 
   calcularSaldoTotalReal, 
   calcularVariacaoPatrimonial,
-  calcularSaldoRealConta
+  calcularSaldoRealConta,
+  calcularFaturaAbertaCartao
 } from "@/lib/transactions";
 
 interface Transacao {
@@ -224,12 +225,12 @@ const DashboardFinancas = () => {
     return calcularSaldoTotalReal(contasCorrentes, todasTransacoes);
   }, [contas, todasTransacoes]);
 
-  const gastosCartao = transacoesFiltradasGerais
-    .filter(t => {
-      const conta = contas.find(c => c.id === t.conta_id);
-      return conta?.tipo === "credito" && t.tipo === "despesa" && t.is_pago_executado !== true;
-    })
-    .reduce((acc, t) => acc + Number(t.valor), 0);
+  const gastosCartao = useMemo(() => {
+    const cartoesCredito = contas.filter(c => c.tipo === "credito");
+    return cartoesCredito.reduce((acc, cartao) => {
+      return acc + calcularFaturaAbertaCartao(cartao, todasTransacoes, contas);
+    }, 0);
+  }, [contas, todasTransacoes]);
 
   // Calculate patrimonial variation using end-of-month comparison with ALL transactions
   const variacaoPatrimonial = useMemo(() => {
@@ -645,17 +646,13 @@ const DashboardFinancas = () => {
 
                     if (saldoContasMode === "total") {
                       if (conta.tipo === "credito") {
-                        saldo = transacoesContaComData
-                          .filter((t) => t.tipo === "despesa" && t.is_pago_executado !== true)
-                          .reduce((acc, t) => acc + Number(t.valor), 0);
+                        saldo = calcularFaturaAbertaCartao(conta, todasTransacoes, contas);
                       } else {
                         saldo = calcularSaldoRealConta(conta, todasTransacoes);
                       }
                     } else {
                       if (conta.tipo === "credito") {
-                        saldo = transacoesContaComData
-                          .filter((t) => t.tipo === "despesa" && t.is_pago_executado !== true)
-                          .reduce((acc, t) => acc + Number(t.valor), 0);
+                        saldo = calcularFaturaAbertaCartao(conta, todasTransacoes, contas);
                       } else {
                         const transacoesParaCalculo = transacoesExecutadasPeriodo.filter(
                           t => t.conta_id === conta.id || t.conta_destino_id === conta.id
