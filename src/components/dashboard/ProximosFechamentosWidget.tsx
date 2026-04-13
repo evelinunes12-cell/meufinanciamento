@@ -7,6 +7,7 @@ import { format, addMonths, setDate, isBefore, differenceInDays } from "date-fns
 import { ptBR } from "date-fns/locale";
 import { useMemo, useState } from "react";
 import PagarFaturaModal from "@/components/PagarFaturaModal";
+import { calcularFaturaAbertaCartao } from "@/lib/transactions";
 
 interface Conta {
   id: string;
@@ -65,13 +66,8 @@ export function ProximosFechamentosWidget({ contas, transacoes }: ProximosFecham
         proximoVencimento = addMonths(proximoVencimento, 1);
       }
 
-      // Open invoice amount (all unpaid)
-      const gastosFatura = transacoes
-        .filter(t => {
-          if (t.conta_id !== cartao.id || t.tipo !== "despesa") return false;
-          return t.is_pago_executado !== true;
-        })
-        .reduce((acc, t) => acc + Number(t.valor), 0);
+      // Open invoice amount using billing cycle logic
+      const gastosFatura = calcularFaturaAbertaCartao(cartao, transacoes, contas);
 
       const diasParaFechamento = differenceInDays(proximoFechamento, hoje);
       const diasParaVencimento = differenceInDays(proximoVencimento, hoje);

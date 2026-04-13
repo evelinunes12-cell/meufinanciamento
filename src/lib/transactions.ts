@@ -290,3 +290,104 @@ export function addDataField<T extends { data?: string }>(
 ): T & { data: string } {
   return transacao;
 }
+
+// ==========================================
+// Credit Card Open Invoice Calculation
+// ==========================================
+
+interface TransacaoFatura {
+  conta_id: string;
+  valor: number;
+  tipo: string;
+  data: string;
+  data_pagamento?: string | null;
+  is_pago_executado: boolean | null;
+  parcela_atual?: number | null;
+}
+
+interface ContaCartaoFatura {
+  id: string;
+  tipo: string;
+  dia_fechamento?: number | null;
+  dia_vencimento?: number | null;
+}
+
+/**
+ * Calculates the open invoice amount for a credit card.
+ * Uses the billing cycle logic: only unpaid transactions whose competence date
+ * falls within the current closed + open invoice cycles (not all historical debt).
+ * 
+ * This returns: closed invoice unpaid + open invoice total
+ * (same as what appears in the "Próximos Fechamentos" widget)
+ */
+export function calcularFaturaAbertaCartao(
+  cartao: ContaCartaoFatura,
+  transacoes: TransacaoFatura[],
+  contas: ContaCartaoFatura[]
+): number {
+  if (cartao.tipo !== "credito" || !cartao.dia_fechamento || !cartao.dia_vencimento) return 0;
+
+  const diaFechamento = cartao.dia_fechamento;
+  const hoje = new Date();
+  const diaHoje = hoje.getDate();
+  const mesHoje = hoje.getMonth();
+  const anoHoje = hoje.getFullYear();
+
+  const jaFechou = diaHoje >= diaFechamento;
+
+  // Closed invoice cycle
+  let fechadaInicio: Date;
+  let fechadaFim: Date;
+
+  if (jaFechou) {
+    fechadaInicio = new Date(anoHoje, mesHoje - 1, diaFechamento + 1);
+    fechadaFim = new Date(anoHoje, mesHoje, diaFechamento);
+  } else {
+    fechadaInicio = new Date(anoHoje, mesHoje - 2, diaFechamento + 1);
+    fechadaFim = new Date(anoHoje, mesHoje - 1, diaFechamento);
+  }
+
+  // Open invoice cycle
+  let abertaInicio: Date;
+  let abertaFim: Date;
+
+  if (jaFechou) {
+    abertaInicio = new Date(anoHoje, mesHoje, diaFechamento + 1);
+    abertaFim = new Date(anoHoje, mesHoje + 1, diaFechamento);
+  } else {
+    abertaInicio = new Date(anoHoje, mesHoje - 1, diaFechamento + 1);
+    abertaFim = new Date(anoHoje, mesHoje, diaFechamento);
+  }
+
+  const fechadaInicioStr = format(fechadaInicio, "yyyy-MM-dd");
+  const abertaFimStr = format(abertaFim, "yyyy-MM-dd");
+
+  const transacoesCartao = transacoes.filter(t => t.conta_id === cartao.id && t.tipo === "despesa");
+
+  // Get competence date for each transaction
+  const getCompetencia = (t: TransacaoFatura) => {
+    return getDataCompetenciaTransacao(
+      { data: t.data, data_pagamento: t.data_pagamento, conta_id: t.conta_id, parcela_atual: t.parcela_atual },
+      contas
+    );
+  };
+
+  // Closed invoice: unpaid transactions in closed cycle + any older unpaid
+  const faturaFechada = transacoesCartao
+    .filter(t => {
+      if (t.is_pago_executado === true) return false;
+      const comp = getCompetencia(t);
+      return comp <= format(fechadaFim, "yyyy-MM-dd");
+    })
+    .reduce((acc, t) => acc + Number(t.valor), 0);
+
+  // Open invoice: all transactions in open cycle (regardless of payment status)
+  const faturaAberta = transacoesCartao
+    .filter(t => {
+      const comp = getCompetencia(t);
+      return comp >= format(abertaInicio, "yyyy-MM-dd") && comp <= abertaFimStr;
+    })
+    .reduce((acc, t) => acc + Number(t.valor), 0);
+
+  return faturaFechada + faturaAberta;
+}
