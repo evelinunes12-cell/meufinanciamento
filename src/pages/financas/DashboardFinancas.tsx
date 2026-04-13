@@ -361,7 +361,19 @@ const DashboardFinancas = () => {
                     <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-success" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[10px] sm:text-xs text-muted-foreground">Receitas</p>
+                    <div className="flex items-center gap-1">
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">Receitas</p>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="h-3 w-3 text-muted-foreground cursor-help shrink-0" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="max-w-xs text-xs">
+                            Total de receitas executadas no período selecionado, excluindo transferências e transações de cartão de crédito.
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
                     <p className="text-sm sm:text-lg font-bold text-success truncate">{formatCurrency(totalReceitas)}</p>
                   </div>
                 </div>
@@ -375,7 +387,19 @@ const DashboardFinancas = () => {
                     <HandCoins className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[10px] sm:text-xs text-muted-foreground">Rendimentos</p>
+                    <div className="flex items-center gap-1">
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">Rendimentos</p>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="h-3 w-3 text-muted-foreground cursor-help shrink-0" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="max-w-xs text-xs">
+                            Total de rendimentos (juros, dividendos, etc.) executados no período selecionado.
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
                     <p className="text-sm sm:text-lg font-bold text-emerald-600 truncate">{formatCurrency(totalRendimentos)}</p>
                   </div>
                 </div>
@@ -389,7 +413,19 @@ const DashboardFinancas = () => {
                     <TrendingDown className="h-4 w-4 sm:h-5 sm:w-5 text-destructive" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[10px] sm:text-xs text-muted-foreground">Despesas</p>
+                    <div className="flex items-center gap-1">
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">Despesas</p>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="h-3 w-3 text-muted-foreground cursor-help shrink-0" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="max-w-xs text-xs">
+                            Total de despesas executadas no período selecionado, excluindo transferências e gastos em cartão de crédito.
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
                     <p className="text-sm sm:text-lg font-bold text-destructive truncate">{formatCurrency(totalDespesas)}</p>
                   </div>
                 </div>
@@ -489,6 +525,16 @@ const DashboardFinancas = () => {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
                       <p className="text-[10px] sm:text-xs text-muted-foreground">Saldo Total</p>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="h-3 w-3 text-muted-foreground cursor-help shrink-0" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="max-w-xs text-xs">
+                            Saldo acumulado de todas as contas (corrente + poupança), considerando todo o histórico de transações executadas. A variação compara com o mês anterior.
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
                       {variacaoPatrimonial !== null && (
                         <Badge 
                           variant="outline" 
@@ -515,7 +561,19 @@ const DashboardFinancas = () => {
                     <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 text-warning" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[10px] sm:text-xs text-muted-foreground">Cartão</p>
+                    <div className="flex items-center gap-1">
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">Cartão</p>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="h-3 w-3 text-muted-foreground cursor-help shrink-0" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="max-w-xs text-xs">
+                            Valor total das faturas em aberto dos cartões de crédito (ciclo fechado pendente + ciclo aberto atual).
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
                     <p className="text-sm sm:text-lg font-bold text-warning truncate">{formatCurrency(gastosCartao)}</p>
                   </div>
                 </div>
