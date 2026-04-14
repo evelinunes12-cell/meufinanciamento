@@ -63,35 +63,35 @@ export function ContasConfirmarWidget({ transacoes, categorias = [] }: ContasCon
                 {pendentes.map((t) => (
                   <div
                     key={t.id}
-                    className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted/70 transition-colors"
+                    className="flex items-center justify-between gap-2 p-3 rounded-lg bg-muted/50 hover:bg-muted/70 transition-colors"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-warning/10">
-                        <Clock className="h-4 w-4 text-warning" />
+                    <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                      <div className="p-1.5 sm:p-2 rounded-lg bg-warning/10 shrink-0">
+                        <Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-warning" />
                       </div>
-                      <div className="min-w-0">
-                        <p className="font-medium text-foreground truncate">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-foreground truncate text-sm">
                           {t.descricao || (t.tipo === "receita" ? "Receita" : "Despesa")}
                         </p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-xs text-muted-foreground truncate">
                           Vence em {format(parseISO(t.data), "dd/MM/yyyy", { locale: ptBR })}
                         </p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-xs text-muted-foreground truncate">
                           {getCategoriaNome(t.categoria_id)}
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <p className="font-bold text-warning whitespace-nowrap">
+                    <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+                      <p className="font-bold text-warning whitespace-nowrap text-sm">
                         {formatCurrency(t.valor)}
                       </p>
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="h-8 w-8 p-0 text-success hover:text-success hover:bg-success/10"
+                        className="h-7 w-7 sm:h-8 sm:w-8 p-0 text-success hover:text-success hover:bg-success/10"
                         onClick={() => handleOpenConfirmModal(t)}
                       >
-                        <Check className="h-4 w-4" />
+                        <Check className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                       </Button>
                     </div>
                   </div>

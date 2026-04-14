@@ -55,39 +55,39 @@ export function UltimasTransacoesWidget({ transacoes, categorias, contas }: Ulti
                 const categoriaNome = getCategoriaNome(t.categoria_id);
                 return (
                   <div
-                    key={t.id}
-                    className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted/70 transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-lg ${t.tipo === "receita" ? "bg-success/10" : "bg-destructive/10"}`}>
-                        {t.tipo === "receita" ? (
-                          <ArrowUpRight className="h-4 w-4 text-success" />
-                        ) : (
-                          <ArrowDownRight className="h-4 w-4 text-destructive" />
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="font-medium text-foreground truncate">
-                          {t.descricao || (t.tipo === "receita" ? "Receita" : "Despesa")}
-                        </p>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <span>{format(parseISO(t.data), "dd/MM/yyyy", { locale: ptBR })}</span>
-                          {categoriaNome && (
-                            <>
-                              <span>•</span>
-                              <Badge variant="secondary" className="text-xs px-1.5 py-0">
-                                {categoriaNome}
-                              </Badge>
-                            </>
-                          )}
-                          <span>•</span>
-                          <span>{getContaNome(t.conta_id)}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <p className={`font-bold whitespace-nowrap ${t.tipo === "receita" ? "text-success" : "text-destructive"}`}>
-                      {t.tipo === "receita" ? "+" : "-"}{formatCurrency(t.valor)}
-                    </p>
+                     key={t.id}
+                     className="flex items-center justify-between gap-2 p-3 rounded-lg bg-muted/50 hover:bg-muted/70 transition-colors"
+                   >
+                     <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                       <div className={`p-1.5 sm:p-2 rounded-lg shrink-0 ${t.tipo === "receita" ? "bg-success/10" : "bg-destructive/10"}`}>
+                         {t.tipo === "receita" ? (
+                           <ArrowUpRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-success" />
+                         ) : (
+                           <ArrowDownRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-destructive" />
+                         )}
+                       </div>
+                       <div className="min-w-0 flex-1">
+                         <p className="font-medium text-foreground truncate text-sm">
+                           {t.descricao || (t.tipo === "receita" ? "Receita" : "Despesa")}
+                         </p>
+                         <div className="flex items-center gap-1.5 sm:gap-2 text-xs text-muted-foreground flex-wrap">
+                           <span className="shrink-0">{format(parseISO(t.data), "dd/MM", { locale: ptBR })}</span>
+                           {categoriaNome && (
+                             <>
+                               <span>•</span>
+                               <Badge variant="secondary" className="text-[10px] sm:text-xs px-1 sm:px-1.5 py-0 truncate max-w-[80px] sm:max-w-[120px]">
+                                 {categoriaNome}
+                               </Badge>
+                             </>
+                           )}
+                           <span className="hidden sm:inline">•</span>
+                           <span className="hidden sm:inline truncate">{getContaNome(t.conta_id)}</span>
+                         </div>
+                       </div>
+                     </div>
+                     <p className={`font-bold whitespace-nowrap text-sm shrink-0 ${t.tipo === "receita" ? "text-success" : "text-destructive"}`}>
+                       {t.tipo === "receita" ? "+" : "-"}{formatCurrency(t.valor)}
+                     </p>
                   </div>
                 );
               })}
