@@ -509,109 +509,106 @@ const getFaturaFechada = (cartao: Conta) => {
                         )}
 
                         {/* Fatura Fechada */}
-                        <div className="p-3 rounded-lg bg-warning/10 border border-warning/30">
-                          <div className="flex justify-between items-center">
-                            <div>
-                              <div className="flex items-center gap-1">
-                                <p className="text-xs text-muted-foreground">
-                                  Fatura Fechada ({faturasInfo.fechada.mesReferencia})
-                                </p>
-                                {isForced && !jaFechouNaturalmente && (
-                                  <Badge variant="outline" className="text-[9px] px-1 py-0 border-warning text-warning">
-                                    Manual
-                                  </Badge>
-                                )}
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Info className="h-3 w-3 text-muted-foreground cursor-help" />
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p className="max-w-xs text-xs">
-                                      Compras de {format(new Date(faturasInfo.fechada.inicio), "dd/MM")} a {format(new Date(faturasInfo.fechada.fim), "dd/MM")}.
-                                      Vencimento: {format(faturasInfo.fechada.vencimento, "dd/MM/yyyy")}.
-                                      {faturasAnteriores > 0 && ` Inclui ${formatCurrency(faturasAnteriores)} de faturas anteriores não pagas.`}
+                        {(() => {
+                          const pendentes = transacoesFechada.filter(t => t.is_pago_executado !== true);
+                          const todasPagas = transacoesFechada.length > 0 && pendentes.length === 0 && faturasAnteriores === 0;
+                          const semTransacoes = transacoesFechada.length === 0 && faturasAnteriores === 0;
+                          const isPaga = todasPagas || semTransacoes;
+
+                          return (
+                            <div className={`p-3 rounded-lg border ${isPaga ? "bg-success/10 border-success/30" : "bg-warning/10 border-warning/30"}`}>
+                              <div className="flex justify-between items-center">
+                                <div>
+                                  <div className="flex items-center gap-1.5">
+                                    <p className="text-xs text-muted-foreground">
+                                      Fatura Fechada ({faturasInfo.fechada.mesReferencia})
                                     </p>
-                                  </TooltipContent>
-                                </Tooltip>
+                                    {isForced && !jaFechouNaturalmente && (
+                                      <Badge variant="outline" className="text-[9px] px-1 py-0 border-warning text-warning">
+                                        Manual
+                                      </Badge>
+                                    )}
+                                    <Badge variant={isPaga ? "outline" : "destructive"} className={`text-[9px] px-1.5 py-0 ${isPaga ? "border-success text-success" : ""}`}>
+                                      {isPaga ? "✓ Paga" : "Pendente"}
+                                    </Badge>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p className="max-w-xs text-xs">
+                                          Compras de {format(new Date(faturasInfo.fechada.inicio), "dd/MM")} a {format(new Date(faturasInfo.fechada.fim), "dd/MM")}.
+                                          Vencimento: {format(faturasInfo.fechada.vencimento, "dd/MM/yyyy")}.
+                                          {faturasAnteriores > 0 && ` Inclui ${formatCurrency(faturasAnteriores)} de faturas anteriores não pagas.`}
+                                        </p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </div>
+                                  <p className={`text-lg font-bold ${isPaga ? "text-success" : totalFechada > 0 ? "text-warning" : "text-success"}`}>
+                                    {formatCurrency(totalFechada)}
+                                  </p>
+                                  {faturasAnteriores > 0 && (
+                                    <p className="text-[10px] text-destructive">
+                                      Inclui {formatCurrency(faturasAnteriores)} de faturas anteriores
+                                    </p>
+                                  )}
+                                </div>
+                                <div className="flex gap-1">
+                                  {totalFechada > 0 && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="gap-1 border-warning text-warning hover:bg-warning hover:text-warning-foreground"
+                                      onClick={() => handlePagarFatura(cartao)}
+                                    >
+                                      <Banknote className="h-4 w-4" />
+                                      Pagar
+                                    </Button>
+                                  )}
+                                  {!isPaga && totalFechada === 0 && pendentes.length > 0 && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="gap-1 border-success text-success hover:bg-success hover:text-success-foreground"
+                                      onClick={() => {
+                                        const dataHoje = format(new Date(), "yyyy-MM-dd");
+                                        Promise.all(
+                                          pendentes.map(t =>
+                                            supabase
+                                              .from("transacoes")
+                                              .update({ is_pago_executado: true, data_execucao_pagamento: dataHoje })
+                                              .eq("id", t.id)
+                                          )
+                                        ).then(() => {
+                                          toast({ title: "Fatura marcada como paga", description: `${pendentes.length} transação(ões) quitada(s).` });
+                                          queryClient.invalidateQueries({ queryKey: ["cartoes"] });
+                                          queryClient.invalidateQueries({ queryKey: ["transacoes"] });
+                                          queryClient.invalidateQueries({ queryKey: ["saldo-contas"] });
+                                        });
+                                      }}
+                                    >
+                                      <Check className="h-4 w-4" />
+                                      Confirmar Paga
+                                    </Button>
+                                  )}
+                                </div>
                               </div>
-                              <p className={`text-lg font-bold ${totalFechada > 0 ? "text-warning" : "text-success"}`}>
-                                {formatCurrency(totalFechada)}
-                              </p>
-                              {faturasAnteriores > 0 && (
-                                <p className="text-[10px] text-destructive">
-                                  Inclui {formatCurrency(faturasAnteriores)} de faturas anteriores
-                                </p>
-                              )}
+                              <Accordion type="single" collapsible className="mt-2">
+                                <AccordionItem value="detalhes-fatura-fechada" className="border-0">
+                                  <AccordionTrigger className="py-1 text-xs text-muted-foreground hover:no-underline">
+                                    Ver detalhes da fatura fechada
+                                  </AccordionTrigger>
+                                  <AccordionContent>
+                                    {renderFaturaDetalhes(
+                                      transacoesFechada,
+                                      "Nenhuma transação encontrada nesta fatura fechada.",
+                                    )}
+                                  </AccordionContent>
+                                </AccordionItem>
+                              </Accordion>
                             </div>
-                            {totalFechada > 0 ? (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="gap-1 border-warning text-warning hover:bg-warning hover:text-warning-foreground"
-                                onClick={() => handlePagarFatura(cartao)}
-                              >
-                                <Banknote className="h-4 w-4" />
-                                Pagar
-                              </Button>
-                            ) : (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="gap-1 border-success text-success hover:bg-success hover:text-success-foreground"
-                                    onClick={() => {
-                                      // Mark all credit transactions in this closed cycle as paid
-                                      const isForced = forceClose[cartao.id] || false;
-                                      const { fechada } = getFaturasInfo(cartao, new Date(), isForced);
-                                      const transacoesCiclo = getTransacoesCiclo(cartao.id, fechada.inicio, fechada.fim);
-                                      const pendentes = transacoesCiclo.filter(t => t.is_pago_executado !== true);
-                                      
-                                      if (pendentes.length === 0) {
-                                        toast({ title: "Fatura já está quitada", description: "Não há transações pendentes nesta fatura." });
-                                        return;
-                                      }
-                                      
-                                      const dataHoje = format(new Date(), "yyyy-MM-dd");
-                                      Promise.all(
-                                        pendentes.map(t =>
-                                          supabase
-                                            .from("transacoes")
-                                            .update({ is_pago_executado: true, data_execucao_pagamento: dataHoje })
-                                            .eq("id", t.id)
-                                        )
-                                      ).then(() => {
-                                        toast({ title: "Fatura marcada como paga", description: `${pendentes.length} transação(ões) quitada(s).` });
-                                        queryClient.invalidateQueries({ queryKey: ["cartoes"] });
-                                        queryClient.invalidateQueries({ queryKey: ["transacoes"] });
-                                        queryClient.invalidateQueries({ queryKey: ["saldo-contas"] });
-                                      });
-                                    }}
-                                  >
-                                    <Check className="h-4 w-4" />
-                                    Paga
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p className="text-xs">Marcar fatura R$ 0,00 como paga</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            )}
-                          </div>
-                          <Accordion type="single" collapsible className="mt-2">
-                            <AccordionItem value="detalhes-fatura-fechada" className="border-0">
-                              <AccordionTrigger className="py-1 text-xs text-muted-foreground hover:no-underline">
-                                Ver detalhes da fatura fechada
-                              </AccordionTrigger>
-                              <AccordionContent>
-                                {renderFaturaDetalhes(
-                                  transacoesFechada,
-                                  "Nenhuma transação encontrada nesta fatura fechada.",
-                                )}
-                              </AccordionContent>
-                            </AccordionItem>
-                          </Accordion>
-                        </div>
+                          );
+                        })()}
 
                         {/* Fatura Aberta (ciclo atual) */}
                         <div className="p-3 rounded-lg bg-muted/30 border border-border">
