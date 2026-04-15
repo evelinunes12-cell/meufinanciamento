@@ -4,15 +4,27 @@ import { useQuery } from "@tanstack/react-query";
 import AppLayout from "@/components/AppLayout";
 import PageLoadingSkeleton from "@/components/PageLoadingSkeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { TrendingUp, TrendingDown, Calendar, AlertCircle, Wallet, PiggyBank } from "lucide-react";
-import { format, addMonths, startOfMonth, endOfMonth, parseISO, isBefore, isAfter } from "date-fns";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { TrendingUp, TrendingDown, Wallet, PiggyBank, AlertCircle, CreditCard, Info, BarChart3 } from "lucide-react";
+import {
+  format, addMonths, subMonths, startOfMonth, endOfMonth,
+  parseISO, isBefore, isAfter
+} from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { useState, useMemo } from "react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from "recharts";
-import { isExecutado, isPendente, calcularSaldoTotalReal, getDataEfetiva } from "@/lib/transactions";
+import { useMemo } from "react";
+import {
+  LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  Tooltip as RechartsTooltip, ResponsiveContainer, Legend, ReferenceLine
+} from "recharts";
+import {
+  isExecutado, calcularSaldoRealConta, getDataEfetiva
+} from "@/lib/transactions";
+
+// ==========================================
+// Types
+// ==========================================
 
 interface Transacao {
   id: string;
@@ -25,6 +37,8 @@ interface Transacao {
   forma_pagamento: string;
   recorrencia: string | null;
   conta_id: string;
+  conta_destino_id?: string | null;
+  parcela_atual?: number | null;
 }
 
 interface Conta {
@@ -34,191 +48,277 @@ interface Conta {
   tipo: string;
   cor: string;
   dia_fechamento: number | null;
+  dia_vencimento: number | null;
 }
+
+interface Orcamento {
+  id: string;
+  categoria_id: string;
+  valor_limite: number;
+  mes_referencia: string;
+}
+
+interface Categoria {
+  id: string;
+  nome: string;
+  tipo: string;
+  categoria_pai_id: string | null;
+}
+
+interface DadosMes {
+  mes: Date;
+  label: string;
+  receitas: number;
+  despesasLancadas: number;
+  despesasProjetadas: number;
+  fonteProjecao: "lancadas" | "orcamento" | "media";
+  saldoAcumulado: number;
+}
+
+// ==========================================
+// Data Fetching
+// ==========================================
 
 async function fetchProjecaoData(userId: string | undefined) {
   if (!userId) return null;
 
-  const [transacoesRes, contasRes] = await Promise.all([
+  const [transacoesRes, contasRes, orcamentosRes, categoriasRes] = await Promise.all([
     supabase.from("transacoes").select("*").order("data", { ascending: true }),
     supabase.from("contas").select("*"),
+    supabase.from("orcamentos").select("*"),
+    supabase.from("categorias").select("*"),
   ]);
 
   return {
     transacoes: (transacoesRes.data || []) as Transacao[],
     contas: (contasRes.data || []) as Conta[],
+    orcamentos: (orcamentosRes.data || []) as Orcamento[],
+    categorias: (categoriasRes.data || []) as Categoria[],
   };
 }
 
+// ==========================================
+// Helpers
+// ==========================================
+
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
+
+function getDataEfetivaStr(t: Transacao, contas: Conta[]): string {
+  return getDataEfetiva(
+    { data: t.data, data_pagamento: t.data_pagamento, conta_id: t.conta_id },
+    contas
+  );
+}
+
+// ==========================================
+// Component
+// ==========================================
+
 const Projecao = () => {
   const { user } = useAuth();
-  const [mesesProjecao, setMesesProjecao] = useState<number>(3);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["projecao", user?.id],
+    queryKey: ["projecao-smart", user?.id],
     queryFn: () => fetchProjecaoData(user?.id),
     enabled: !!user?.id,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 0,
   });
 
   const transacoes = data?.transacoes || [];
   const contas = data?.contas || [];
+  const orcamentos = data?.orcamentos || [];
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
-  };
+  // Filter out transfers globally
+  const transacoesSemTransf = useMemo(
+    () => transacoes.filter(t => t.forma_pagamento !== "transferencia"),
+    [transacoes]
+  );
 
-  // Calculate current balance (saldo atual) using helper
+  // ==========================================
+  // OBJECTIVE 1: Saldo Real Atual
+  // ==========================================
   const saldoAtual = useMemo(() => {
-    const transacoesParaCalculo = transacoes.map(t => ({
-      valor: t.valor,
-      tipo: t.tipo,
-      conta_id: t.conta_id,
+    const contasAtivo = contas.filter(c => c.tipo !== "credito");
+    const mapped = transacoes.map(t => ({
+      valor: t.valor, tipo: t.tipo, conta_id: t.conta_id,
+      conta_destino_id: t.conta_destino_id,
       forma_pagamento: t.forma_pagamento,
-      is_pago_executado: t.is_pago_executado,
-      data: t.data
+      is_pago_executado: t.is_pago_executado, data: t.data,
     }));
-    
-    return calcularSaldoTotalReal(contas, transacoesParaCalculo);
+    return contasAtivo.reduce((acc, c) => acc + calcularSaldoRealConta(c, mapped), 0);
   }, [contas, transacoes]);
 
-  // Identify recurring transactions
-  const transacoesRecorrentes = useMemo(() => {
+  // ==========================================
+  // OBJECTIVE 1: Média Histórica (últimos 3 meses fechados)
+  // ==========================================
+  const mediaHistorica = useMemo(() => {
     const hoje = new Date();
-    return transacoes.filter(t => 
-      t.recorrencia && 
-      t.recorrencia !== "unica" && 
-      t.forma_pagamento !== "transferencia" &&
-      !isAfter(parseISO(getDataEfetiva(t, contas)), hoje)
-    );
-  }, [transacoes, contas]);
+    const mesesFechados: number[] = [];
 
-  // Project future months
+    for (let i = 1; i <= 3; i++) {
+      const mes = subMonths(hoje, i);
+      const inicio = startOfMonth(mes);
+      const fim = endOfMonth(mes);
+
+      const despesasMes = transacoesSemTransf
+        .filter(t => {
+          if (t.tipo !== "despesa") return false;
+          if (!isExecutado(t.is_pago_executado)) return false;
+          const de = parseISO(getDataEfetivaStr(t, contas));
+          return !isBefore(de, inicio) && !isAfter(de, fim);
+        })
+        .reduce((acc, t) => acc + Number(t.valor), 0);
+
+      mesesFechados.push(despesasMes);
+    }
+
+    const total = mesesFechados.reduce((a, b) => a + b, 0);
+    return mesesFechados.some(v => v > 0) ? total / mesesFechados.filter(v => v > 0).length : 0;
+  }, [transacoesSemTransf, contas]);
+
+  // ==========================================
+  // Total de orçamentos (soma de todos os limites vigentes)
+  // ==========================================
+  const totalOrcamentos = useMemo(() => {
+    if (orcamentos.length === 0) return 0;
+    // Get the latest month reference available
+    const hoje = new Date();
+    const mesAtualStr = format(startOfMonth(hoje), "yyyy-MM-dd");
+    // Try current month first, then any
+    let orcamentosMes = orcamentos.filter(o => o.mes_referencia === mesAtualStr);
+    if (orcamentosMes.length === 0) {
+      // Use most recent month
+      const sorted = [...orcamentos].sort((a, b) => b.mes_referencia.localeCompare(a.mes_referencia));
+      const latestMonth = sorted[0]?.mes_referencia;
+      orcamentosMes = orcamentos.filter(o => o.mes_referencia === latestMonth);
+    }
+    return orcamentosMes.reduce((acc, o) => acc + Number(o.valor_limite), 0);
+  }, [orcamentos]);
+
+  // ==========================================
+  // OBJECTIVE 2: Projeção Mensal Inteligente (6 meses)
+  // ==========================================
   const projecaoMensal = useMemo(() => {
     const hoje = new Date();
-    const meses: Array<{
-      mes: Date;
-      label: string;
-      receitas: number;
-      despesas: number;
-      saldo: number;
-      saldoAcumulado: number;
-      transacoes: Array<{ descricao: string; valor: number; tipo: string }>;
-    }> = [];
-
+    const meses: DadosMes[] = [];
     let saldoAcumulado = saldoAtual;
 
-    // Get pending transactions for current month - use effective date for credit cards
-    const inicioMesAtual = startOfMonth(hoje);
-    const fimMesAtual = endOfMonth(hoje);
-
-    const pendentesMesAtual = transacoes.filter(t => {
-      const dataEfetiva = getDataEfetiva(t, contas);
-      const dataEfetivaDate = parseISO(dataEfetiva);
-      return (
-        isPendente(t.is_pago_executado) &&
-        t.forma_pagamento !== "transferencia" &&
-        !isBefore(dataEfetivaDate, inicioMesAtual) &&
-        !isAfter(dataEfetivaDate, fimMesAtual)
-      );
-    });
-
-    for (let i = 0; i <= mesesProjecao; i++) {
+    for (let i = 0; i < 6; i++) {
       const mes = addMonths(hoje, i);
-      const inicioMes = startOfMonth(mes);
-      const fimMes = endOfMonth(mes);
+      const inicio = startOfMonth(mes);
+      const fim = endOfMonth(mes);
 
-      let receitas = 0;
-      let despesas = 0;
-      const transacoesMes: Array<{ descricao: string; valor: number; tipo: string }> = [];
+      // Receitas no mês
+      const receitas = transacoesSemTransf
+        .filter(t => {
+          if (t.tipo !== "receita") return false;
+          const de = parseISO(getDataEfetivaStr(t, contas));
+          return !isBefore(de, inicio) && !isAfter(de, fim);
+        })
+        .reduce((acc, t) => acc + Number(t.valor), 0);
 
-      if (i === 0) {
-        // Current month: use pending transactions
-        pendentesMesAtual.forEach(t => {
-          const valor = Number(t.valor);
-          if (t.tipo === "receita") {
-            receitas += valor;
-          } else {
-            despesas += valor;
-          }
-          transacoesMes.push({
-            descricao: t.descricao || "Sem descrição",
-            valor,
-            tipo: t.tipo,
-          });
-        });
-      } else {
-        // Future months: include scheduled transactions and recurring estimates
-        const transacoesFuturas = transacoes.filter(t => {
-          if (t.forma_pagamento === "transferencia") return false;
-          if (isExecutado(t.is_pago_executado)) return false;
-          const dataEfetiva = parseISO(getDataEfetiva(t, contas));
-          return !isBefore(dataEfetiva, inicioMes) && !isAfter(dataEfetiva, fimMes);
-        });
+      // Despesas lançadas no mês
+      const despesasLancadas = transacoesSemTransf
+        .filter(t => {
+          if (t.tipo !== "despesa") return false;
+          const de = parseISO(getDataEfetivaStr(t, contas));
+          return !isBefore(de, inicio) && !isAfter(de, fim);
+        })
+        .reduce((acc, t) => acc + Number(t.valor), 0);
 
-        transacoesFuturas.forEach(t => {
-          const valor = Number(t.valor);
-          if (t.tipo === "receita") {
-            receitas += valor;
-          } else {
-            despesas += valor;
-          }
-          transacoesMes.push({
-            descricao: t.descricao || "Sem descrição",
-            valor,
-            tipo: t.tipo,
-          });
-        });
+      // Motor de projeção: MAX(lançadas, orçamento, média)
+      const candidatos = [
+        { valor: despesasLancadas, fonte: "lancadas" as const },
+        { valor: totalOrcamentos, fonte: "orcamento" as const },
+        { valor: mediaHistorica, fonte: "media" as const },
+      ];
 
-        // Recurring transactions for estimates (fixed / repeating)
-        transacoesRecorrentes.forEach(t => {
-          const valor = Number(t.valor);
-          if (t.tipo === "receita") {
-            receitas += valor;
-          } else {
-            despesas += valor;
-          }
-          transacoesMes.push({
-            descricao: t.descricao || "Sem descrição",
-            valor,
-            tipo: t.tipo,
-          });
-        });
-      }
+      const melhor = candidatos.reduce((a, b) => (b.valor > a.valor ? b : a));
 
-      const saldo = receitas - despesas;
-      saldoAcumulado += saldo;
+      // For current month (i===0), if we have actual executed, use lançadas directly
+      const despesasProjetadas = i === 0 ? despesasLancadas : melhor.valor;
+      const fonteProjecao = i === 0 ? "lancadas" as const : melhor.fonte;
+
+      saldoAcumulado = saldoAcumulado + receitas - despesasProjetadas;
 
       meses.push({
         mes,
         label: format(mes, "MMM/yy", { locale: ptBR }),
         receitas,
-        despesas,
-        saldo,
+        despesasLancadas,
+        despesasProjetadas,
+        fonteProjecao,
         saldoAcumulado,
-        transacoes: transacoesMes,
       });
     }
 
     return meses;
-  }, [transacoes, transacoesRecorrentes, saldoAtual, mesesProjecao]);
+  }, [transacoesSemTransf, contas, saldoAtual, totalOrcamentos, mediaHistorica]);
+
+  // ==========================================
+  // Radar de Faturas (próximos 3 meses por cartão)
+  // ==========================================
+  const radarFaturas = useMemo(() => {
+    const cartoes = contas.filter(c => c.tipo === "credito");
+    if (cartoes.length === 0) return [];
+
+    const hoje = new Date();
+    return cartoes.map(cartao => {
+      const meses: { label: string; valor: number }[] = [];
+
+      for (let i = 0; i < 3; i++) {
+        const mes = addMonths(hoje, i);
+        const inicio = startOfMonth(mes);
+        const fim = endOfMonth(mes);
+
+        const valorFatura = transacoesSemTransf
+          .filter(t => {
+            if (t.conta_id !== cartao.id) return false;
+            if (t.tipo !== "despesa") return false;
+            const de = parseISO(getDataEfetivaStr(t, contas));
+            return !isBefore(de, inicio) && !isAfter(de, fim);
+          })
+          .reduce((acc, t) => acc + Number(t.valor), 0);
+
+        meses.push({
+          label: format(mes, "MMM/yy", { locale: ptBR }),
+          valor: valorFatura,
+        });
+      }
+
+      return { cartao, meses };
+    });
+  }, [contas, transacoesSemTransf]);
+
+  // Derived
+  const saldoFinal = projecaoMensal[projecaoMensal.length - 1]?.saldoAcumulado ?? 0;
+  const mesNegativo = projecaoMensal.find(m => m.saldoAcumulado < 0);
 
   // Chart data
-  const chartData = projecaoMensal.map(m => ({
+  const chartLineData = projecaoMensal.map(m => ({
     name: m.label,
-    receitas: m.receitas,
-    despesas: m.despesas,
     saldo: m.saldoAcumulado,
   }));
 
-  const saldoFinal = projecaoMensal[projecaoMensal.length - 1]?.saldoAcumulado || 0;
-  const menorSaldo = Math.min(...projecaoMensal.map(m => m.saldoAcumulado));
-  const haRiscoNegativo = menorSaldo < 0;
+  const chartBarData = projecaoMensal.map(m => ({
+    name: m.label,
+    receitas: m.receitas,
+    despesas: m.despesasProjetadas,
+  }));
+
+  const fonteLabel = (f: DadosMes["fonteProjecao"]) => {
+    switch (f) {
+      case "lancadas": return "Lançamentos";
+      case "orcamento": return "Orçamento";
+      case "media": return "Média Histórica";
+    }
+  };
 
   if (isLoading) {
     return (
       <AppLayout>
-        <PageLoadingSkeleton type="dashboard" title="Projeção de Saldo" />
+        <PageLoadingSkeleton type="dashboard" title="Projeção Inteligente" />
       </AppLayout>
     );
   }
@@ -226,35 +326,75 @@ const Projecao = () => {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Projeção de Saldo</h1>
-            <p className="text-muted-foreground">Simule como estará seu saldo nos próximos meses</p>
-          </div>
-          <Select value={mesesProjecao.toString()} onValueChange={(v) => setMesesProjecao(Number(v))}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="3">Próximos 3 meses</SelectItem>
-              <SelectItem value="6">Próximos 6 meses</SelectItem>
-              <SelectItem value="12">Próximos 12 meses</SelectItem>
-            </SelectContent>
-          </Select>
+        {/* Header */}
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Projeção Inteligente</h1>
+          <p className="text-muted-foreground text-sm">
+            Simulação baseada em orçamentos, lançamentos e média histórica
+          </p>
         </div>
 
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Alert for negative balance */}
+        {mesNegativo && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Risco de saldo negativo</AlertTitle>
+            <AlertDescription>
+              Atenção: Risco de saldo negativo projetado para{" "}
+              <strong>{format(mesNegativo.mes, "MMMM/yyyy", { locale: ptBR })}</strong>{" "}
+              ({formatCurrency(mesNegativo.saldoAcumulado)}).
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Top KPIs */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Card className="shadow-card">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-primary/10">
                   <Wallet className="h-5 w-5 text-primary" />
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Saldo Atual</p>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1">
+                    <p className="text-xs text-muted-foreground">Saldo Atual</p>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="text-xs max-w-48">Saldo real acumulado de contas correntes e poupança (transações executadas).</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
                   <p className={`text-lg font-bold ${saldoAtual >= 0 ? "text-success" : "text-destructive"}`}>
                     {formatCurrency(saldoAtual)}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-card">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-warning/10">
+                  <BarChart3 className="h-5 w-5 text-warning" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1">
+                    <p className="text-xs text-muted-foreground">Média Histórica</p>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="text-xs max-w-48">Média mensal de despesas executadas nos últimos 3 meses fechados. Usada como fallback inteligente na projeção.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  <p className="text-lg font-bold text-destructive">
+                    {formatCurrency(mediaHistorica)}
                   </p>
                 </div>
               </div>
@@ -267,8 +407,18 @@ const Projecao = () => {
                 <div className="p-2 rounded-lg bg-success/10">
                   <PiggyBank className="h-5 w-5 text-success" />
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Saldo Projetado ({mesesProjecao}m)</p>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1">
+                    <p className="text-xs text-muted-foreground">Saldo Projetado (6m)</p>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="text-xs max-w-48">Saldo estimado ao final dos próximos 6 meses, considerando o maior valor entre lançamentos, orçamentos e média histórica.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
                   <p className={`text-lg font-bold ${saldoFinal >= 0 ? "text-success" : "text-destructive"}`}>
                     {formatCurrency(saldoFinal)}
                   </p>
@@ -276,156 +426,195 @@ const Projecao = () => {
               </div>
             </CardContent>
           </Card>
+        </div>
 
+        {/* Charts */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Line Chart - Evolução do Patrimônio */}
           <Card className="shadow-card">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <TrendingUp className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Receitas Recorrentes</p>
-                  <p className="text-lg font-bold text-success">
-                    {formatCurrency(
-                      transacoesRecorrentes
-                        .filter(t => t.tipo === "receita")
-                        .reduce((a, t) => a + Number(t.valor), 0)
-                    )}
-                  </p>
-                </div>
-              </div>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <TrendingUp className="h-4 w-4" />
+                Evolução do Patrimônio
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={280}>
+                <LineChart data={chartLineData} margin={{ top: 10, right: 10, left: 10, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis dataKey="name" className="text-xs" tick={{ fontSize: 11 }} />
+                  <YAxis
+                    tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
+                    className="text-xs"
+                    tick={{ fontSize: 11 }}
+                  />
+                  <RechartsTooltip
+                    formatter={(value: number) => [formatCurrency(value), "Saldo"]}
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                      fontSize: "12px",
+                    }}
+                  />
+                  <ReferenceLine y={0} stroke="hsl(var(--destructive))" strokeDasharray="3 3" />
+                  <Line
+                    type="monotone"
+                    dataKey="saldo"
+                    stroke="hsl(var(--primary))"
+                    strokeWidth={3}
+                    dot={{ r: 5, fill: "hsl(var(--primary))" }}
+                    activeDot={{ r: 7 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
             </CardContent>
           </Card>
 
+          {/* Bar Chart - Receitas vs Despesas */}
           <Card className="shadow-card">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-destructive/10">
-                  <TrendingDown className="h-5 w-5 text-destructive" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Despesas Fixas</p>
-                  <p className="text-lg font-bold text-destructive">
-                    {formatCurrency(
-                      transacoesRecorrentes
-                        .filter(t => t.tipo === "despesa")
-                        .reduce((a, t) => a + Number(t.valor), 0)
-                    )}
-                  </p>
-                </div>
-              </div>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <BarChart3 className="h-4 w-4" />
+                Receitas vs Despesas Projetadas
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={chartBarData} margin={{ top: 10, right: 10, left: 10, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis dataKey="name" className="text-xs" tick={{ fontSize: 11 }} />
+                  <YAxis
+                    tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
+                    className="text-xs"
+                    tick={{ fontSize: 11 }}
+                  />
+                  <RechartsTooltip
+                    formatter={(value: number, name: string) => [
+                      formatCurrency(value),
+                      name === "receitas" ? "Receitas" : "Despesas",
+                    ]}
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                      fontSize: "12px",
+                    }}
+                  />
+                  <Legend />
+                  <Bar dataKey="receitas" name="Receitas" fill="hsl(var(--success))" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="despesas" name="Despesas" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
             </CardContent>
           </Card>
         </div>
 
-        {/* Alert for negative balance */}
-        {haRiscoNegativo && (
-          <Card className="border-destructive/50 bg-destructive/5">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <AlertCircle className="h-5 w-5 text-destructive" />
-                <div>
-                  <p className="font-medium text-destructive">Atenção: Risco de saldo negativo</p>
-                  <p className="text-sm text-muted-foreground">
-                    A projeção indica que o saldo pode ficar negativo em{" "}
-                    {formatCurrency(menorSaldo)}. Considere revisar suas despesas fixas.
-                  </p>
-                </div>
+        {/* Monthly Breakdown */}
+        <Card className="shadow-card">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Detalhamento Mensal</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left">
+                    <th className="pb-2 font-medium text-muted-foreground">Mês</th>
+                    <th className="pb-2 font-medium text-muted-foreground text-right">Receitas</th>
+                    <th className="pb-2 font-medium text-muted-foreground text-right">Desp. Lançadas</th>
+                    <th className="pb-2 font-medium text-muted-foreground text-right">Desp. Projetadas</th>
+                    <th className="pb-2 font-medium text-muted-foreground text-center">Fonte</th>
+                    <th className="pb-2 font-medium text-muted-foreground text-right">Saldo Acumulado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {projecaoMensal.map((m, i) => (
+                    <tr key={i} className={`border-b last:border-0 ${m.saldoAcumulado < 0 ? "bg-destructive/5" : ""}`}>
+                      <td className="py-3 font-medium capitalize">
+                        {format(m.mes, "MMM/yy", { locale: ptBR })}
+                        {i === 0 && <Badge variant="secondary" className="ml-2 text-[10px]">Atual</Badge>}
+                      </td>
+                      <td className="py-3 text-right text-success font-medium">
+                        +{formatCurrency(m.receitas)}
+                      </td>
+                      <td className="py-3 text-right text-muted-foreground">
+                        {formatCurrency(m.despesasLancadas)}
+                      </td>
+                      <td className="py-3 text-right text-destructive font-medium">
+                        -{formatCurrency(m.despesasProjetadas)}
+                      </td>
+                      <td className="py-3 text-center">
+                        <Badge
+                          variant="outline"
+                          className={`text-[10px] ${
+                            m.fonteProjecao === "orcamento"
+                              ? "border-primary/50 text-primary"
+                              : m.fonteProjecao === "media"
+                              ? "border-warning/50 text-warning"
+                              : "border-muted-foreground/50"
+                          }`}
+                        >
+                          {fonteLabel(m.fonteProjecao)}
+                        </Badge>
+                      </td>
+                      <td className={`py-3 text-right font-bold ${m.saldoAcumulado >= 0 ? "text-success" : "text-destructive"}`}>
+                        {formatCurrency(m.saldoAcumulado)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Radar de Faturas */}
+        {radarFaturas.length > 0 && (
+          <Card className="shadow-card">
+            <CardHeader className="pb-2">
+              <div className="flex items-center gap-2">
+                <CreditCard className="h-4 w-4" />
+                <CardTitle className="text-base">Radar de Faturas</CardTitle>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="text-xs max-w-52">Previsão do valor da fatura de cada cartão de crédito para os próximos 3 meses, baseada nos lançamentos já registrados.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {radarFaturas.map(({ cartao, meses }) => (
+                  <Card key={cartao.id} className="border bg-muted/20">
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <div
+                          className="w-3 h-3 rounded-full shrink-0"
+                          style={{ backgroundColor: cartao.cor }}
+                        />
+                        <p className="font-medium text-sm truncate">{cartao.nome_conta}</p>
+                      </div>
+                      <div className="space-y-2">
+                        {meses.map((m, i) => (
+                          <div key={i} className="flex justify-between items-center">
+                            <span className="text-xs text-muted-foreground capitalize">{m.label}</span>
+                            <span className={`text-sm font-semibold ${m.valor > 0 ? "text-destructive" : "text-muted-foreground"}`}>
+                              {m.valor > 0 ? formatCurrency(m.valor) : "—"}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
             </CardContent>
           </Card>
         )}
-
-        {/* Chart */}
-        <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle className="text-base">Evolução do Saldo Projetado</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={350}>
-              <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis dataKey="name" className="text-xs" />
-                <YAxis 
-                  tickFormatter={(value) => formatCurrency(value).replace("R$", "")}
-                  className="text-xs"
-                />
-                <Tooltip 
-                  formatter={(value: number) => formatCurrency(value)}
-                  contentStyle={{ 
-                    backgroundColor: "hsl(var(--card))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: "8px"
-                  }}
-                />
-                <Legend />
-                <ReferenceLine y={0} stroke="hsl(var(--destructive))" strokeDasharray="3 3" />
-                <Bar dataKey="receitas" name="Receitas" fill="hsl(var(--success))" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="despesas" name="Despesas" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Monthly Breakdown */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-          {projecaoMensal.map((mes, index) => (
-            <Card key={index} className={`shadow-card ${mes.saldoAcumulado < 0 ? "border-destructive/50" : ""}`}>
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <Calendar className="h-4 w-4" />
-                    {format(mes.mes, "MMMM yyyy", { locale: ptBR })}
-                  </CardTitle>
-                  {index === 0 && (
-                    <Badge variant="secondary" className="text-xs">Atual</Badge>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="p-2 rounded-lg bg-success/10 text-center">
-                    <p className="text-xs text-muted-foreground">Receitas</p>
-                    <p className="text-sm font-bold text-success">+{formatCurrency(mes.receitas)}</p>
-                  </div>
-                  <div className="p-2 rounded-lg bg-destructive/10 text-center">
-                    <p className="text-xs text-muted-foreground">Despesas</p>
-                    <p className="text-sm font-bold text-destructive">-{formatCurrency(mes.despesas)}</p>
-                  </div>
-                </div>
-
-                <div className={`p-3 rounded-lg ${mes.saldoAcumulado >= 0 ? "bg-success/10" : "bg-destructive/10"}`}>
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-muted-foreground">Saldo Acumulado</span>
-                    <span className={`font-bold ${mes.saldoAcumulado >= 0 ? "text-success" : "text-destructive"}`}>
-                      {formatCurrency(mes.saldoAcumulado)}
-                    </span>
-                  </div>
-                </div>
-
-                {mes.transacoes.length > 0 && (
-                  <ScrollArea className="h-[100px]">
-                    <div className="space-y-1">
-                      {mes.transacoes.slice(0, 5).map((t, i) => (
-                        <div key={i} className="flex justify-between text-xs p-1.5 rounded bg-muted/30">
-                          <span className="truncate flex-1">{t.descricao}</span>
-                          <span className={t.tipo === "receita" ? "text-success" : "text-destructive"}>
-                            {t.tipo === "receita" ? "+" : "-"}{formatCurrency(t.valor)}
-                          </span>
-                        </div>
-                      ))}
-                      {mes.transacoes.length > 5 && (
-                        <p className="text-xs text-muted-foreground text-center">
-                          +{mes.transacoes.length - 5} transações
-                        </p>
-                      )}
-                    </div>
-                  </ScrollArea>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
       </div>
     </AppLayout>
   );
