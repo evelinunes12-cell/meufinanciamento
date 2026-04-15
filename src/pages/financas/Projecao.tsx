@@ -488,7 +488,10 @@ const Projecao = () => {
                     tick={{ fontSize: 11 }}
                   />
                   <RechartsTooltip
-                    formatter={(value: number) => [formatCurrency(value), "Saldo"]}
+                    formatter={(value: number, name: string) => {
+                      const labels: Record<string, string> = { otimista: "Otimista", realista: "Realista", pessimista: "Pessimista" };
+                      return [formatCurrency(value), labels[name] || name];
+                    }}
                     contentStyle={{
                       backgroundColor: "hsl(var(--card))",
                       border: "1px solid hsl(var(--border))",
@@ -496,15 +499,14 @@ const Projecao = () => {
                       fontSize: "12px",
                     }}
                   />
+                  <Legend formatter={(value: string) => {
+                    const labels: Record<string, string> = { otimista: "Otimista (-15%)", realista: "Realista", pessimista: "Pessimista (+20%)" };
+                    return labels[value] || value;
+                  }} />
                   <ReferenceLine y={0} stroke="hsl(var(--destructive))" strokeDasharray="3 3" />
-                  <Line
-                    type="monotone"
-                    dataKey="saldo"
-                    stroke="hsl(var(--primary))"
-                    strokeWidth={3}
-                    dot={{ r: 5, fill: "hsl(var(--primary))" }}
-                    activeDot={{ r: 7 }}
-                  />
+                  <Line type="monotone" dataKey="otimista" stroke="hsl(var(--success))" strokeWidth={2} strokeDasharray="5 5" dot={{ r: 3 }} />
+                  <Line type="monotone" dataKey="realista" stroke="hsl(var(--primary))" strokeWidth={3} dot={{ r: 5, fill: "hsl(var(--primary))" }} activeDot={{ r: 7 }} />
+                  <Line type="monotone" dataKey="pessimista" stroke="hsl(var(--destructive))" strokeWidth={2} strokeDasharray="5 5" dot={{ r: 3 }} />
                 </LineChart>
               </ResponsiveContainer>
             </CardContent>
