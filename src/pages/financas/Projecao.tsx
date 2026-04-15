@@ -208,19 +208,17 @@ const Projecao = () => {
   }, [orcamentos]);
 
   // ==========================================
-  // OBJECTIVE 2: Projeção Mensal Inteligente (6 meses)
+  // OBJECTIVE 2: Projeção base (receitas e despesas por mês)
   // ==========================================
-  const projecaoMensal = useMemo(() => {
+  const projecaoBase = useMemo(() => {
     const hoje = new Date();
-    const meses: DadosMes[] = [];
-    let saldoAcumulado = saldoAtual;
+    const meses: { mes: Date; label: string; receitas: number; despesasLancadas: number; despesasBase: number; fonteProjecao: DadosMes["fonteProjecao"] }[] = [];
 
     for (let i = 0; i < 6; i++) {
       const mes = addMonths(hoje, i);
       const inicio = startOfMonth(mes);
       const fim = endOfMonth(mes);
 
-      // Receitas no mês
       const receitas = transacoesSemTransf
         .filter(t => {
           if (t.tipo !== "receita") return false;
@@ -229,7 +227,6 @@ const Projecao = () => {
         })
         .reduce((acc, t) => acc + Number(t.valor), 0);
 
-      // Despesas lançadas no mês
       const despesasLancadas = transacoesSemTransf
         .filter(t => {
           if (t.tipo !== "despesa") return false;
@@ -238,34 +235,40 @@ const Projecao = () => {
         })
         .reduce((acc, t) => acc + Number(t.valor), 0);
 
-      // Motor de projeção: MAX(lançadas, orçamento, média)
       const candidatos = [
         { valor: despesasLancadas, fonte: "lancadas" as const },
         { valor: totalOrcamentos, fonte: "orcamento" as const },
         { valor: mediaHistorica, fonte: "media" as const },
       ];
-
       const melhor = candidatos.reduce((a, b) => (b.valor > a.valor ? b : a));
 
-      // For current month (i===0), if we have actual executed, use lançadas directly
-      const despesasProjetadas = i === 0 ? despesasLancadas : melhor.valor;
+      const despesasBase = i === 0 ? despesasLancadas : melhor.valor;
       const fonteProjecao = i === 0 ? "lancadas" as const : melhor.fonte;
 
-      saldoAcumulado = saldoAcumulado + receitas - despesasProjetadas;
-
-      meses.push({
-        mes,
-        label: format(mes, "MMM/yy", { locale: ptBR }),
-        receitas,
-        despesasLancadas,
-        despesasProjetadas,
-        fonteProjecao,
-        saldoAcumulado,
-      });
+      meses.push({ mes, label: format(mes, "MMM/yy", { locale: ptBR }), receitas, despesasLancadas, despesasBase, fonteProjecao });
     }
-
     return meses;
-  }, [transacoesSemTransf, contas, saldoAtual, totalOrcamentos, mediaHistorica]);
+  }, [transacoesSemTransf, contas, totalOrcamentos, mediaHistorica]);
+
+  // Build projection for a given scenario
+  const buildProjecao = (fator: number): DadosMes[] => {
+    let saldoAcumulado = saldoAtual;
+    return projecaoBase.map((m, i) => {
+      const despesasProjetadas = i === 0 ? m.despesasBase : m.despesasBase * (1 + fator);
+      saldoAcumulado = saldoAcumulado + m.receitas - despesasProjetadas;
+      return {
+        mes: m.mes, label: m.label, receitas: m.receitas,
+        despesasLancadas: m.despesasLancadas, despesasProjetadas,
+        fonteProjecao: m.fonteProjecao, saldoAcumulado,
+      };
+    });
+  };
+
+  const projecaoOtimista = useMemo(() => buildProjecao(CENARIO_CONFIG.otimista.fator), [projecaoBase, saldoAtual]);
+  const projecaoRealista = useMemo(() => buildProjecao(CENARIO_CONFIG.realista.fator), [projecaoBase, saldoAtual]);
+  const projecaoPessimista = useMemo(() => buildProjecao(CENARIO_CONFIG.pessimista.fator), [projecaoBase, saldoAtual]);
+
+  const projecaoMensal = cenario === "otimista" ? projecaoOtimista : cenario === "pessimista" ? projecaoPessimista : projecaoRealista;
 
   // ==========================================
   // Radar de Faturas (próximos 3 meses por cartão)
@@ -306,10 +309,12 @@ const Projecao = () => {
   const saldoFinal = projecaoMensal[projecaoMensal.length - 1]?.saldoAcumulado ?? 0;
   const mesNegativo = projecaoMensal.find(m => m.saldoAcumulado < 0);
 
-  // Chart data
-  const chartLineData = projecaoMensal.map(m => ({
+  // Chart data - all 3 scenarios for line chart
+  const chartLineData = projecaoRealista.map((m, i) => ({
     name: m.label,
-    saldo: m.saldoAcumulado,
+    otimista: projecaoOtimista[i].saldoAcumulado,
+    realista: m.saldoAcumulado,
+    pessimista: projecaoPessimista[i].saldoAcumulado,
   }));
 
   const chartBarData = projecaoMensal.map(m => ({
