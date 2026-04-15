@@ -7,13 +7,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { TrendingUp, TrendingDown, Wallet, PiggyBank, AlertCircle, CreditCard, Info, BarChart3 } from "lucide-react";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { TrendingUp, TrendingDown, Wallet, PiggyBank, AlertCircle, CreditCard, Info, BarChart3, Target } from "lucide-react";
 import {
   format, addMonths, subMonths, startOfMonth, endOfMonth,
   parseISO, isBefore, isAfter
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip as RechartsTooltip, ResponsiveContainer, Legend, ReferenceLine
@@ -75,6 +76,14 @@ interface DadosMes {
   saldoAcumulado: number;
 }
 
+type Cenario = "otimista" | "realista" | "pessimista";
+
+const CENARIO_CONFIG: Record<Cenario, { label: string; fator: number; cor: string; descricao: string }> = {
+  otimista: { label: "Otimista", fator: -0.15, cor: "hsl(var(--success))", descricao: "Despesas 15% abaixo da projeção base" },
+  realista: { label: "Realista", fator: 0, cor: "hsl(var(--primary))", descricao: "Projeção base sem ajustes" },
+  pessimista: { label: "Pessimista", fator: 0.20, cor: "hsl(var(--destructive))", descricao: "Despesas 20% acima da projeção base" },
+};
+
 // ==========================================
 // Data Fetching
 // ==========================================
@@ -124,6 +133,8 @@ const Projecao = () => {
     enabled: !!user?.id,
     staleTime: 0,
   });
+
+  const [cenario, setCenario] = useState<Cenario>("realista");
 
   const transacoes = data?.transacoes || [];
   const contas = data?.contas || [];
@@ -197,19 +208,17 @@ const Projecao = () => {
   }, [orcamentos]);
 
   // ==========================================
-  // OBJECTIVE 2: Projeção Mensal Inteligente (6 meses)
+  // OBJECTIVE 2: Projeção base (receitas e despesas por mês)
   // ==========================================
-  const projecaoMensal = useMemo(() => {
+  const projecaoBase = useMemo(() => {
     const hoje = new Date();
-    const meses: DadosMes[] = [];
-    let saldoAcumulado = saldoAtual;
+    const meses: { mes: Date; label: string; receitas: number; despesasLancadas: number; despesasBase: number; fonteProjecao: DadosMes["fonteProjecao"] }[] = [];
 
     for (let i = 0; i < 6; i++) {
       const mes = addMonths(hoje, i);
       const inicio = startOfMonth(mes);
       const fim = endOfMonth(mes);
 
-      // Receitas no mês
       const receitas = transacoesSemTransf
         .filter(t => {
           if (t.tipo !== "receita") return false;
@@ -218,7 +227,6 @@ const Projecao = () => {
         })
         .reduce((acc, t) => acc + Number(t.valor), 0);
 
-      // Despesas lançadas no mês
       const despesasLancadas = transacoesSemTransf
         .filter(t => {
           if (t.tipo !== "despesa") return false;
@@ -227,34 +235,40 @@ const Projecao = () => {
         })
         .reduce((acc, t) => acc + Number(t.valor), 0);
 
-      // Motor de projeção: MAX(lançadas, orçamento, média)
       const candidatos = [
         { valor: despesasLancadas, fonte: "lancadas" as const },
         { valor: totalOrcamentos, fonte: "orcamento" as const },
         { valor: mediaHistorica, fonte: "media" as const },
       ];
-
       const melhor = candidatos.reduce((a, b) => (b.valor > a.valor ? b : a));
 
-      // For current month (i===0), if we have actual executed, use lançadas directly
-      const despesasProjetadas = i === 0 ? despesasLancadas : melhor.valor;
+      const despesasBase = i === 0 ? despesasLancadas : melhor.valor;
       const fonteProjecao = i === 0 ? "lancadas" as const : melhor.fonte;
 
-      saldoAcumulado = saldoAcumulado + receitas - despesasProjetadas;
-
-      meses.push({
-        mes,
-        label: format(mes, "MMM/yy", { locale: ptBR }),
-        receitas,
-        despesasLancadas,
-        despesasProjetadas,
-        fonteProjecao,
-        saldoAcumulado,
-      });
+      meses.push({ mes, label: format(mes, "MMM/yy", { locale: ptBR }), receitas, despesasLancadas, despesasBase, fonteProjecao });
     }
-
     return meses;
-  }, [transacoesSemTransf, contas, saldoAtual, totalOrcamentos, mediaHistorica]);
+  }, [transacoesSemTransf, contas, totalOrcamentos, mediaHistorica]);
+
+  // Build projection for a given scenario
+  const buildProjecao = (fator: number): DadosMes[] => {
+    let saldoAcumulado = saldoAtual;
+    return projecaoBase.map((m, i) => {
+      const despesasProjetadas = i === 0 ? m.despesasBase : m.despesasBase * (1 + fator);
+      saldoAcumulado = saldoAcumulado + m.receitas - despesasProjetadas;
+      return {
+        mes: m.mes, label: m.label, receitas: m.receitas,
+        despesasLancadas: m.despesasLancadas, despesasProjetadas,
+        fonteProjecao: m.fonteProjecao, saldoAcumulado,
+      };
+    });
+  };
+
+  const projecaoOtimista = useMemo(() => buildProjecao(CENARIO_CONFIG.otimista.fator), [projecaoBase, saldoAtual]);
+  const projecaoRealista = useMemo(() => buildProjecao(CENARIO_CONFIG.realista.fator), [projecaoBase, saldoAtual]);
+  const projecaoPessimista = useMemo(() => buildProjecao(CENARIO_CONFIG.pessimista.fator), [projecaoBase, saldoAtual]);
+
+  const projecaoMensal = cenario === "otimista" ? projecaoOtimista : cenario === "pessimista" ? projecaoPessimista : projecaoRealista;
 
   // ==========================================
   // Radar de Faturas (próximos 3 meses por cartão)
@@ -295,10 +309,12 @@ const Projecao = () => {
   const saldoFinal = projecaoMensal[projecaoMensal.length - 1]?.saldoAcumulado ?? 0;
   const mesNegativo = projecaoMensal.find(m => m.saldoAcumulado < 0);
 
-  // Chart data
-  const chartLineData = projecaoMensal.map(m => ({
+  // Chart data - all 3 scenarios for line chart
+  const chartLineData = projecaoRealista.map((m, i) => ({
     name: m.label,
-    saldo: m.saldoAcumulado,
+    otimista: projecaoOtimista[i].saldoAcumulado,
+    realista: m.saldoAcumulado,
+    pessimista: projecaoPessimista[i].saldoAcumulado,
   }));
 
   const chartBarData = projecaoMensal.map(m => ({
@@ -327,11 +343,34 @@ const Projecao = () => {
     <AppLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Projeção Inteligente</h1>
-          <p className="text-muted-foreground text-sm">
-            Simulação baseada em orçamentos, lançamentos e média histórica
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Projeção Inteligente</h1>
+            <p className="text-muted-foreground text-sm">
+              Simulação baseada em orçamentos, lançamentos e média histórica
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Target className="h-4 w-4 text-muted-foreground hidden sm:block" />
+            <ToggleGroup type="single" value={cenario} onValueChange={(v) => v && setCenario(v as Cenario)} className="bg-muted rounded-lg p-1">
+              {(Object.keys(CENARIO_CONFIG) as Cenario[]).map(c => (
+                <ToggleGroupItem
+                  key={c}
+                  value={c}
+                  className="text-xs px-3 py-1.5 data-[state=on]:bg-background data-[state=on]:shadow-sm"
+                >
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span>{CENARIO_CONFIG[c].label}</span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="text-xs">{CENARIO_CONFIG[c].descricao}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+          </div>
         </div>
 
         {/* Alert for negative balance */}
@@ -409,13 +448,13 @@ const Projecao = () => {
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1">
-                    <p className="text-xs text-muted-foreground">Saldo Projetado (6m)</p>
+                    <p className="text-xs text-muted-foreground">Saldo Projetado - {CENARIO_CONFIG[cenario].label}</p>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Info className="h-3 w-3 text-muted-foreground cursor-help" />
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p className="text-xs max-w-48">Saldo estimado ao final dos próximos 6 meses, considerando o maior valor entre lançamentos, orçamentos e média histórica.</p>
+                        <p className="text-xs max-w-48">Cenário {CENARIO_CONFIG[cenario].label}: {CENARIO_CONFIG[cenario].descricao}.</p>
                       </TooltipContent>
                     </Tooltip>
                   </div>
@@ -449,7 +488,10 @@ const Projecao = () => {
                     tick={{ fontSize: 11 }}
                   />
                   <RechartsTooltip
-                    formatter={(value: number) => [formatCurrency(value), "Saldo"]}
+                    formatter={(value: number, name: string) => {
+                      const labels: Record<string, string> = { otimista: "Otimista", realista: "Realista", pessimista: "Pessimista" };
+                      return [formatCurrency(value), labels[name] || name];
+                    }}
                     contentStyle={{
                       backgroundColor: "hsl(var(--card))",
                       border: "1px solid hsl(var(--border))",
@@ -457,15 +499,14 @@ const Projecao = () => {
                       fontSize: "12px",
                     }}
                   />
+                  <Legend formatter={(value: string) => {
+                    const labels: Record<string, string> = { otimista: "Otimista (-15%)", realista: "Realista", pessimista: "Pessimista (+20%)" };
+                    return labels[value] || value;
+                  }} />
                   <ReferenceLine y={0} stroke="hsl(var(--destructive))" strokeDasharray="3 3" />
-                  <Line
-                    type="monotone"
-                    dataKey="saldo"
-                    stroke="hsl(var(--primary))"
-                    strokeWidth={3}
-                    dot={{ r: 5, fill: "hsl(var(--primary))" }}
-                    activeDot={{ r: 7 }}
-                  />
+                  <Line type="monotone" dataKey="otimista" stroke="hsl(var(--success))" strokeWidth={2} strokeDasharray="5 5" dot={{ r: 3 }} />
+                  <Line type="monotone" dataKey="realista" stroke="hsl(var(--primary))" strokeWidth={3} dot={{ r: 5, fill: "hsl(var(--primary))" }} activeDot={{ r: 7 }} />
+                  <Line type="monotone" dataKey="pessimista" stroke="hsl(var(--destructive))" strokeWidth={2} strokeDasharray="5 5" dot={{ r: 3 }} />
                 </LineChart>
               </ResponsiveContainer>
             </CardContent>
