@@ -76,6 +76,14 @@ interface DadosMes {
   saldoAcumulado: number;
 }
 
+type Cenario = "otimista" | "realista" | "pessimista";
+
+const CENARIO_CONFIG: Record<Cenario, { label: string; fator: number; cor: string; descricao: string }> = {
+  otimista: { label: "Otimista", fator: -0.15, cor: "hsl(var(--success))", descricao: "Despesas 15% abaixo da projeção base" },
+  realista: { label: "Realista", fator: 0, cor: "hsl(var(--primary))", descricao: "Projeção base sem ajustes" },
+  pessimista: { label: "Pessimista", fator: 0.20, cor: "hsl(var(--destructive))", descricao: "Despesas 20% acima da projeção base" },
+};
+
 // ==========================================
 // Data Fetching
 // ==========================================
