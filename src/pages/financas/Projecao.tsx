@@ -448,13 +448,13 @@ const Projecao = () => {
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1">
-                    <p className="text-xs text-muted-foreground">Saldo Projetado (6m)</p>
+                    <p className="text-xs text-muted-foreground">Saldo Projetado - {CENARIO_CONFIG[cenario].label}</p>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Info className="h-3 w-3 text-muted-foreground cursor-help" />
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p className="text-xs max-w-48">Saldo estimado ao final dos próximos 6 meses, considerando o maior valor entre lançamentos, orçamentos e média histórica.</p>
+                        <p className="text-xs max-w-48">Cenário {CENARIO_CONFIG[cenario].label}: {CENARIO_CONFIG[cenario].descricao}.</p>
                       </TooltipContent>
                     </Tooltip>
                   </div>
