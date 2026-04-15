@@ -134,6 +134,8 @@ const Projecao = () => {
     staleTime: 0,
   });
 
+  const [cenario, setCenario] = useState<Cenario>("realista");
+
   const transacoes = data?.transacoes || [];
   const contas = data?.contas || [];
   const orcamentos = data?.orcamentos || [];
