@@ -343,11 +343,34 @@ const Projecao = () => {
     <AppLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Projeção Inteligente</h1>
-          <p className="text-muted-foreground text-sm">
-            Simulação baseada em orçamentos, lançamentos e média histórica
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Projeção Inteligente</h1>
+            <p className="text-muted-foreground text-sm">
+              Simulação baseada em orçamentos, lançamentos e média histórica
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Target className="h-4 w-4 text-muted-foreground hidden sm:block" />
+            <ToggleGroup type="single" value={cenario} onValueChange={(v) => v && setCenario(v as Cenario)} className="bg-muted rounded-lg p-1">
+              {(Object.keys(CENARIO_CONFIG) as Cenario[]).map(c => (
+                <ToggleGroupItem
+                  key={c}
+                  value={c}
+                  className="text-xs px-3 py-1.5 data-[state=on]:bg-background data-[state=on]:shadow-sm"
+                >
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span>{CENARIO_CONFIG[c].label}</span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="text-xs">{CENARIO_CONFIG[c].descricao}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+          </div>
         </div>
 
         {/* Alert for negative balance */}
