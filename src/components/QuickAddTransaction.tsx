@@ -262,6 +262,7 @@ const QuickAddTransaction = ({ open, onOpenChange }: QuickAddTransactionProps) =
 
     // Standard transaction logic
     const isCreditCard = formData.forma_pagamento === 'credito';
+    const isFixedRecurrence = formData.recorrencia === 'fixa';
     const needsInstallments = (isCreditCard || (formData.recorrencia !== 'nenhuma' && formData.recorrencia !== 'fixa'))
       && parsedParcelas && parsedParcelas > 1;
 
@@ -269,6 +270,40 @@ const QuickAddTransaction = ({ open, onOpenChange }: QuickAddTransactionProps) =
     const isCardAccount = selectedConta?.tipo === 'credito';
     const closingDay = selectedConta?.dia_fechamento || 1;
     const dueDay = selectedConta?.dia_vencimento || 10;
+
+    // Fixed unlimited recurrence (subscriptions: Netflix, Spotify, etc.)
+    if (isFixedRecurrence) {
+      const result = await createFixaRecurrenceSeries({
+        user_id: user?.id as string,
+        conta_id: formData.conta_id,
+        categoria_id: formData.categoria_id || null,
+        valor: parsedValor,
+        tipo: formData.tipo,
+        baseDate: parseISO(formData.data),
+        forma_pagamento: formData.forma_pagamento,
+        descricao: formData.descricao || null,
+        isCreditCard: isCreditCard && isCardAccount,
+        cardClosingDay: closingDay,
+        cardDueDay: dueDay,
+      });
+      if ("error" in result) {
+        toast({ title: "Erro", description: "Erro ao criar assinatura recorrente", variant: "destructive" });
+        setLoading(false);
+        return;
+      }
+      toast({
+        title: "Sucesso",
+        description: `Assinatura criada (${FIXA_RECURRENCE_WINDOW_MONTHS} meses gerados, estendida automaticamente)`,
+      });
+      localStorage.removeItem(DRAFT_KEY);
+      setLoading(false);
+      resetForm();
+      onOpenChange(false);
+      invalidateQueries();
+      return;
+    }
+
+
 
     if (needsInstallments) {
       const baseDate = parseISO(formData.data);
