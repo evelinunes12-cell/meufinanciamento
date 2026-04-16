@@ -1017,7 +1017,7 @@ const Transacoes = () => {
                     <span>{getContaNome(transacao.conta_id)}</span>
                   </div>
                   <div className="flex items-center gap-0.5">
-                    {transacao.is_pago_executado === false && (
+                    {transacao.is_pago_executado === false && contas.find(c => c.id === transacao.conta_id)?.tipo !== "credito" && (
                       <Button variant="ghost" size="icon" className="h-7 w-7 text-success" onClick={() => handleConfirmPayment(transacao)} title="Confirmar">
                         <Check className="h-3.5 w-3.5" />
                       </Button>
@@ -1143,7 +1143,7 @@ const Transacoes = () => {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
-                        {transacao.is_pago_executado === false && (
+                        {transacao.is_pago_executado === false && contas.find(c => c.id === transacao.conta_id)?.tipo !== "credito" && (
                           <Button
                             variant="ghost"
                             size="icon"

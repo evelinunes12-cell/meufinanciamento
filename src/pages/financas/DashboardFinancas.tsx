@@ -781,7 +781,7 @@ const DashboardFinancas = () => {
           )}
 
           {visibility.contasConfirmar && (
-            <ContasConfirmarWidget transacoes={transacoesFiltradasGerais} categorias={categorias} />
+            <ContasConfirmarWidget transacoes={transacoesFiltradasGerais} categorias={categorias} contas={contas} />
           )}
         </div>
 
