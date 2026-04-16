@@ -4,6 +4,270 @@
  */
 
 import { addMonths, endOfMonth, startOfMonth, subMonths, parseISO, isBefore, isAfter, format } from "date-fns";
+import { supabase } from "@/integrations/supabase/client";
+import { calculateCardDueDate, calculateInstallmentDueDate } from "@/lib/calculations";
+
+// ==========================================
+// Fixed Recurrence (Unlimited Subscriptions)
+// ==========================================
+
+/**
+ * Window in months generated upfront for a "fixa" (unlimited) recurrence.
+ * The series is later extended via extendFixaSeries when the user gets close
+ * to the end of the window so it always feels unlimited.
+ */
+export const FIXA_RECURRENCE_WINDOW_MONTHS = 24;
+
+/**
+ * Threshold (in months) below which a series is auto-extended.
+ * If the latest child of a fixa series is less than this many months ahead
+ * of "today", we top up to FIXA_RECURRENCE_WINDOW_MONTHS again.
+ */
+export const FIXA_RECURRENCE_EXTEND_THRESHOLD_MONTHS = 6;
+
+interface BuildFixaRowsParams {
+  user_id: string;
+  conta_id: string;
+  categoria_id: string | null;
+  valor: number;
+  tipo: string;
+  baseDate: Date;
+  forma_pagamento: string;
+  descricao: string | null;
+  // Credit card support (only used when isCreditCard === true)
+  isCreditCard: boolean;
+  cardClosingDay?: number;
+  cardDueDay?: number;
+  // How many months of rows to produce (defaults to FIXA_RECURRENCE_WINDOW_MONTHS)
+  months?: number;
+  // Index offset (used by extendFixaSeries to continue from existing rows)
+  startOffset?: number;
+}
+
+interface FixaRow {
+  user_id: string;
+  conta_id: string;
+  categoria_id: string | null;
+  valor: number;
+  tipo: string;
+  data: string;
+  data_pagamento: string | null;
+  forma_pagamento: string;
+  recorrencia: string;
+  descricao: string | null;
+  is_pago_executado: boolean;
+  parcela_atual: number;
+  parcelas_total: null;
+}
+
+/**
+ * Builds an array of monthly transaction rows for a "fixa" recurrence.
+ * - Non credit-card: each row has data = baseDate + iMonths, data_pagamento = null,
+ *   is_pago_executado = false (must be confirmed by the user every month).
+ * - Credit card: each row keeps data = baseDate (purchase date is fixed for the
+ *   fixed monthly charge), data_pagamento = invoice due date for that cycle,
+ *   is_pago_executado = false (paid via invoice).
+ */
+export function buildFixaRecurrenceRows(params: BuildFixaRowsParams): FixaRow[] {
+  const months = params.months ?? FIXA_RECURRENCE_WINDOW_MONTHS;
+  const startOffset = params.startOffset ?? 0;
+  const rows: FixaRow[] = [];
+
+  const baseCardDueDate = params.isCreditCard && params.cardClosingDay && params.cardDueDay
+    ? calculateCardDueDate(params.baseDate, params.cardClosingDay, params.cardDueDay)
+    : null;
+
+  for (let i = 0; i < months; i++) {
+    const indexInSeries = startOffset + i;
+    const occurrenceDate = addMonths(params.baseDate, indexInSeries);
+
+    let data: string;
+    let data_pagamento: string | null = null;
+
+    if (params.isCreditCard && baseCardDueDate && params.cardDueDay) {
+      // Keep purchase date fixed; only the invoice due date moves forward
+      data = format(occurrenceDate, "yyyy-MM-dd");
+      data_pagamento = format(
+        calculateInstallmentDueDate(baseCardDueDate, indexInSeries, params.cardDueDay),
+        "yyyy-MM-dd"
+      );
+    } else {
+      data = format(occurrenceDate, "yyyy-MM-dd");
+    }
+
+    rows.push({
+      user_id: params.user_id,
+      conta_id: params.conta_id,
+      categoria_id: params.categoria_id,
+      valor: params.valor,
+      tipo: params.tipo,
+      data,
+      data_pagamento,
+      forma_pagamento: params.forma_pagamento,
+      recorrencia: "fixa",
+      descricao: params.descricao,
+      is_pago_executado: false,
+      parcela_atual: indexInSeries + 1,
+      parcelas_total: null,
+    });
+  }
+
+  return rows;
+}
+
+/**
+ * Inserts a brand-new fixa recurrence series:
+ * - Inserts the first row, captures its id (= series origin)
+ * - Inserts the remaining rows with transacao_origem_id set
+ * Returns the origin transaction id on success.
+ */
+export async function createFixaRecurrenceSeries(
+  params: BuildFixaRowsParams
+): Promise<{ originId: string; total: number } | { error: string }> {
+  const rows = buildFixaRecurrenceRows(params);
+  if (rows.length === 0) return { error: "Nenhuma linha gerada" };
+
+  const { data: first, error: firstError } = await supabase
+    .from("transacoes")
+    .insert(rows[0])
+    .select()
+    .single();
+
+  if (firstError || !first) {
+    return { error: firstError?.message ?? "Erro ao criar transação" };
+  }
+
+  if (rows.length > 1) {
+    const remaining = rows.slice(1).map(r => ({ ...r, transacao_origem_id: first.id }));
+    const { error: remError } = await supabase.from("transacoes").insert(remaining);
+    if (remError) {
+      return { error: remError.message };
+    }
+  }
+
+  return { originId: first.id, total: rows.length };
+}
+
+interface FixaSeriesOrigin {
+  id: string;
+  user_id: string;
+  conta_id: string;
+  categoria_id: string | null;
+  valor: number;
+  tipo: string;
+  data: string;
+  forma_pagamento: string;
+  descricao: string | null;
+}
+
+interface ContaForExtension {
+  id: string;
+  tipo: string;
+  dia_fechamento: number | null;
+  dia_vencimento: number | null;
+}
+
+/**
+ * Extends every fixa recurrence series for the given user so that it always has
+ * at least FIXA_RECURRENCE_WINDOW_MONTHS rows ahead of "today".
+ *
+ * Strategy:
+ *   1. Fetch all series origins (recorrencia='fixa' AND transacao_origem_id IS NULL).
+ *   2. For each origin, find the latest existing child (or origin) date.
+ *   3. If latest < today + EXTEND_THRESHOLD months, generate enough new rows to
+ *      reach today + WINDOW months, all linked to origin via transacao_origem_id.
+ *
+ * Safe to call multiple times — only inserts missing rows.
+ */
+export async function extendFixaSeries(userId: string): Promise<{ inserted: number }> {
+  if (!userId) return { inserted: 0 };
+
+  const todayPlusThreshold = format(
+    addMonths(new Date(), FIXA_RECURRENCE_EXTEND_THRESHOLD_MONTHS),
+    "yyyy-MM-dd"
+  );
+  const todayPlusWindow = format(
+    addMonths(new Date(), FIXA_RECURRENCE_WINDOW_MONTHS),
+    "yyyy-MM-dd"
+  );
+
+  // 1. Fetch all series origins for this user
+  const { data: origins, error: originsError } = await supabase
+    .from("transacoes")
+    .select("id, user_id, conta_id, categoria_id, valor, tipo, data, forma_pagamento, descricao")
+    .eq("user_id", userId)
+    .eq("recorrencia", "fixa")
+    .is("transacao_origem_id", null);
+
+  if (originsError || !origins || origins.length === 0) return { inserted: 0 };
+
+  // 2. Fetch contas (for credit-card metadata)
+  const { data: contasData } = await supabase
+    .from("contas")
+    .select("id, tipo, dia_fechamento, dia_vencimento");
+  const contas = (contasData ?? []) as ContaForExtension[];
+
+  let totalInserted = 0;
+
+  for (const origin of origins as FixaSeriesOrigin[]) {
+    // Find latest occurrence (origin or any child) for this series
+    const { data: latestRow } = await supabase
+      .from("transacoes")
+      .select("data, parcela_atual")
+      .or(`id.eq.${origin.id},transacao_origem_id.eq.${origin.id}`)
+      .order("data", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const latestDate = latestRow?.data ?? origin.data;
+    const latestParcela = latestRow?.parcela_atual ?? 1;
+
+    // No need to extend if already covered
+    if (latestDate >= todayPlusThreshold && latestDate >= todayPlusWindow) {
+      continue;
+    }
+    if (latestDate >= todayPlusWindow) continue;
+    if (latestDate >= todayPlusThreshold) continue;
+
+    // Compute how many new monthly rows are needed to reach today+WINDOW
+    const latest = parseISO(latestDate);
+    const target = addMonths(new Date(), FIXA_RECURRENCE_WINDOW_MONTHS);
+    const monthsDiff =
+      (target.getFullYear() - latest.getFullYear()) * 12 +
+      (target.getMonth() - latest.getMonth());
+    const monthsToAdd = Math.max(0, monthsDiff);
+    if (monthsToAdd === 0) continue;
+
+    const conta = contas.find(c => c.id === origin.conta_id);
+    const isCreditCard = origin.forma_pagamento === "credito" && conta?.tipo === "credito";
+
+    // Build rows starting AFTER the latest occurrence
+    const rows = buildFixaRecurrenceRows({
+      user_id: origin.user_id,
+      conta_id: origin.conta_id,
+      categoria_id: origin.categoria_id,
+      valor: Number(origin.valor),
+      tipo: origin.tipo,
+      baseDate: parseISO(origin.data),
+      forma_pagamento: origin.forma_pagamento,
+      descricao: origin.descricao,
+      isCreditCard,
+      cardClosingDay: conta?.dia_fechamento ?? undefined,
+      cardDueDay: conta?.dia_vencimento ?? undefined,
+      months: monthsToAdd,
+      startOffset: latestParcela, // continue numbering from after the last one
+    }).map(r => ({ ...r, transacao_origem_id: origin.id }));
+
+    if (rows.length === 0) continue;
+
+    const { error: insertError } = await supabase.from("transacoes").insert(rows);
+    if (!insertError) totalInserted += rows.length;
+  }
+
+  return { inserted: totalInserted };
+}
+
+
 
 // ==========================================
 // Transaction Status Helpers

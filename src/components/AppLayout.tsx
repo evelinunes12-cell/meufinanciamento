@@ -1,5 +1,6 @@
 import { ReactNode, useState, useMemo } from "react";
 import { useSwipeNavigation } from "@/hooks/useSwipeNavigation";
+import { useFixaRecurrenceExtender } from "@/hooks/useFixaRecurrenceExtender";
 import AppSidebar from "./AppSidebar";
 import BottomNav from "./BottomNav";
 import QuickAddTransaction from "./QuickAddTransaction";
@@ -60,6 +61,7 @@ const SaldoSkeleton = ({ size = "default" }: { size?: "compact" | "default" }) =
 const AppLayout = ({ children }: AppLayoutProps) => {
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   useSwipeNavigation();
+  useFixaRecurrenceExtender();
   const { saldoContas, isLoading } = useSaldo();
   const { user } = useAuth();
 
