@@ -58,7 +58,7 @@ const navGroups: NavGroup[] = [
     items: [
       { path: "/financiamento", label: "Configuração", icon: FileSpreadsheet },
       { path: "/financiamento/parcelas", label: "Parcelas", icon: FileText },
-      { path: "/financiamento/dashboard", label: "Dashboard", icon: BarChart3 },
+      { path: "/financiamento/dashboard", label: "Relatórios", icon: BarChart3 },
     ],
   },
 ];
