@@ -15,6 +15,7 @@ interface Transacao {
   data: string;
   descricao: string | null;
   categoria_id: string | null;
+  conta_id: string;
   is_pago_executado: boolean | null;
 }
 
