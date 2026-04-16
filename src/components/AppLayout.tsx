@@ -61,6 +61,7 @@ const SaldoSkeleton = ({ size = "default" }: { size?: "compact" | "default" }) =
 const AppLayout = ({ children }: AppLayoutProps) => {
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   useSwipeNavigation();
+  useFixaRecurrenceExtender();
   const { saldoContas, isLoading } = useSaldo();
   const { user } = useAuth();
 
