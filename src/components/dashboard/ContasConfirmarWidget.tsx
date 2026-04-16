@@ -15,12 +15,19 @@ interface Transacao {
   data: string;
   descricao: string | null;
   categoria_id: string | null;
+  conta_id: string;
   is_pago_executado: boolean | null;
+}
+
+interface Conta {
+  id: string;
+  tipo: string;
 }
 
 interface ContasConfirmarWidgetProps {
   transacoes: Transacao[];
   categorias?: { id: string; nome: string }[];
+  contas?: Conta[];
   onRefresh?: () => void;
 }
 
@@ -28,12 +35,14 @@ const formatCurrency = (value: number) => {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 };
 
-export function ContasConfirmarWidget({ transacoes, categorias = [] }: ContasConfirmarWidgetProps) {
+export function ContasConfirmarWidget({ transacoes, categorias = [], contas = [] }: ContasConfirmarWidgetProps) {
   const [selectedTransacao, setSelectedTransacao] = useState<Transacao | null>(null);
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
 
+  const contasCreditoIds = new Set(contas.filter(c => c.tipo === "credito").map(c => c.id));
+
   const pendentes = transacoes
-    .filter(t => t.tipo === "despesa" && t.is_pago_executado === false)
+    .filter(t => t.tipo === "despesa" && t.is_pago_executado === false && !contasCreditoIds.has(t.conta_id))
     .sort((a, b) => a.data.localeCompare(b.data));
   const getCategoriaNome = (id: string | null) =>
     categorias.find(c => c.id === id)?.nome || "Sem categoria";
