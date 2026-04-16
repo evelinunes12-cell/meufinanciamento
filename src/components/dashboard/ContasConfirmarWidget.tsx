@@ -34,7 +34,7 @@ export function ContasConfirmarWidget({ transacoes, categorias = [] }: ContasCon
 
   const pendentes = transacoes
     .filter(t => t.tipo === "despesa" && t.is_pago_executado === false)
-    .slice(0, 10);
+    .sort((a, b) => a.data.localeCompare(b.data));
   const getCategoriaNome = (id: string | null) =>
     categorias.find(c => c.id === id)?.nome || "Sem categoria";
 
