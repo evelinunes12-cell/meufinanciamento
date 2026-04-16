@@ -23,7 +23,7 @@ import ColorPicker from "@/components/ColorPicker";
 import ConfirmPaymentModal from "@/components/ConfirmPaymentModal";
 import DeleteSeriesDialog from "@/components/DeleteSeriesDialog";
 import CategoryCombobox from "@/components/CategoryCombobox";
-import { isPendente, getDataCompetenciaTransacao } from "@/lib/transactions";
+import { isPendente, getDataCompetenciaTransacao, createFixaRecurrenceSeries, FIXA_RECURRENCE_WINDOW_MONTHS } from "@/lib/transactions";
 
 interface Transacao {
   id: string;
