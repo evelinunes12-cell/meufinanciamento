@@ -346,11 +346,40 @@ const Orcamento = () => {
                       <SelectValue placeholder="Selecione uma categoria" />
                     </SelectTrigger>
                     <SelectContent>
-                      {categoriasDisponiveis.map((cat) => (
-                        <SelectItem key={cat.id} value={cat.id}>
-                          {cat.nome}
-                        </SelectItem>
-                      ))}
+                      {(() => {
+                        const mainCats = categoriasDisponiveis.filter(c => !c.categoria_pai_id);
+                        const subCats = categoriasDisponiveis.filter(c => c.categoria_pai_id);
+                        const items: React.ReactNode[] = [];
+
+                        mainCats.forEach((main) => {
+                          items.push(
+                            <SelectItem key={main.id} value={main.id} className="font-semibold">
+                              {main.nome}
+                            </SelectItem>
+                          );
+                          const children = subCats.filter(s => s.categoria_pai_id === main.id);
+                          children.forEach((sub) => {
+                            items.push(
+                              <SelectItem key={sub.id} value={sub.id} className="pl-8 text-muted-foreground">
+                                └ {sub.nome}
+                              </SelectItem>
+                            );
+                          });
+                        });
+
+                        // Orphan subcategories (parent not in available list)
+                        const groupedSubIds = new Set(subCats.filter(s => mainCats.some(m => m.id === s.categoria_pai_id)).map(s => s.id));
+                        subCats.filter(s => !groupedSubIds.has(s.id)).forEach((sub) => {
+                          const parentName = categorias.find(c => c.id === sub.categoria_pai_id)?.nome;
+                          items.push(
+                            <SelectItem key={sub.id} value={sub.id} className="pl-8 text-muted-foreground">
+                              {parentName ? `${parentName} › ` : ""}{sub.nome}
+                            </SelectItem>
+                          );
+                        });
+
+                        return items;
+                      })()}
                     </SelectContent>
                   </Select>
                 </div>
