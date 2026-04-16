@@ -152,10 +152,13 @@ export type Database = {
           created_at: string | null
           data_contratacao: string | null
           data_primeira_parcela: string
+          icone: string | null
           id: string
+          nome: string
           numero_parcelas: number
           taxa_diaria: number
           taxa_mensal: number
+          tipo: string
           updated_at: string | null
           user_id: string | null
           valor_financiado: number
@@ -165,10 +168,13 @@ export type Database = {
           created_at?: string | null
           data_contratacao?: string | null
           data_primeira_parcela: string
+          icone?: string | null
           id?: string
+          nome?: string
           numero_parcelas: number
           taxa_diaria?: number
           taxa_mensal?: number
+          tipo?: string
           updated_at?: string | null
           user_id?: string | null
           valor_financiado: number
@@ -178,10 +184,13 @@ export type Database = {
           created_at?: string | null
           data_contratacao?: string | null
           data_primeira_parcela?: string
+          icone?: string | null
           id?: string
+          nome?: string
           numero_parcelas?: number
           taxa_diaria?: number
           taxa_mensal?: number
+          tipo?: string
           updated_at?: string | null
           user_id?: string | null
           valor_financiado?: number

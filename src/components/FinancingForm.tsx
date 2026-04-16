@@ -52,26 +52,6 @@ const FinancingForm = () => {
     setIsLoading(true);
 
     try {
-      // Delete existing financing and parcelas for this user
-      const { data: existingFinanciamento } = await supabase
-        .from("financiamento")
-        .select("id")
-        .eq("user_id", user.id)
-        .limit(1)
-        .maybeSingle();
-
-      if (existingFinanciamento) {
-        await supabase
-          .from("parcelas")
-          .delete()
-          .eq("financiamento_id", existingFinanciamento.id);
-
-        await supabase
-          .from("financiamento")
-          .delete()
-          .eq("id", existingFinanciamento.id);
-      }
-
       // Validate input data with zod
       const validationData = {
         valor_financiado: parseCurrencyInput(valorFinanciado),
@@ -107,6 +87,8 @@ const FinancingForm = () => {
           data_primeira_parcela: validated.data_primeira_parcela,
           data_contratacao: validated.data_contratacao,
           user_id: user.id,
+          nome: "Financiamento Atual",
+          tipo: "financiamento",
         })
         .select()
         .single();
@@ -140,7 +122,7 @@ const FinancingForm = () => {
         description: `Financiamento cadastrado com ${numeroParcelas} parcelas`,
       });
 
-      navigate("/parcelas");
+      navigate("/financiamento/parcelas");
     } catch (error: any) {
       toast({
         title: "Erro",
@@ -298,7 +280,7 @@ const FinancingForm = () => {
         ) : (
           <>
             <Sparkles className="mr-2 h-5 w-5" />
-            Cadastrar Financiamento
+            Cadastrar Contrato
           </>
         )}
       </Button>
