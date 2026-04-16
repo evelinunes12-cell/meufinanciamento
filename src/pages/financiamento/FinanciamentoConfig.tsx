@@ -33,6 +33,24 @@ interface Financiamento {
   data_contratacao: string | null;
 }
 
+interface ParcelaSnapshot {
+  amortizacao: number | null;
+  antecipada: boolean | null;
+  created_at: string | null;
+  data_pagamento: string | null;
+  data_vencimento: string;
+  dias_antecedencia: number | null;
+  economia: number | null;
+  financiamento_id: string;
+  id: string;
+  juros: number | null;
+  numero_parcela: number;
+  pago: boolean | null;
+  updated_at: string | null;
+  valor_pago: number | null;
+  valor_parcela: number;
+}
+
 const initialForm = {
   nome: "",
   tipo: "financiamento" as TipoContrato,
@@ -44,6 +62,15 @@ const initialForm = {
   taxaMensal: "1.75",
   dataPrimeiraParcela: undefined as Date | undefined,
   dataContratacao: undefined as Date | undefined,
+};
+
+const parseDateFromDatabase = (dateString: string | null): Date | undefined => {
+  if (!dateString) return undefined;
+
+  const [year, month, day] = dateString.split("-").map(Number);
+  if (!year || !month || !day) return undefined;
+
+  return new Date(year, month - 1, day);
 };
 
 const FinanciamentoConfig = () => {
@@ -103,8 +130,8 @@ const FinanciamentoConfig = () => {
       numeroParcelas: String(item.numero_parcelas),
       taxaDiaria: String(item.taxa_diaria * 100),
       taxaMensal: String(item.taxa_mensal * 100),
-      dataPrimeiraParcela: item.data_primeira_parcela ? new Date(item.data_primeira_parcela) : undefined,
-      dataContratacao: item.data_contratacao ? new Date(item.data_contratacao) : undefined,
+      dataPrimeiraParcela: parseDateFromDatabase(item.data_primeira_parcela),
+      dataContratacao: parseDateFromDatabase(item.data_contratacao),
     });
     setEditingId(item.id);
     setShowForm(true);
@@ -183,11 +210,61 @@ const FinanciamentoConfig = () => {
       };
 
       if (editingId) {
+        const previousContrato = financiamentos.find((item) => item.id === editingId);
+        const { data: existingParcelas, error: existingParcelasError } = await supabase
+          .from("parcelas")
+          .select("*")
+          .eq("financiamento_id", editingId);
+
+        if (existingParcelasError) throw existingParcelasError;
+
         const { error } = await supabase.from("financiamento").update(payload).eq("id", editingId).eq("user_id", user.id);
         if (error) throw error;
 
-        await supabase.from("parcelas").delete().eq("financiamento_id", editingId);
-        await generateParcelas(editingId, validationResult.data.numero_parcelas, validationResult.data.valor_parcela, form.dataPrimeiraParcela);
+        const { error: deleteError } = await supabase.from("parcelas").delete().eq("financiamento_id", editingId);
+        if (deleteError) throw deleteError;
+
+        try {
+          await generateParcelas(
+            editingId,
+            validationResult.data.numero_parcelas,
+            validationResult.data.valor_parcela,
+            form.dataPrimeiraParcela
+          );
+        } catch (regenerationError: any) {
+          if (existingParcelas && existingParcelas.length > 0) {
+            const parcelasSnapshot = existingParcelas as ParcelaSnapshot[];
+            const { error: restoreParcelasError } = await supabase.from("parcelas").insert(parcelasSnapshot);
+            if (restoreParcelasError) {
+              throw new Error(
+                `Falha ao regenerar parcelas e ao restaurar histórico anterior: ${restoreParcelasError.message}`
+              );
+            }
+          }
+
+          if (previousContrato) {
+            await supabase
+              .from("financiamento")
+              .update({
+                nome: previousContrato.nome,
+                tipo: previousContrato.tipo,
+                icone: previousContrato.icone,
+                valor_financiado: previousContrato.valor_financiado,
+                valor_parcela: previousContrato.valor_parcela,
+                numero_parcelas: previousContrato.numero_parcelas,
+                taxa_diaria: previousContrato.taxa_diaria,
+                taxa_mensal: previousContrato.taxa_mensal,
+                data_primeira_parcela: previousContrato.data_primeira_parcela,
+                data_contratacao: previousContrato.data_contratacao,
+              })
+              .eq("id", editingId)
+              .eq("user_id", user.id);
+          }
+
+          throw new Error(
+            regenerationError?.message || "Falha ao regenerar parcelas. O contrato anterior foi restaurado."
+          );
+        }
 
         toast({ title: "Contrato atualizado", description: "Dados e projeção de parcelas atualizados." });
       } else {
