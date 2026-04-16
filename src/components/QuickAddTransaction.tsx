@@ -24,6 +24,7 @@ import { Plus, Search } from "lucide-react";
 import { format, parseISO, addWeeks, addMonths, addYears } from "date-fns";
 import { toast } from "@/hooks/use-toast";
 import { formatCurrencyInput, parseCurrencyInput, calculateCardDueDate, calculateInstallmentDueDate } from "@/lib/calculations";
+import { createFixaRecurrenceSeries, FIXA_RECURRENCE_WINDOW_MONTHS } from "@/lib/transactions";
 import ColorPicker from "@/components/ColorPicker";
 
 interface Conta {
