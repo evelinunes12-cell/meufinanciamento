@@ -8,7 +8,7 @@ import {
   CreditCard, 
   Target, 
   FileText, 
-  Car, 
+  Landmark, 
   FileSpreadsheet, 
   BarChart3,
   TrendingUp,
