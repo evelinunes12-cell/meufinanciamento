@@ -155,7 +155,7 @@ const FinanciamentoParcelas = () => {
       <AppLayout>
         <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4">
           <div className="flex h-16 w-16 items-center justify-center rounded-2xl gradient-primary shadow-soft">
-            <Car className="h-8 w-8 text-primary-foreground" />
+            <Landmark className="h-8 w-8 text-primary-foreground" />
           </div>
           <h2 className="text-xl font-semibold text-foreground">Nenhum contrato encontrado</h2>
           <p className="text-muted-foreground text-center max-w-md">Configure um contrato primeiro para visualizar as parcelas.</p>
