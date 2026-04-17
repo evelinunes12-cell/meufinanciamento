@@ -20,7 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import StatsCards from "@/components/StatsCards";
 import InstallmentsTable from "@/components/InstallmentsTable";
 import ExportButton from "@/components/ExportButton";
-import { RefreshCw, RotateCcw, Car, Plus } from "lucide-react";
+import { RefreshCw, RotateCcw, Landmark, Plus } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 type TipoContrato = "financiamento" | "emprestimo";
