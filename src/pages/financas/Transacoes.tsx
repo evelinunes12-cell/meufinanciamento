@@ -1386,6 +1386,18 @@ const Transacoes = () => {
         descricao={deleteSeriesDialog.descricao}
         parcelasTotal={deleteSeriesDialog.parcelasTotal}
       />
+
+      {/* Edit Series Dialog (fixa recurrence: propagate price change) */}
+      <EditSeriesDialog
+        open={editSeriesDialog.open}
+        onOpenChange={(open) =>
+          setEditSeriesDialog((prev) => ({ ...prev, open }))
+        }
+        descricao={editingOriginal ? formData.descricao : null}
+        loading={editSeriesLoading}
+        onUpdateOnly={() => finalizeFixaSeriesEdit("only")}
+        onUpdateFuture={() => finalizeFixaSeriesEdit("future")}
+      />
     </AppLayout>
   );
 };
