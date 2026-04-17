@@ -23,7 +23,8 @@ import ColorPicker from "@/components/ColorPicker";
 import ConfirmPaymentModal from "@/components/ConfirmPaymentModal";
 import DeleteSeriesDialog from "@/components/DeleteSeriesDialog";
 import CategoryCombobox from "@/components/CategoryCombobox";
-import { isPendente, getDataCompetenciaTransacao, createFixaRecurrenceSeries, FIXA_RECURRENCE_WINDOW_MONTHS } from "@/lib/transactions";
+import { isPendente, getDataCompetenciaTransacao, createFixaRecurrenceSeries, propagateFixaUpdate, FIXA_RECURRENCE_WINDOW_MONTHS } from "@/lib/transactions";
+import EditSeriesDialog from "@/components/EditSeriesDialog";
 
 interface Transacao {
   id: string;
@@ -117,6 +118,17 @@ const Transacoes = () => {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingOriginal, setEditingOriginal] = useState<{
+    recorrencia: string;
+    transacao_origem_id: string | null;
+    data: string;
+  } | null>(null);
+  const [editSeriesDialog, setEditSeriesDialog] = useState<{
+    open: boolean;
+    pendingChanges: { valor: number; descricao: string | null; categoria_id: string | null } | null;
+    pendingDataToSave: Record<string, unknown> | null;
+  }>({ open: false, pendingChanges: null, pendingDataToSave: null });
+  const [editSeriesLoading, setEditSeriesLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
 
   // Filters
