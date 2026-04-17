@@ -630,7 +630,7 @@ const Transacoes = () => {
     }
   };
 
-
+  const handleDelete = (transacao: Transacao) => {
     setDeleteSeriesDialog({
       open: true,
       transacaoId: transacao.id,
