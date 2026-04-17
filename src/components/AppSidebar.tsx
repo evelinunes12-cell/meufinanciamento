@@ -53,8 +53,8 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
-    title: "Financiamento",
-    icon: Car,
+    title: "Empréstimos",
+    icon: Landmark,
     items: [
       { path: "/financiamento", label: "Configuração", icon: FileSpreadsheet },
       { path: "/financiamento/parcelas", label: "Parcelas", icon: FileText },
