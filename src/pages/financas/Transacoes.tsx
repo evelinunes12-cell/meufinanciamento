@@ -266,7 +266,7 @@ const Transacoes = () => {
       data_pagamento: "",
     });
     setEditingId(null);
-    
+    setEditingOriginal(null);
   };
 
   const getNextDate = (baseDate: Date, recorrencia: string, index: number): Date => {
