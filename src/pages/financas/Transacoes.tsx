@@ -515,6 +515,23 @@ const Transacoes = () => {
       };
 
       if (editingId) {
+        // Editing a row that belongs to a "fixa" (unlimited subscription) series
+        // → ask the user whether changes apply to this occurrence only or to all
+        // future unpaid occurrences (e.g., Netflix raised price R$39,90 → R$44,90).
+        if (editingOriginal?.recorrencia === "fixa") {
+          setEditSeriesDialog({
+            open: true,
+            pendingChanges: {
+              valor: parsedValor,
+              descricao: formData.descricao || null,
+              categoria_id: formData.categoria_id || null,
+            },
+            pendingDataToSave: dataToSave,
+          });
+          // Defer write — actual update happens after user picks an option.
+          return;
+        }
+
         const { error } = await supabase.from("transacoes").update(dataToSave).eq("id", editingId);
         if (error) {
           toast({ title: "Erro", description: "Erro ao atualizar transação", variant: "destructive" });
@@ -552,6 +569,11 @@ const Transacoes = () => {
       conta_destino_id: transacao.conta_destino_id || "",
     });
     setEditingId(transacao.id);
+    setEditingOriginal({
+      recorrencia: transacao.recorrencia,
+      transacao_origem_id: transacao.transacao_origem_id,
+      data: transacao.data,
+    });
     setDialogOpen(true);
   };
 
