@@ -23,7 +23,8 @@ import ColorPicker from "@/components/ColorPicker";
 import ConfirmPaymentModal from "@/components/ConfirmPaymentModal";
 import DeleteSeriesDialog from "@/components/DeleteSeriesDialog";
 import CategoryCombobox from "@/components/CategoryCombobox";
-import { isPendente, getDataCompetenciaTransacao, createFixaRecurrenceSeries, FIXA_RECURRENCE_WINDOW_MONTHS } from "@/lib/transactions";
+import { isPendente, getDataCompetenciaTransacao, createFixaRecurrenceSeries, propagateFixaUpdate, FIXA_RECURRENCE_WINDOW_MONTHS } from "@/lib/transactions";
+import EditSeriesDialog from "@/components/EditSeriesDialog";
 
 interface Transacao {
   id: string;
@@ -117,6 +118,17 @@ const Transacoes = () => {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingOriginal, setEditingOriginal] = useState<{
+    recorrencia: string;
+    transacao_origem_id: string | null;
+    data: string;
+  } | null>(null);
+  const [editSeriesDialog, setEditSeriesDialog] = useState<{
+    open: boolean;
+    pendingChanges: { valor: number; descricao: string | null; categoria_id: string | null } | null;
+    pendingDataToSave: Record<string, unknown> | null;
+  }>({ open: false, pendingChanges: null, pendingDataToSave: null });
+  const [editSeriesLoading, setEditSeriesLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
 
   // Filters
@@ -254,7 +266,7 @@ const Transacoes = () => {
       data_pagamento: "",
     });
     setEditingId(null);
-    
+    setEditingOriginal(null);
   };
 
   const getNextDate = (baseDate: Date, recorrencia: string, index: number): Date => {
@@ -503,6 +515,23 @@ const Transacoes = () => {
       };
 
       if (editingId) {
+        // Editing a row that belongs to a "fixa" (unlimited subscription) series
+        // → ask the user whether changes apply to this occurrence only or to all
+        // future unpaid occurrences (e.g., Netflix raised price R$39,90 → R$44,90).
+        if (editingOriginal?.recorrencia === "fixa") {
+          setEditSeriesDialog({
+            open: true,
+            pendingChanges: {
+              valor: parsedValor,
+              descricao: formData.descricao || null,
+              categoria_id: formData.categoria_id || null,
+            },
+            pendingDataToSave: dataToSave,
+          });
+          // Defer write — actual update happens after user picks an option.
+          return;
+        }
+
         const { error } = await supabase.from("transacoes").update(dataToSave).eq("id", editingId);
         if (error) {
           toast({ title: "Erro", description: "Erro ao atualizar transação", variant: "destructive" });
@@ -540,7 +569,65 @@ const Transacoes = () => {
       conta_destino_id: transacao.conta_destino_id || "",
     });
     setEditingId(transacao.id);
+    setEditingOriginal({
+      recorrencia: transacao.recorrencia,
+      transacao_origem_id: transacao.transacao_origem_id,
+      data: transacao.data,
+    });
     setDialogOpen(true);
+  };
+
+  /**
+   * Finalizes a fixa-series edit after the user picks an option in the dialog.
+   * - "only": single-row update (current behavior)
+   * - "future": apply changes to this row + all future unpaid occurrences
+   */
+  const finalizeFixaSeriesEdit = async (mode: "only" | "future") => {
+    if (!editingId || !editingOriginal || !editSeriesDialog.pendingDataToSave || !editSeriesDialog.pendingChanges) {
+      setEditSeriesDialog({ open: false, pendingChanges: null, pendingDataToSave: null });
+      return;
+    }
+
+    setEditSeriesLoading(true);
+    try {
+      // Always update the currently edited row first (full payload).
+      const { error: updateError } = await supabase
+        .from("transacoes")
+        .update(editSeriesDialog.pendingDataToSave)
+        .eq("id", editingId);
+
+      if (updateError) {
+        toast({ title: "Erro", description: "Erro ao atualizar transação", variant: "destructive" });
+        return;
+      }
+
+      if (mode === "future") {
+        const { updated, error: propError } = await propagateFixaUpdate({
+          transacaoId: editingId,
+          fromData: editingOriginal.data,
+          transacaoOrigemId: editingOriginal.transacao_origem_id,
+          changes: editSeriesDialog.pendingChanges,
+        });
+        if (propError) {
+          toast({ title: "Atenção", description: "Esta foi atualizada, mas houve falha ao propagar para as próximas", variant: "destructive" });
+        } else {
+          toast({
+            title: "Sucesso",
+            description: `Assinatura atualizada (${updated} ocorrência${updated === 1 ? "" : "s"} ajustada${updated === 1 ? "" : "s"})`,
+          });
+        }
+      } else {
+        toast({ title: "Sucesso", description: "Transação atualizada" });
+      }
+
+      setEditSeriesDialog({ open: false, pendingChanges: null, pendingDataToSave: null });
+      localStorage.removeItem(DRAFT_KEY);
+      setDialogOpen(false);
+      resetForm();
+      invalidateQueries();
+    } finally {
+      setEditSeriesLoading(false);
+    }
   };
 
   const handleDelete = (transacao: Transacao) => {
@@ -1298,6 +1385,18 @@ const Transacoes = () => {
         transacaoData={deleteSeriesDialog.transacaoData}
         descricao={deleteSeriesDialog.descricao}
         parcelasTotal={deleteSeriesDialog.parcelasTotal}
+      />
+
+      {/* Edit Series Dialog (fixa recurrence: propagate price change) */}
+      <EditSeriesDialog
+        open={editSeriesDialog.open}
+        onOpenChange={(open) =>
+          setEditSeriesDialog((prev) => ({ ...prev, open }))
+        }
+        descricao={editingOriginal ? formData.descricao : null}
+        loading={editSeriesLoading}
+        onUpdateOnly={() => finalizeFixaSeriesEdit("only")}
+        onUpdateFuture={() => finalizeFixaSeriesEdit("future")}
       />
     </AppLayout>
   );

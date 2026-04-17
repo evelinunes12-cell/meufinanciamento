@@ -167,6 +167,75 @@ interface ContaForExtension {
   dia_vencimento: number | null;
 }
 
+interface PropagateFixaUpdateParams {
+  /** Id of the transaction the user is currently editing. */
+  transacaoId: string;
+  /** Reference date — only future occurrences (data >= this) are touched. */
+  fromData: string;
+  /** Series origin id (the originating row). If null, transacaoId IS the origin. */
+  transacaoOrigemId: string | null;
+  /** Fields to apply to all matched future rows. */
+  changes: {
+    valor?: number;
+    descricao?: string | null;
+    categoria_id?: string | null;
+  };
+}
+
+/**
+ * Propagates an edit (typically a new value, e.g. Netflix raised price) across
+ * a "fixa" recurrence series.
+ *
+ * Rules:
+ *  - Only rows whose `data >= fromData` are updated (past months stay untouched
+ *    so historical accounting remains accurate).
+ *  - Already-paid rows (is_pago_executado = true) are skipped — once a payment
+ *    is confirmed, the actual paid value is sacred.
+ *  - Works whether the user edits the origin row or any child row.
+ */
+export async function propagateFixaUpdate(
+  params: PropagateFixaUpdateParams
+): Promise<{ updated: number; error?: string }> {
+  const { transacaoId, fromData, transacaoOrigemId, changes } = params;
+
+  const seriesOriginId = transacaoOrigemId ?? transacaoId;
+
+  // Build the update payload, skipping undefined fields
+  const updatePayload: Record<string, unknown> = {};
+  if (changes.valor !== undefined) updatePayload.valor = changes.valor;
+  if (changes.descricao !== undefined) updatePayload.descricao = changes.descricao;
+  if (changes.categoria_id !== undefined) updatePayload.categoria_id = changes.categoria_id;
+
+  if (Object.keys(updatePayload).length === 0) {
+    return { updated: 0 };
+  }
+
+  // Fetch all candidate rows in the series from `fromData` onward,
+  // excluding those already paid.
+  const { data: rows, error: fetchError } = await supabase
+    .from("transacoes")
+    .select("id, is_pago_executado")
+    .or(`id.eq.${seriesOriginId},transacao_origem_id.eq.${seriesOriginId}`)
+    .gte("data", fromData);
+
+  if (fetchError) return { updated: 0, error: fetchError.message };
+  if (!rows || rows.length === 0) return { updated: 0 };
+
+  const idsToUpdate = rows
+    .filter(r => r.is_pago_executado !== true)
+    .map(r => r.id);
+
+  if (idsToUpdate.length === 0) return { updated: 0 };
+
+  const { error: updateError } = await supabase
+    .from("transacoes")
+    .update(updatePayload)
+    .in("id", idsToUpdate);
+
+  if (updateError) return { updated: 0, error: updateError.message };
+  return { updated: idsToUpdate.length };
+}
+
 /**
  * Extends every fixa recurrence series for the given user so that it always has
  * at least FIXA_RECURRENCE_WINDOW_MONTHS rows ahead of "today".
