@@ -577,7 +577,60 @@ const Transacoes = () => {
     setDialogOpen(true);
   };
 
-  const handleDelete = (transacao: Transacao) => {
+  /**
+   * Finalizes a fixa-series edit after the user picks an option in the dialog.
+   * - "only": single-row update (current behavior)
+   * - "future": apply changes to this row + all future unpaid occurrences
+   */
+  const finalizeFixaSeriesEdit = async (mode: "only" | "future") => {
+    if (!editingId || !editingOriginal || !editSeriesDialog.pendingDataToSave || !editSeriesDialog.pendingChanges) {
+      setEditSeriesDialog({ open: false, pendingChanges: null, pendingDataToSave: null });
+      return;
+    }
+
+    setEditSeriesLoading(true);
+    try {
+      // Always update the currently edited row first (full payload).
+      const { error: updateError } = await supabase
+        .from("transacoes")
+        .update(editSeriesDialog.pendingDataToSave)
+        .eq("id", editingId);
+
+      if (updateError) {
+        toast({ title: "Erro", description: "Erro ao atualizar transação", variant: "destructive" });
+        return;
+      }
+
+      if (mode === "future") {
+        const { updated, error: propError } = await propagateFixaUpdate({
+          transacaoId: editingId,
+          fromData: editingOriginal.data,
+          transacaoOrigemId: editingOriginal.transacao_origem_id,
+          changes: editSeriesDialog.pendingChanges,
+        });
+        if (propError) {
+          toast({ title: "Atenção", description: "Esta foi atualizada, mas houve falha ao propagar para as próximas", variant: "destructive" });
+        } else {
+          toast({
+            title: "Sucesso",
+            description: `Assinatura atualizada (${updated} ocorrência${updated === 1 ? "" : "s"} ajustada${updated === 1 ? "" : "s"})`,
+          });
+        }
+      } else {
+        toast({ title: "Sucesso", description: "Transação atualizada" });
+      }
+
+      setEditSeriesDialog({ open: false, pendingChanges: null, pendingDataToSave: null });
+      localStorage.removeItem(DRAFT_KEY);
+      setDialogOpen(false);
+      resetForm();
+      invalidateQueries();
+    } finally {
+      setEditSeriesLoading(false);
+    }
+  };
+
+
     setDeleteSeriesDialog({
       open: true,
       transacaoId: transacao.id,
