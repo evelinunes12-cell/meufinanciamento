@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import StatsCards from "@/components/StatsCards";
 import DashboardCharts from "@/components/DashboardCharts";
 import ExportButton from "@/components/ExportButton";
-import { RefreshCw, Car, Plus } from "lucide-react";
+import { RefreshCw, Landmark, Plus } from "lucide-react";
 
 type TipoContrato = "financiamento" | "emprestimo";
 
