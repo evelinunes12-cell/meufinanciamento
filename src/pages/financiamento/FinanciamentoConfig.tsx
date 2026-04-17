@@ -174,12 +174,19 @@ const FinanciamentoConfig = () => {
         return;
       }
 
+      const validated = validationResult.data;
       const payload = {
-        ...validationResult.data,
         nome: form.nome.trim() || "Contrato sem nome",
         tipo: form.tipo,
         icone: form.icone.trim() || null,
         user_id: user.id,
+        valor_financiado: validated.valor_financiado,
+        valor_parcela: validated.valor_parcela,
+        numero_parcelas: validated.numero_parcelas,
+        taxa_diaria: validated.taxa_diaria,
+        taxa_mensal: validated.taxa_mensal,
+        data_primeira_parcela: validated.data_primeira_parcela,
+        data_contratacao: validated.data_contratacao,
       };
 
       if (editingId) {
