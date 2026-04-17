@@ -174,26 +174,52 @@ const FinanciamentoConfig = () => {
         return;
       }
 
+      const validated = validationResult.data;
       const payload = {
-        ...validationResult.data,
         nome: form.nome.trim() || "Contrato sem nome",
         tipo: form.tipo,
         icone: form.icone.trim() || null,
         user_id: user.id,
+        valor_financiado: validated.valor_financiado,
+        valor_parcela: validated.valor_parcela,
+        numero_parcelas: validated.numero_parcelas,
+        taxa_diaria: validated.taxa_diaria,
+        taxa_mensal: validated.taxa_mensal,
+        data_primeira_parcela: validated.data_primeira_parcela,
+        data_contratacao: validated.data_contratacao,
       };
 
       if (editingId) {
-        const { error } = await supabase.from("financiamento").update(payload).eq("id", editingId).eq("user_id", user.id);
+        // EDIÇÃO SEGURA: APENAS UPDATE na tabela financiamento.
+        // NUNCA deletar/recriar parcelas aqui — isso apagaria histórico de pagamentos.
+        // Para recálculo de parcelas, criar fluxo separado no futuro.
+        const { error } = await supabase
+          .from("financiamento")
+          .update({
+            nome: payload.nome,
+            tipo: payload.tipo,
+            icone: payload.icone,
+            valor_financiado: payload.valor_financiado,
+            valor_parcela: payload.valor_parcela,
+            numero_parcelas: payload.numero_parcelas,
+            taxa_diaria: payload.taxa_diaria,
+            taxa_mensal: payload.taxa_mensal,
+            data_primeira_parcela: payload.data_primeira_parcela,
+            data_contratacao: payload.data_contratacao,
+          })
+          .eq("id", editingId)
+          .eq("user_id", user.id);
         if (error) throw error;
 
-        await supabase.from("parcelas").delete().eq("financiamento_id", editingId);
-        await generateParcelas(editingId, validationResult.data.numero_parcelas, validationResult.data.valor_parcela, form.dataPrimeiraParcela);
-
-        toast({ title: "Contrato atualizado", description: "Dados e projeção de parcelas atualizados." });
+        toast({
+          title: "Contrato atualizado",
+          description: "Dados do contrato salvos. Histórico de parcelas preservado.",
+        });
       } else {
+        // CRIAÇÃO: insere financiamento e gera parcelas iniciais.
         const { data: financiamento, error } = await supabase
           .from("financiamento")
-          .insert(payload)
+          .insert([payload])
           .select("id")
           .single();
 
