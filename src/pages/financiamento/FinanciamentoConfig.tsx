@@ -261,7 +261,7 @@ const FinanciamentoConfig = () => {
         <div className="flex items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-foreground">Gestor de Contratos</h1>
-            <p className="text-muted-foreground">Gerencie financiamentos e empréstimos por contrato.</p>
+            <p className="text-muted-foreground">Gerencie seus empréstimos e financiamentos por contrato.</p>
           </div>
           <Button onClick={startCreate} className="gradient-primary text-primary-foreground">
             <Plus className="h-4 w-4 mr-2" />

@@ -8,7 +8,7 @@ import {
   CreditCard, 
   Target, 
   FileText, 
-  Car, 
+  Landmark, 
   FileSpreadsheet, 
   BarChart3,
   TrendingUp,
@@ -53,8 +53,8 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
-    title: "Financiamento",
-    icon: Car,
+    title: "Empréstimos",
+    icon: Landmark,
     items: [
       { path: "/financiamento", label: "Configuração", icon: FileSpreadsheet },
       { path: "/financiamento/parcelas", label: "Parcelas", icon: FileText },
@@ -66,7 +66,7 @@ const navGroups: NavGroup[] = [
 const AppSidebar = () => {
   const location = useLocation();
   const { signOut } = useAuth();
-  const [expandedGroups, setExpandedGroups] = useState<string[]>(["Finanças Pessoais", "Financiamento"]);
+  const [expandedGroups, setExpandedGroups] = useState<string[]>(["Finanças Pessoais", "Empréstimos"]);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   const handleSignOut = async () => {

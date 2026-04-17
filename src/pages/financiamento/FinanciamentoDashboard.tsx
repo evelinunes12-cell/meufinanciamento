@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import StatsCards from "@/components/StatsCards";
 import DashboardCharts from "@/components/DashboardCharts";
 import ExportButton from "@/components/ExportButton";
-import { RefreshCw, Car, Plus } from "lucide-react";
+import { RefreshCw, Landmark, Plus } from "lucide-react";
 
 type TipoContrato = "financiamento" | "emprestimo";
 
@@ -105,7 +105,7 @@ const FinanciamentoDashboard = () => {
       <AppLayout>
         <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4">
           <div className="flex h-16 w-16 items-center justify-center rounded-2xl gradient-primary shadow-soft">
-            <Car className="h-8 w-8 text-primary-foreground" />
+            <Landmark className="h-8 w-8 text-primary-foreground" />
           </div>
           <h2 className="text-xl font-semibold text-foreground">Nenhum contrato encontrado</h2>
           <p className="text-muted-foreground text-center max-w-md">Configure um contrato primeiro para visualizar relatórios.</p>
