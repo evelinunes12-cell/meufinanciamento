@@ -302,6 +302,24 @@ const Contas = () => {
                   <ColorPicker value={formData.cor} onChange={(cor) => setFormData({ ...formData, cor })} />
                 </div>
 
+                {formData.tipo !== "credito" && (
+                  <div className="flex items-start justify-between gap-3 rounded-lg border border-border bg-muted/30 p-3">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="incluir-no-saldo" className="text-sm font-medium cursor-pointer">
+                        Incluir no saldo total
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        Quando desativada, esta conta não soma no saldo global do app, nos KPIs do dashboard nem na projeção de fluxo de caixa.
+                      </p>
+                    </div>
+                    <Switch
+                      id="incluir-no-saldo"
+                      checked={formData.incluir_no_saldo}
+                      onCheckedChange={(checked) => setFormData({ ...formData, incluir_no_saldo: checked })}
+                    />
+                  </div>
+                )}
+
                 <Button type="submit" className="w-full gradient-primary text-primary-foreground">
                   {editingId ? "Atualizar" : "Criar"} Conta
                 </Button>
