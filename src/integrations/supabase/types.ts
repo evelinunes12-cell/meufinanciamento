@@ -65,6 +65,7 @@ export type Database = {
           dia_fechamento: number | null
           dia_vencimento: number | null
           id: string
+          incluir_no_saldo: boolean
           limite: number | null
           nome_conta: string
           saldo_inicial: number
@@ -78,6 +79,7 @@ export type Database = {
           dia_fechamento?: number | null
           dia_vencimento?: number | null
           id?: string
+          incluir_no_saldo?: boolean
           limite?: number | null
           nome_conta: string
           saldo_inicial?: number
@@ -91,6 +93,7 @@ export type Database = {
           dia_fechamento?: number | null
           dia_vencimento?: number | null
           id?: string
+          incluir_no_saldo?: boolean
           limite?: number | null
           nome_conta?: string
           saldo_inicial?: number
