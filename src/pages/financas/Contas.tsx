@@ -155,6 +155,7 @@ const Contas = () => {
       limite: conta.limite ? formatCurrencyInput((conta.limite * 100).toString()) : "",
       dia_fechamento: conta.dia_fechamento?.toString() || "",
       dia_vencimento: conta.dia_vencimento?.toString() || "",
+      incluir_no_saldo: conta.incluir_no_saldo !== false,
     });
     setEditingId(conta.id);
     setDialogOpen(true);
