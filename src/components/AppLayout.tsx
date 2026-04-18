@@ -97,7 +97,7 @@ const AppLayout = ({ children }: AppLayoutProps) => {
 
     // Calculate low balance accounts
     const contasBaixo = contas
-      .filter(c => c.tipo !== "credito")
+      .filter(c => c.tipo !== "credito" && c.incluir_no_saldo !== false)
       .map(conta => {
         const transacoesConta = transacoesValidas.filter(t => t.conta_id === conta.id || t.conta_destino_id === conta.id);
         const receitas = transacoesConta.filter(t => t.tipo === "receita").reduce((a, t) => a + Number(t.valor), 0);
