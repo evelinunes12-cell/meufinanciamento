@@ -24,6 +24,7 @@ interface Conta {
   saldo_inicial: number;
   tipo: string;
   cor: string;
+  incluir_no_saldo: boolean | null;
 }
 
 interface Transacao {
