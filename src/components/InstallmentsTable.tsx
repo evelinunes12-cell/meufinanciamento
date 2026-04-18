@@ -185,6 +185,7 @@ const InstallmentsTable = ({ parcelas, taxaDiaria, onUpdate }: InstallmentsTable
                 <TableHead className="text-right">Valor Original</TableHead>
                 <TableHead className="text-center">Status</TableHead>
                 <TableHead className="text-right">Valor Pago</TableHead>
+                <TableHead>Data Pagamento</TableHead>
                 <TableHead className="text-right">Economia</TableHead>
                 <TableHead className="text-right">Amortização</TableHead>
                 <TableHead className="text-center">Ação</TableHead>
