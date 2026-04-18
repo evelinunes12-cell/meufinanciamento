@@ -231,6 +231,11 @@ const InstallmentsTable = ({ parcelas, taxaDiaria, onUpdate }: InstallmentsTable
                   <TableCell className="text-right">
                     {parcela.pago ? formatCurrency(parcela.valor_pago) : "-"}
                   </TableCell>
+                  <TableCell>
+                    {parcela.pago && parcela.data_pagamento
+                      ? format(parseISO(parcela.data_pagamento), "dd/MM/yyyy")
+                      : "-"}
+                  </TableCell>
                   <TableCell className="text-right">
                     {parcela.economia && parcela.economia > 0 ? (
                       <span className="text-success font-semibold">
@@ -244,7 +249,17 @@ const InstallmentsTable = ({ parcelas, taxaDiaria, onUpdate }: InstallmentsTable
                     {parcela.pago ? formatCurrency(parcela.amortizacao) : "-"}
                   </TableCell>
                   <TableCell className="text-center">
-                    {!parcela.pago && (
+                    {parcela.pago ? (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => setCancelTarget(parcela)}
+                      >
+                        <Undo2 className="mr-1 h-4 w-4" />
+                        Cancelar
+                      </Button>
+                    ) : (
                       <Button
                         size="sm"
                         variant="outline"
