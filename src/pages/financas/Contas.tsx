@@ -348,6 +348,12 @@ const Contas = () => {
                       <p className="text-xs text-muted-foreground capitalize">
                         {tiposConta.find(t => t.value === conta.tipo)?.label}
                       </p>
+                      {conta.tipo !== "credito" && conta.incluir_no_saldo === false && (
+                        <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                          <EyeOff className="h-3 w-3" />
+                          Fora do saldo total
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className="flex gap-1">
