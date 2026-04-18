@@ -1,7 +1,17 @@
 import { useState } from "react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Check, Calendar, Calculator, Loader2, AlertTriangle } from "lucide-react";
+import { Check, Calendar, Calculator, Loader2, AlertTriangle, Undo2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -55,6 +65,41 @@ const InstallmentsTable = ({ parcelas, taxaDiaria, onUpdate }: InstallmentsTable
   const [isLoading, setIsLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [calculoRealizado, setCalculoRealizado] = useState(false);
+  const [cancelTarget, setCancelTarget] = useState<Parcela | null>(null);
+  const [isCanceling, setIsCanceling] = useState(false);
+
+  const handleCancelarPagamento = async () => {
+    if (!cancelTarget) return;
+    setIsCanceling(true);
+    try {
+      const { error } = await supabase
+        .from("parcelas")
+        .update({
+          pago: false,
+          data_pagamento: null,
+          antecipada: false,
+          valor_pago: null,
+          economia: null,
+          dias_antecedencia: null,
+          juros: null,
+          amortizacao: null,
+        })
+        .eq("id", cancelTarget.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Pagamento cancelado",
+        description: `Parcela ${cancelTarget.numero_parcela} voltou para pendente.`,
+      });
+      setCancelTarget(null);
+      onUpdate();
+    } catch (error: any) {
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
+    } finally {
+      setIsCanceling(false);
+    }
+  };
 
   const handleOpenDialog = (parcela: Parcela) => {
     setSelectedParcela(parcela);
@@ -140,6 +185,7 @@ const InstallmentsTable = ({ parcelas, taxaDiaria, onUpdate }: InstallmentsTable
                 <TableHead className="text-right">Valor Original</TableHead>
                 <TableHead className="text-center">Status</TableHead>
                 <TableHead className="text-right">Valor Pago</TableHead>
+                <TableHead>Data Pagamento</TableHead>
                 <TableHead className="text-right">Economia</TableHead>
                 <TableHead className="text-right">Amortização</TableHead>
                 <TableHead className="text-center">Ação</TableHead>
@@ -185,6 +231,11 @@ const InstallmentsTable = ({ parcelas, taxaDiaria, onUpdate }: InstallmentsTable
                   <TableCell className="text-right">
                     {parcela.pago ? formatCurrency(parcela.valor_pago) : "-"}
                   </TableCell>
+                  <TableCell>
+                    {parcela.pago && parcela.data_pagamento
+                      ? format(parseISO(parcela.data_pagamento), "dd/MM/yyyy")
+                      : "-"}
+                  </TableCell>
                   <TableCell className="text-right">
                     {parcela.economia && parcela.economia > 0 ? (
                       <span className="text-success font-semibold">
@@ -198,7 +249,17 @@ const InstallmentsTable = ({ parcelas, taxaDiaria, onUpdate }: InstallmentsTable
                     {parcela.pago ? formatCurrency(parcela.amortizacao) : "-"}
                   </TableCell>
                   <TableCell className="text-center">
-                    {!parcela.pago && (
+                    {parcela.pago ? (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => setCancelTarget(parcela)}
+                      >
+                        <Undo2 className="mr-1 h-4 w-4" />
+                        Cancelar
+                      </Button>
+                    ) : (
                       <Button
                         size="sm"
                         variant="outline"
@@ -389,6 +450,37 @@ const InstallmentsTable = ({ parcelas, taxaDiaria, onUpdate }: InstallmentsTable
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!cancelTarget} onOpenChange={(open) => !open && setCancelTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancelar pagamento da parcela {cancelTarget?.numero_parcela}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação reverte o pagamento e remove os dados de antecipação, economia e amortização registrados. A parcela voltará para o status pendente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isCanceling}>Voltar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleCancelarPagamento}
+              disabled={isCanceling}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isCanceling ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Cancelando...
+                </>
+              ) : (
+                <>
+                  <Undo2 className="mr-2 h-4 w-4" />
+                  Cancelar pagamento
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };
