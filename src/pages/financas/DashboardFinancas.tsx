@@ -46,6 +46,7 @@ interface Conta {
   cor: string;
   dia_fechamento: number | null;
   dia_vencimento: number | null;
+  incluir_no_saldo: boolean | null;
 }
 
 interface Categoria {
