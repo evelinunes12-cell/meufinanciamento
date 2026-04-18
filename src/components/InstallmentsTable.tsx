@@ -65,6 +65,41 @@ const InstallmentsTable = ({ parcelas, taxaDiaria, onUpdate }: InstallmentsTable
   const [isLoading, setIsLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [calculoRealizado, setCalculoRealizado] = useState(false);
+  const [cancelTarget, setCancelTarget] = useState<Parcela | null>(null);
+  const [isCanceling, setIsCanceling] = useState(false);
+
+  const handleCancelarPagamento = async () => {
+    if (!cancelTarget) return;
+    setIsCanceling(true);
+    try {
+      const { error } = await supabase
+        .from("parcelas")
+        .update({
+          pago: false,
+          data_pagamento: null,
+          antecipada: false,
+          valor_pago: null,
+          economia: null,
+          dias_antecedencia: null,
+          juros: null,
+          amortizacao: null,
+        })
+        .eq("id", cancelTarget.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Pagamento cancelado",
+        description: `Parcela ${cancelTarget.numero_parcela} voltou para pendente.`,
+      });
+      setCancelTarget(null);
+      onUpdate();
+    } catch (error: any) {
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
+    } finally {
+      setIsCanceling(false);
+    }
+  };
 
   const handleOpenDialog = (parcela: Parcela) => {
     setSelectedParcela(parcela);
