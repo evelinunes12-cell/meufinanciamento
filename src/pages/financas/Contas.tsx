@@ -122,6 +122,7 @@ const Contas = () => {
       limite: validated.limite ?? null,
       dia_fechamento: validated.dia_fechamento ?? null,
       dia_vencimento: validated.dia_vencimento ?? null,
+      incluir_no_saldo: formData.incluir_no_saldo,
     };
 
     if (editingId) {
