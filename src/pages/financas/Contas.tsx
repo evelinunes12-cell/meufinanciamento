@@ -10,7 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Plus, Trash2, Edit, Wallet, CreditCard, PiggyBank, Landmark, Banknote, AlertTriangle, Upload } from "lucide-react";
+import { Plus, Trash2, Edit, Wallet, CreditCard, PiggyBank, Landmark, Banknote, AlertTriangle, Upload, EyeOff } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
 import { contaSchema } from "@/lib/validations";
 import { formatCurrencyInput, parseCurrencyInput } from "@/lib/calculations";
@@ -26,6 +27,7 @@ interface Conta {
   limite: number | null;
   dia_fechamento: number | null;
   dia_vencimento: number | null;
+  incluir_no_saldo: boolean | null;
 }
 
 const tiposConta = [
@@ -54,6 +56,7 @@ const Contas = () => {
     limite: "",
     dia_fechamento: "",
     dia_vencimento: "",
+    incluir_no_saldo: true,
   });
 
   useEffect(() => {
@@ -76,6 +79,7 @@ const Contas = () => {
       limite: "",
       dia_fechamento: "",
       dia_vencimento: "",
+      incluir_no_saldo: true,
     });
     setEditingId(null);
   };
@@ -118,6 +122,7 @@ const Contas = () => {
       limite: validated.limite ?? null,
       dia_fechamento: validated.dia_fechamento ?? null,
       dia_vencimento: validated.dia_vencimento ?? null,
+      incluir_no_saldo: formData.incluir_no_saldo,
     };
 
     if (editingId) {
@@ -150,6 +155,7 @@ const Contas = () => {
       limite: conta.limite ? formatCurrencyInput((conta.limite * 100).toString()) : "",
       dia_fechamento: conta.dia_fechamento?.toString() || "",
       dia_vencimento: conta.dia_vencimento?.toString() || "",
+      incluir_no_saldo: conta.incluir_no_saldo !== false,
     });
     setEditingId(conta.id);
     setDialogOpen(true);
@@ -296,6 +302,24 @@ const Contas = () => {
                   <ColorPicker value={formData.cor} onChange={(cor) => setFormData({ ...formData, cor })} />
                 </div>
 
+                {formData.tipo !== "credito" && (
+                  <div className="flex items-start justify-between gap-3 rounded-lg border border-border bg-muted/30 p-3">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="incluir-no-saldo" className="text-sm font-medium cursor-pointer">
+                        Incluir no saldo total
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        Quando desativada, esta conta não soma no saldo global do app, nos KPIs do dashboard nem na projeção de fluxo de caixa.
+                      </p>
+                    </div>
+                    <Switch
+                      id="incluir-no-saldo"
+                      checked={formData.incluir_no_saldo}
+                      onCheckedChange={(checked) => setFormData({ ...formData, incluir_no_saldo: checked })}
+                    />
+                  </div>
+                )}
+
                 <Button type="submit" className="w-full gradient-primary text-primary-foreground">
                   {editingId ? "Atualizar" : "Criar"} Conta
                 </Button>
@@ -324,6 +348,12 @@ const Contas = () => {
                       <p className="text-xs text-muted-foreground capitalize">
                         {tiposConta.find(t => t.value === conta.tipo)?.label}
                       </p>
+                      {conta.tipo !== "credito" && conta.incluir_no_saldo === false && (
+                        <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                          <EyeOff className="h-3 w-3" />
+                          Fora do saldo total
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className="flex gap-1">

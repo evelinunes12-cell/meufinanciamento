@@ -46,6 +46,7 @@ interface Conta {
   cor: string;
   dia_fechamento: number | null;
   dia_vencimento: number | null;
+  incluir_no_saldo: boolean | null;
 }
 
 interface Categoria {
@@ -214,16 +215,22 @@ const DashboardFinancas = () => {
 
   const pendenteMes = despesasPendentes - receitasPendentes;
   
+  // Only accounts marked to include in total balance (cards always included where applicable)
+  const contasIncluidas = useMemo(
+    () => contas.filter(c => c.tipo === "credito" || c.incluir_no_saldo !== false),
+    [contas]
+  );
+
   // Calculate total account balance using ALL executed transactions (real balance)
   const saldoContas = useMemo(() => {
-    return calcularSaldoTotalReal(contas, todasTransacoes);
-  }, [contas, todasTransacoes]);
+    return calcularSaldoTotalReal(contasIncluidas, todasTransacoes);
+  }, [contasIncluidas, todasTransacoes]);
 
-  // Saldo apenas de contas correntes (exclui crédito, poupança, etc.)
+  // Saldo apenas de contas correntes (exclui crédito, poupança, etc.) — também respeita "incluir no saldo"
   const saldoContasCorrentes = useMemo(() => {
-    const contasCorrentes = contas.filter(c => c.tipo === "corrente");
+    const contasCorrentes = contasIncluidas.filter(c => c.tipo === "corrente");
     return calcularSaldoTotalReal(contasCorrentes, todasTransacoes);
-  }, [contas, todasTransacoes]);
+  }, [contasIncluidas, todasTransacoes]);
 
   const gastosCartao = useMemo(() => {
     const cartoesCredito = contas.filter(c => c.tipo === "credito");
@@ -234,8 +241,8 @@ const DashboardFinancas = () => {
 
   // Calculate patrimonial variation using end-of-month comparison with ALL transactions
   const variacaoPatrimonial = useMemo(() => {
-    return calcularVariacaoPatrimonial(contas, todasTransacoes);
-  }, [contas, todasTransacoes]);
+    return calcularVariacaoPatrimonial(contasIncluidas, todasTransacoes);
+  }, [contasIncluidas, todasTransacoes]);
 
   // Category aggregation helpers
   const mainCategoriasDesp = categorias.filter(c => c.tipo === "despesa" && !c.categoria_pai_id);

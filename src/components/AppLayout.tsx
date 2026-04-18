@@ -24,6 +24,7 @@ interface Conta {
   saldo_inicial: number;
   tipo: string;
   cor: string;
+  incluir_no_saldo: boolean | null;
 }
 
 interface Transacao {
@@ -96,7 +97,7 @@ const AppLayout = ({ children }: AppLayoutProps) => {
 
     // Calculate low balance accounts
     const contasBaixo = contas
-      .filter(c => c.tipo !== "credito")
+      .filter(c => c.tipo !== "credito" && c.incluir_no_saldo !== false)
       .map(conta => {
         const transacoesConta = transacoesValidas.filter(t => t.conta_id === conta.id || t.conta_destino_id === conta.id);
         const receitas = transacoesConta.filter(t => t.tipo === "receita").reduce((a, t) => a + Number(t.valor), 0);
@@ -111,9 +112,15 @@ const AppLayout = ({ children }: AppLayoutProps) => {
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
     
+    // Accounts excluded from total balance shouldn't affect pending projection either
+    const contasIncluidasIds = new Set(
+      contas.filter(c => c.tipo === "credito" || c.incluir_no_saldo !== false).map(c => c.id)
+    );
+
     const transacoesPendentes = transacoes.filter(t => {
       if (t.is_pago_executado !== false) return false;
       if (t.forma_pagamento === "transferencia") return false;
+      if (!contasIncluidasIds.has(t.conta_id)) return false;
       const dataT = new Date(t.data);
       return dataT.getMonth() === currentMonth && dataT.getFullYear() === currentYear;
     });

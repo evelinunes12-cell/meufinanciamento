@@ -150,7 +150,7 @@ const Projecao = () => {
   // OBJECTIVE 1: Saldo Real Atual
   // ==========================================
   const saldoAtual = useMemo(() => {
-    const contasAtivo = contas.filter(c => c.tipo !== "credito");
+    const contasAtivo = contas.filter(c => c.tipo !== "credito" && (c as any).incluir_no_saldo !== false);
     const mapped = transacoes.map(t => ({
       valor: t.valor, tipo: t.tipo, conta_id: t.conta_id,
       conta_destino_id: t.conta_destino_id,

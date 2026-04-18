@@ -9,6 +9,7 @@ interface Conta {
   saldo_inicial: number;
   tipo: string;
   cor: string;
+  incluir_no_saldo: boolean | null;
 }
 
 interface Transacao {
@@ -52,6 +53,8 @@ function calculateSaldoContas(contas: Conta[], transacoes: Transacao[]): number 
   return contas.reduce((acc, conta) => {
     // Skip credit accounts from total balance
     if (conta.tipo === "credito") return acc;
+    // Respect user setting: skip accounts marked to NOT include in total balance
+    if (conta.incluir_no_saldo === false) return acc;
 
     const saldoConta = transacoesValidas.reduce((saldo, transacao) => {
       const valor = Number(transacao.valor);
