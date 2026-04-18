@@ -112,9 +112,15 @@ const AppLayout = ({ children }: AppLayoutProps) => {
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
     
+    // Accounts excluded from total balance shouldn't affect pending projection either
+    const contasIncluidasIds = new Set(
+      contas.filter(c => c.tipo === "credito" || c.incluir_no_saldo !== false).map(c => c.id)
+    );
+
     const transacoesPendentes = transacoes.filter(t => {
       if (t.is_pago_executado !== false) return false;
       if (t.forma_pagamento === "transferencia") return false;
+      if (!contasIncluidasIds.has(t.conta_id)) return false;
       const dataT = new Date(t.data);
       return dataT.getMonth() === currentMonth && dataT.getFullYear() === currentYear;
     });
