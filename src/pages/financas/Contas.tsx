@@ -79,6 +79,7 @@ const Contas = () => {
       limite: "",
       dia_fechamento: "",
       dia_vencimento: "",
+      incluir_no_saldo: true,
     });
     setEditingId(null);
   };
