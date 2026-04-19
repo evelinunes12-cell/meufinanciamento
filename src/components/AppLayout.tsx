@@ -186,15 +186,33 @@ const AppLayout = ({ children }: AppLayoutProps) => {
                 )}
               </div>
             </TooltipTrigger>
-            {hasLowBalanceAlert && (
+            {hasTooltipContent && (
               <TooltipContent side="bottom" className="max-w-xs">
-                <div className="space-y-1">
-                  <p className="font-medium text-destructive">Contas com saldo baixo:</p>
-                  {contasBaixoSaldo.map(c => (
-                    <p key={c.id} className="text-xs">
-                      {c.nome_conta}: {formatCurrency(c.saldo)}
-                    </p>
-                  ))}
+                <div className="space-y-2">
+                  {hasLowBalanceAlert && (
+                    <div className="space-y-1">
+                      <p className="font-medium text-destructive">Contas com saldo baixo:</p>
+                      {contasBaixoSaldo.map(c => (
+                        <p key={c.id} className="text-xs">
+                          {c.nome_conta}: {formatCurrency(c.saldo)}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                  {hasHiddenAccounts && (
+                    <div className="space-y-1 pt-1 border-t border-border/50">
+                      <p className="text-xs flex items-center gap-1 text-muted-foreground">
+                        <EyeOff className="h-3 w-3" />
+                        {contasOcultas.length} conta{contasOcultas.length > 1 ? "s" : ""} oculta{contasOcultas.length > 1 ? "s" : ""} do saldo
+                      </p>
+                      <Link
+                        to="/financas/contas"
+                        className="text-xs flex items-center gap-1 text-primary hover:underline"
+                      >
+                        Gerenciar contas <ExternalLink className="h-3 w-3" />
+                      </Link>
+                    </div>
+                  )}
                 </div>
               </TooltipContent>
             )}
