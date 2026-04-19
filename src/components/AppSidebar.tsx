@@ -30,6 +30,7 @@ interface NavItem {
   path: string;
   label: string;
   icon: React.ElementType;
+  badge?: string;
 }
 
 interface NavGroup {
@@ -49,7 +50,7 @@ const navGroups: NavGroup[] = [
       { path: "/financas/categorias", label: "Categorias", icon: Tag },
       { path: "/financas/cartoes", label: "Cartões", icon: CreditCard },
       { path: "/financas/orcamento", label: "Orçamento", icon: Target },
-      { path: "/financas/recorrencias", label: "Recorrências", icon: Repeat },
+      { path: "/financas/recorrencias", label: "Recorrências", icon: Repeat, badge: "Beta" },
       { path: "/financas/relatorios", label: "Relatórios", icon: FileText },
       { path: "/financas/projecao", label: "Projeção", icon: TrendingUp },
     ],
@@ -140,7 +141,19 @@ const AppSidebar = () => {
                       )}
                     >
                       <Icon className="h-4 w-4" />
-                      <span>{item.label}</span>
+                      <span className="flex-1">{item.label}</span>
+                      {item.badge && (
+                        <span
+                          className={cn(
+                            "text-[10px] font-semibold px-1.5 py-0.5 rounded-full uppercase tracking-wide",
+                            isActive(item.path)
+                              ? "bg-primary-foreground/20 text-primary-foreground"
+                              : "bg-primary/10 text-primary"
+                          )}
+                        >
+                          {item.badge}
+                        </span>
+                      )}
                     </Link>
                   );
                 })}
