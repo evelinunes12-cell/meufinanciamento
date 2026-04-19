@@ -447,6 +447,24 @@ const Contas = () => {
                     </p>
                   </div>
                 )}
+                {conta.tipo !== "credito" && (
+                  <div className="mt-3 pt-3 border-t border-border flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <EyeOff className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      <Label
+                        htmlFor={`incluir-saldo-${conta.id}`}
+                        className="text-xs text-muted-foreground cursor-pointer truncate"
+                      >
+                        Incluir no saldo total
+                      </Label>
+                    </div>
+                    <Switch
+                      id={`incluir-saldo-${conta.id}`}
+                      checked={conta.incluir_no_saldo !== false}
+                      onCheckedChange={(checked) => handleToggleIncluirNoSaldo(conta, checked)}
+                    />
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}
