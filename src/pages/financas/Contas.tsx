@@ -171,6 +171,27 @@ const Contas = () => {
     fetchData();
   };
 
+  const handleToggleIncluirNoSaldo = async (conta: Conta, checked: boolean) => {
+    // Optimistic update
+    setContas((prev) => prev.map((c) => (c.id === conta.id ? { ...c, incluir_no_saldo: checked } : c)));
+    const { error } = await supabase
+      .from("contas")
+      .update({ incluir_no_saldo: checked })
+      .eq("id", conta.id);
+    if (error) {
+      // Revert on error
+      setContas((prev) => prev.map((c) => (c.id === conta.id ? { ...c, incluir_no_saldo: !checked } : c)));
+      toast({ title: "Erro", description: "Não foi possível atualizar a conta", variant: "destructive" });
+      return;
+    }
+    toast({
+      title: checked ? "Conta incluída no saldo" : "Conta removida do saldo",
+      description: checked
+        ? `${conta.nome_conta} agora soma no saldo total e nos KPIs`
+        : `${conta.nome_conta} não soma mais no saldo total e nos KPIs`,
+    });
+  };
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
   };
