@@ -23,6 +23,7 @@ const Cartoes = lazy(() => import("./pages/financas/Cartoes"));
 const Orcamento = lazy(() => import("./pages/financas/Orcamento"));
 const Relatorios = lazy(() => import("./pages/financas/Relatorios"));
 const Projecao = lazy(() => import("./pages/financas/Projecao"));
+const Recorrencias = lazy(() => import("./pages/financas/Recorrencias"));
 const Configuracoes = lazy(() => import("./pages/financas/Configuracoes"));
 
 // Financiamento
@@ -126,6 +127,14 @@ const App = () => (
                 element={
                   <ProtectedRoute>
                     <Projecao />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/financas/recorrencias"
+                element={
+                  <ProtectedRoute>
+                    <Recorrencias />
                   </ProtectedRoute>
                 }
               />
