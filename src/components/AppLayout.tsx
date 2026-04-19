@@ -88,8 +88,8 @@ const AppLayout = ({ children }: AppLayoutProps) => {
   });
 
   // Calculate accounts with low balance and predicted balance
-  const { contasBaixoSaldo, saldoPrevisto, totalPendente } = useMemo(() => {
-    if (!contasData) return { contasBaixoSaldo: [], saldoPrevisto: 0, totalPendente: 0 };
+  const { contasBaixoSaldo, totalPendente, contasOcultas } = useMemo(() => {
+    if (!contasData) return { contasBaixoSaldo: [], totalPendente: 0, contasOcultas: [] as Conta[] };
     
     const { contas, transacoes } = contasData;
     const transacoesValidas = transacoes.filter(
@@ -107,6 +107,9 @@ const AppLayout = ({ children }: AppLayoutProps) => {
         return { ...conta, saldo };
       })
       .filter(c => c.saldo < SALDO_MINIMO_ALERTA);
+
+    // Hidden accounts (excluded from total, excluding credit cards which are always included)
+    const ocultas = contas.filter(c => c.tipo !== "credito" && c.incluir_no_saldo === false);
 
     // Calculate pending transactions for current month (not executed yet)
     const now = new Date();
@@ -137,13 +140,15 @@ const AppLayout = ({ children }: AppLayoutProps) => {
 
     return { 
       contasBaixoSaldo: contasBaixo, 
-      saldoPrevisto: 0, // Will be calculated using saldoContas
-      totalPendente: pendente
+      totalPendente: pendente,
+      contasOcultas: ocultas,
     };
   }, [contasData]);
 
   const saldoPrevistoFinal = saldoContas - totalPendente;
   const hasLowBalanceAlert = contasBaixoSaldo.length > 0;
+  const hasHiddenAccounts = contasOcultas.length > 0;
+  const hasTooltipContent = hasLowBalanceAlert || hasHiddenAccounts;
 
   return (
     <div className="min-h-screen bg-background">
