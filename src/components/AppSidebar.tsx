@@ -50,7 +50,7 @@ const navGroups: NavGroup[] = [
       { path: "/financas/categorias", label: "Categorias", icon: Tag },
       { path: "/financas/cartoes", label: "Cartões", icon: CreditCard },
       { path: "/financas/orcamento", label: "Orçamento", icon: Target },
-      { path: "/financas/recorrencias", label: "Recorrências", icon: Repeat },
+      { path: "/financas/recorrencias", label: "Recorrências", icon: Repeat, badge: "Beta" },
       { path: "/financas/relatorios", label: "Relatórios", icon: FileText },
       { path: "/financas/projecao", label: "Projeção", icon: TrendingUp },
     ],
