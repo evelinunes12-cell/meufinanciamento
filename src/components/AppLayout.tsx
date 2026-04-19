@@ -1,4 +1,5 @@
 import { ReactNode, useState, useMemo } from "react";
+import { Link } from "react-router-dom";
 import { useSwipeNavigation } from "@/hooks/useSwipeNavigation";
 import { useFixaRecurrenceExtender } from "@/hooks/useFixaRecurrenceExtender";
 import AppSidebar from "./AppSidebar";
@@ -8,7 +9,7 @@ import Notifications from "./Notifications";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Plus, Wallet, AlertTriangle } from "lucide-react";
+import { Plus, Wallet, AlertTriangle, EyeOff, ExternalLink } from "lucide-react";
 import { useSaldo } from "@/contexts/SaldoContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
@@ -87,8 +88,8 @@ const AppLayout = ({ children }: AppLayoutProps) => {
   });
 
   // Calculate accounts with low balance and predicted balance
-  const { contasBaixoSaldo, saldoPrevisto, totalPendente } = useMemo(() => {
-    if (!contasData) return { contasBaixoSaldo: [], saldoPrevisto: 0, totalPendente: 0 };
+  const { contasBaixoSaldo, totalPendente, contasOcultas } = useMemo(() => {
+    if (!contasData) return { contasBaixoSaldo: [], totalPendente: 0, contasOcultas: [] as Conta[] };
     
     const { contas, transacoes } = contasData;
     const transacoesValidas = transacoes.filter(
@@ -106,6 +107,9 @@ const AppLayout = ({ children }: AppLayoutProps) => {
         return { ...conta, saldo };
       })
       .filter(c => c.saldo < SALDO_MINIMO_ALERTA);
+
+    // Hidden accounts (excluded from total, excluding credit cards which are always included)
+    const ocultas = contas.filter(c => c.tipo !== "credito" && c.incluir_no_saldo === false);
 
     // Calculate pending transactions for current month (not executed yet)
     const now = new Date();
@@ -136,13 +140,15 @@ const AppLayout = ({ children }: AppLayoutProps) => {
 
     return { 
       contasBaixoSaldo: contasBaixo, 
-      saldoPrevisto: 0, // Will be calculated using saldoContas
-      totalPendente: pendente
+      totalPendente: pendente,
+      contasOcultas: ocultas,
     };
   }, [contasData]);
 
   const saldoPrevistoFinal = saldoContas - totalPendente;
   const hasLowBalanceAlert = contasBaixoSaldo.length > 0;
+  const hasHiddenAccounts = contasOcultas.length > 0;
+  const hasTooltipContent = hasLowBalanceAlert || hasHiddenAccounts;
 
   return (
     <div className="min-h-screen bg-background">
@@ -180,15 +186,33 @@ const AppLayout = ({ children }: AppLayoutProps) => {
                 )}
               </div>
             </TooltipTrigger>
-            {hasLowBalanceAlert && (
+            {hasTooltipContent && (
               <TooltipContent side="bottom" className="max-w-xs">
-                <div className="space-y-1">
-                  <p className="font-medium text-destructive">Contas com saldo baixo:</p>
-                  {contasBaixoSaldo.map(c => (
-                    <p key={c.id} className="text-xs">
-                      {c.nome_conta}: {formatCurrency(c.saldo)}
-                    </p>
-                  ))}
+                <div className="space-y-2">
+                  {hasLowBalanceAlert && (
+                    <div className="space-y-1">
+                      <p className="font-medium text-destructive">Contas com saldo baixo:</p>
+                      {contasBaixoSaldo.map(c => (
+                        <p key={c.id} className="text-xs">
+                          {c.nome_conta}: {formatCurrency(c.saldo)}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                  {hasHiddenAccounts && (
+                    <div className="space-y-1 pt-1 border-t border-border/50">
+                      <p className="text-xs flex items-center gap-1 text-muted-foreground">
+                        <EyeOff className="h-3 w-3" />
+                        {contasOcultas.length} conta{contasOcultas.length > 1 ? "s" : ""} oculta{contasOcultas.length > 1 ? "s" : ""} do saldo
+                      </p>
+                      <Link
+                        to="/financas/contas"
+                        className="text-xs flex items-center gap-1 text-primary hover:underline"
+                      >
+                        Gerenciar contas <ExternalLink className="h-3 w-3" />
+                      </Link>
+                    </div>
+                  )}
                 </div>
               </TooltipContent>
             )}
@@ -234,15 +258,33 @@ const AppLayout = ({ children }: AppLayoutProps) => {
                   )}
                 </div>
               </TooltipTrigger>
-              {hasLowBalanceAlert && (
+              {hasTooltipContent && (
                 <TooltipContent side="bottom" className="max-w-xs">
-                  <div className="space-y-1">
-                    <p className="font-medium text-destructive">Contas com saldo abaixo de R$ {SALDO_MINIMO_ALERTA}:</p>
-                    {contasBaixoSaldo.map(c => (
-                      <p key={c.id} className="text-xs">
-                        {c.nome_conta}: {formatCurrency(c.saldo)}
-                      </p>
-                    ))}
+                  <div className="space-y-2">
+                    {hasLowBalanceAlert && (
+                      <div className="space-y-1">
+                        <p className="font-medium text-destructive">Contas com saldo abaixo de R$ {SALDO_MINIMO_ALERTA}:</p>
+                        {contasBaixoSaldo.map(c => (
+                          <p key={c.id} className="text-xs">
+                            {c.nome_conta}: {formatCurrency(c.saldo)}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                    {hasHiddenAccounts && (
+                      <div className="space-y-1 pt-1 border-t border-border/50">
+                        <p className="text-xs flex items-center gap-1 text-muted-foreground">
+                          <EyeOff className="h-3 w-3" />
+                          {contasOcultas.length} conta{contasOcultas.length > 1 ? "s" : ""} oculta{contasOcultas.length > 1 ? "s" : ""} do saldo
+                        </p>
+                        <Link
+                          to="/financas/contas"
+                          className="text-xs flex items-center gap-1 text-primary hover:underline"
+                        >
+                          Gerenciar contas <ExternalLink className="h-3 w-3" />
+                        </Link>
+                      </div>
+                    )}
                   </div>
                 </TooltipContent>
               )}
