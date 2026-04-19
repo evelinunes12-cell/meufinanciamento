@@ -30,6 +30,7 @@ interface NavItem {
   path: string;
   label: string;
   icon: React.ElementType;
+  badge?: string;
 }
 
 interface NavGroup {
