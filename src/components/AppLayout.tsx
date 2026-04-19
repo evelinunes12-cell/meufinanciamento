@@ -1,4 +1,5 @@
 import { ReactNode, useState, useMemo } from "react";
+import { Link } from "react-router-dom";
 import { useSwipeNavigation } from "@/hooks/useSwipeNavigation";
 import { useFixaRecurrenceExtender } from "@/hooks/useFixaRecurrenceExtender";
 import AppSidebar from "./AppSidebar";
@@ -8,7 +9,7 @@ import Notifications from "./Notifications";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Plus, Wallet, AlertTriangle } from "lucide-react";
+import { Plus, Wallet, AlertTriangle, EyeOff, ExternalLink } from "lucide-react";
 import { useSaldo } from "@/contexts/SaldoContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
