@@ -475,11 +475,15 @@ const Relatorios = () => {
               <>
                 <div className="md:hidden divide-y divide-border">
                   {relatorioFormaPagamento.map((r, i) => (
-                    <div key={i} className="flex items-center justify-between p-3">
-                      <span className="text-sm font-medium capitalize">{r.forma}</span>
-                      <span className={`text-sm font-bold ${r.total >= 0 ? "text-success" : "text-destructive"}`}>
-                        {formatCurrency(Math.abs(r.total))}
-                      </span>
+                    <div key={i} className="p-3 space-y-1">
+                      <p className="text-sm font-semibold">{r.forma}</p>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-success">Rec: {formatCurrency(r.receitas)}</span>
+                        <span className="text-destructive">Desp: {formatCurrency(r.despesas)}</span>
+                        <span className={`font-bold ${r.total >= 0 ? "text-success" : "text-destructive"}`}>
+                          {formatCurrency(r.total)}
+                        </span>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -488,15 +492,19 @@ const Relatorios = () => {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Forma de Pagamento</TableHead>
-                        <TableHead className="text-right">Total</TableHead>
+                        <TableHead className="text-right">Receitas</TableHead>
+                        <TableHead className="text-right">Despesas</TableHead>
+                        <TableHead className="text-right">Saldo</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {relatorioFormaPagamento.map((r, i) => (
                         <TableRow key={i}>
-                          <TableCell className="capitalize">{r.forma}</TableCell>
+                          <TableCell>{r.forma}</TableCell>
+                          <TableCell className="text-right text-success">{formatCurrency(r.receitas)}</TableCell>
+                          <TableCell className="text-right text-destructive">{formatCurrency(r.despesas)}</TableCell>
                           <TableCell className={`text-right font-medium ${r.total >= 0 ? "text-success" : "text-destructive"}`}>
-                            {formatCurrency(Math.abs(r.total))}
+                            {formatCurrency(r.total)}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -506,22 +514,13 @@ const Relatorios = () => {
               </>
             )}
 
-            {tipoRelatorio !== "projecao" && filteredTransacoes.length === 0 && (
+            {filteredTransacoes.length === 0 && (
               <div className="text-center py-8 text-muted-foreground">
                 Nenhuma transação no período selecionado
               </div>
             )}
           </CardContent>
         </Card>
-
-        {/* Projeção Widget */}
-        {tipoRelatorio === "projecao" && (
-          <ProjecaoFluxoCaixaWidget 
-            transacoes={allTransacoes} 
-            contas={contas} 
-            saldoAtual={saldoAtual} 
-          />
-        )}
       </div>
     </AppLayout>
   );
