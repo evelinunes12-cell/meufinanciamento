@@ -57,6 +57,7 @@ const formasPagamento = [
   { value: "debito", label: "Débito" },
   { value: "credito", label: "Crédito" },
   { value: "dinheiro", label: "Dinheiro" },
+  { value: "rendimento", label: "Rendimento" },
   { value: "transferencia", label: "Transferência" },
   { value: "outro", label: "Outro" },
 ];

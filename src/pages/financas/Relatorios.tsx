@@ -9,12 +9,11 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Download, FileText, TrendingUp, TrendingDown } from "lucide-react";
-import { format, parseISO, startOfMonth, endOfMonth, isBefore, isAfter } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
 import { AdvancedFilters, FilterState, getDateRangeFromFilters, getInitialFilterState, getCategoryIdsForFilter } from "@/components/AdvancedFilters";
-import { ProjecaoFluxoCaixaWidget } from "@/components/dashboard/ProjecaoFluxoCaixaWidget";
-import { isExecutado, getDataEfetiva, filterTransacoesPorPeriodoEfetivo } from "@/lib/transactions";
+import { isExecutado, filterTransacoesPorPeriodoEfetivo } from "@/lib/transactions";
 
 interface Transacao {
   id: string;
@@ -142,23 +141,6 @@ const Relatorios = () => {
   const totalDespesas = transacoesValidas.filter(t => t.tipo === "despesa").reduce((acc, t) => acc + Number(t.valor), 0);
   const saldo = totalReceitas - totalDespesas;
 
-  // Calculate current balance for projection (all time executed transactions)
-  // Calculate current balance for projection (all time executed transactions)
-  const saldoAtual = useMemo(() => {
-    return contas.reduce((acc, conta) => {
-      if (conta.tipo === "credito") return acc;
-      
-      const transacoesConta = allTransacoes.filter(t => 
-        t.conta_id === conta.id && 
-        t.forma_pagamento !== "transferencia" &&
-        isExecutado(t.is_pago_executado)
-      );
-      const receitas = transacoesConta.filter(t => t.tipo === "receita").reduce((a, t) => a + Number(t.valor), 0);
-      const despesas = transacoesConta.filter(t => t.tipo === "despesa").reduce((a, t) => a + Number(t.valor), 0);
-      return acc + Number(conta.saldo_inicial) + receitas - despesas;
-    }, 0);
-  }, [contas, allTransacoes]);
-
   // Relatório por categoria
   const relatorioCategoria = categorias.map(cat => {
     const total = transacoesValidas
@@ -175,14 +157,21 @@ const Relatorios = () => {
     return { conta: conta.nome_conta, receitas, despesas, saldo: receitas - despesas };
   }).filter(r => r.receitas !== 0 || r.despesas !== 0);
 
-  // Relatório por forma de pagamento
-  const formasPagamento = ["pix", "debito", "credito", "dinheiro", "transferencia", "outro"];
+  // Relatório por forma de pagamento (exclui transferências para consistência com demais relatórios)
+  const formasPagamento = [
+    { value: "pix", label: "PIX" },
+    { value: "debito", label: "Débito" },
+    { value: "credito", label: "Crédito" },
+    { value: "dinheiro", label: "Dinheiro" },
+    { value: "rendimento", label: "Rendimento" },
+    { value: "outro", label: "Outro" },
+  ];
   const relatorioFormaPagamento = formasPagamento.map(fp => {
-    const total = filteredTransacoes
-      .filter(t => t.forma_pagamento === fp)
-      .reduce((acc, t) => acc + Number(t.valor) * (t.tipo === "despesa" ? -1 : 1), 0);
-    return { forma: fp.charAt(0).toUpperCase() + fp.slice(1), total };
-  }).filter(r => r.total !== 0);
+    const transacoesFp = transacoesValidas.filter(t => t.forma_pagamento === fp.value);
+    const receitas = transacoesFp.filter(t => t.tipo === "receita").reduce((a, t) => a + Number(t.valor), 0);
+    const despesas = transacoesFp.filter(t => t.tipo === "despesa").reduce((a, t) => a + Number(t.valor), 0);
+    return { forma: fp.label, receitas, despesas, total: receitas - despesas };
+  }).filter(r => r.receitas !== 0 || r.despesas !== 0);
 
   const exportToCSV = () => {
     let csv = "";
@@ -201,6 +190,11 @@ const Relatorios = () => {
       csv = "Conta,Receitas,Despesas,Saldo\n";
       relatorioConta.forEach(r => {
         csv += `${r.conta},${r.receitas},${r.despesas},${r.saldo}\n`;
+      });
+    } else if (tipoRelatorio === "pagamento") {
+      csv = "Forma de Pagamento,Receitas,Despesas,Saldo\n";
+      relatorioFormaPagamento.forEach(r => {
+        csv += `${r.forma},${r.receitas},${r.despesas},${r.total}\n`;
       });
     }
 
@@ -238,7 +232,6 @@ const Relatorios = () => {
                 <SelectItem value="categoria">Por Categoria</SelectItem>
                 <SelectItem value="conta">Por Conta</SelectItem>
                 <SelectItem value="pagamento">Por Pagamento</SelectItem>
-                <SelectItem value="projecao">Projeção</SelectItem>
               </SelectContent>
             </Select>
             <Button variant="outline" onClick={exportToCSV}>
@@ -258,6 +251,7 @@ const Relatorios = () => {
           showCategoria
           showConta
           showFormaPagamento
+          showStatusPagamento
         />
 
         {/* Resumo */}
@@ -465,11 +459,15 @@ const Relatorios = () => {
               <>
                 <div className="md:hidden divide-y divide-border">
                   {relatorioFormaPagamento.map((r, i) => (
-                    <div key={i} className="flex items-center justify-between p-3">
-                      <span className="text-sm font-medium capitalize">{r.forma}</span>
-                      <span className={`text-sm font-bold ${r.total >= 0 ? "text-success" : "text-destructive"}`}>
-                        {formatCurrency(Math.abs(r.total))}
-                      </span>
+                    <div key={i} className="p-3 space-y-1">
+                      <p className="text-sm font-semibold">{r.forma}</p>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-success">Rec: {formatCurrency(r.receitas)}</span>
+                        <span className="text-destructive">Desp: {formatCurrency(r.despesas)}</span>
+                        <span className={`font-bold ${r.total >= 0 ? "text-success" : "text-destructive"}`}>
+                          {formatCurrency(r.total)}
+                        </span>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -478,15 +476,19 @@ const Relatorios = () => {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Forma de Pagamento</TableHead>
-                        <TableHead className="text-right">Total</TableHead>
+                        <TableHead className="text-right">Receitas</TableHead>
+                        <TableHead className="text-right">Despesas</TableHead>
+                        <TableHead className="text-right">Saldo</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {relatorioFormaPagamento.map((r, i) => (
                         <TableRow key={i}>
-                          <TableCell className="capitalize">{r.forma}</TableCell>
+                          <TableCell>{r.forma}</TableCell>
+                          <TableCell className="text-right text-success">{formatCurrency(r.receitas)}</TableCell>
+                          <TableCell className="text-right text-destructive">{formatCurrency(r.despesas)}</TableCell>
                           <TableCell className={`text-right font-medium ${r.total >= 0 ? "text-success" : "text-destructive"}`}>
-                            {formatCurrency(Math.abs(r.total))}
+                            {formatCurrency(r.total)}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -496,22 +498,13 @@ const Relatorios = () => {
               </>
             )}
 
-            {tipoRelatorio !== "projecao" && filteredTransacoes.length === 0 && (
+            {filteredTransacoes.length === 0 && (
               <div className="text-center py-8 text-muted-foreground">
                 Nenhuma transação no período selecionado
               </div>
             )}
           </CardContent>
         </Card>
-
-        {/* Projeção Widget */}
-        {tipoRelatorio === "projecao" && (
-          <ProjecaoFluxoCaixaWidget 
-            transacoes={allTransacoes} 
-            contas={contas} 
-            saldoAtual={saldoAtual} 
-          />
-        )}
       </div>
     </AppLayout>
   );
