@@ -207,6 +207,11 @@ const Relatorios = () => {
       relatorioConta.forEach(r => {
         csv += `${r.conta},${r.receitas},${r.despesas},${r.saldo}\n`;
       });
+    } else if (tipoRelatorio === "pagamento") {
+      csv = "Forma de Pagamento,Receitas,Despesas,Saldo\n";
+      relatorioFormaPagamento.forEach(r => {
+        csv += `${r.forma},${r.receitas},${r.despesas},${r.total}\n`;
+      });
     }
 
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -243,7 +248,6 @@ const Relatorios = () => {
                 <SelectItem value="categoria">Por Categoria</SelectItem>
                 <SelectItem value="conta">Por Conta</SelectItem>
                 <SelectItem value="pagamento">Por Pagamento</SelectItem>
-                <SelectItem value="projecao">Projeção</SelectItem>
               </SelectContent>
             </Select>
             <Button variant="outline" onClick={exportToCSV}>
@@ -263,6 +267,7 @@ const Relatorios = () => {
           showCategoria
           showConta
           showFormaPagamento
+          showStatusPagamento
         />
 
         {/* Resumo */}
