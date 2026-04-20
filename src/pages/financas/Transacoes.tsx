@@ -25,6 +25,40 @@ import DeleteSeriesDialog from "@/components/DeleteSeriesDialog";
 import CategoryCombobox from "@/components/CategoryCombobox";
 import { isPendente, getDataCompetenciaTransacao, createFixaRecurrenceSeries, propagateFixaUpdate, FIXA_RECURRENCE_WINDOW_MONTHS } from "@/lib/transactions";
 import EditSeriesDialog from "@/components/EditSeriesDialog";
+import ColumnSelector, { ColumnDef } from "@/components/ColumnSelector";
+
+const TABLE_COLUMNS: ColumnDef[] = [
+  { key: "numero", label: "#" },
+  { key: "data", label: "Data", required: true },
+  { key: "vencimento", label: "Vencimento" },
+  { key: "tipo", label: "Tipo" },
+  { key: "descricao", label: "Descrição", required: true },
+  { key: "categoria", label: "Categoria" },
+  { key: "conta", label: "Conta" },
+  { key: "pagamento", label: "Pagamento" },
+  { key: "parcela", label: "Parcela" },
+  { key: "valor", label: "Valor", required: true },
+  { key: "status", label: "Status" },
+  { key: "acoes", label: "Ações", required: true },
+];
+
+const COLUMNS_STORAGE_KEY = "transacoes-visible-columns";
+
+const getInitialColumnVisibility = (): Record<string, boolean> => {
+  const defaults = TABLE_COLUMNS.reduce((acc, col) => {
+    acc[col.key] = true;
+    return acc;
+  }, {} as Record<string, boolean>);
+  try {
+    const saved = localStorage.getItem(COLUMNS_STORAGE_KEY);
+    if (saved) {
+      return { ...defaults, ...JSON.parse(saved) };
+    }
+  } catch {
+    // ignore
+  }
+  return defaults;
+};
 
 interface Transacao {
   id: string;
@@ -130,6 +164,25 @@ const Transacoes = () => {
   }>({ open: false, pendingChanges: null, pendingDataToSave: null });
   const [editSeriesLoading, setEditSeriesLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [visibleColumns, setVisibleColumns] = useState<Record<string, boolean>>(getInitialColumnVisibility);
+
+  // Persist column visibility
+  useEffect(() => {
+    try {
+      localStorage.setItem(COLUMNS_STORAGE_KEY, JSON.stringify(visibleColumns));
+    } catch {
+      // ignore
+    }
+  }, [visibleColumns]);
+
+  const isColVisible = (key: string) => visibleColumns[key] !== false;
+  const resetColumns = () => {
+    const defaults = TABLE_COLUMNS.reduce((acc, col) => {
+      acc[col.key] = true;
+      return acc;
+    }, {} as Record<string, boolean>);
+    setVisibleColumns(defaults);
+  };
 
   // Filters
   const [filters, setFilters] = useState<FilterState>(getInitialFilterState());
@@ -1173,119 +1226,150 @@ const Transacoes = () => {
 
         {/* Desktop Table Layout */}
         <Card className="shadow-card hidden md:block w-full min-w-0">
+          <div className="flex items-center justify-between px-4 py-2 border-b border-border/50">
+            <span className="text-xs text-muted-foreground">
+              {transacoes.length} transação(ões)
+            </span>
+            <ColumnSelector
+              columns={TABLE_COLUMNS}
+              visibleColumns={visibleColumns}
+              onChange={setVisibleColumns}
+              onReset={resetColumns}
+            />
+          </div>
           <CardContent className="p-0 overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-12">#</TableHead>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Vencimento</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Descrição</TableHead>
-                  <TableHead>Categoria</TableHead>
-                  <TableHead>Conta</TableHead>
-                  <TableHead>Pagamento</TableHead>
-                  <TableHead>Parcela</TableHead>
-                  <TableHead className="text-right">Valor</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
+                  {isColVisible("numero") && <TableHead className="w-12">#</TableHead>}
+                  {isColVisible("data") && <TableHead>Data</TableHead>}
+                  {isColVisible("vencimento") && <TableHead>Vencimento</TableHead>}
+                  {isColVisible("tipo") && <TableHead>Tipo</TableHead>}
+                  {isColVisible("descricao") && <TableHead>Descrição</TableHead>}
+                  {isColVisible("categoria") && <TableHead>Categoria</TableHead>}
+                  {isColVisible("conta") && <TableHead>Conta</TableHead>}
+                  {isColVisible("pagamento") && <TableHead>Pagamento</TableHead>}
+                  {isColVisible("parcela") && <TableHead>Parcela</TableHead>}
+                  {isColVisible("valor") && <TableHead className="text-right">Valor</TableHead>}
+                  {isColVisible("status") && <TableHead>Status</TableHead>}
+                  {isColVisible("acoes") && <TableHead className="text-right">Ações</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {paginatedTransacoes.map((transacao, index) => (
                   <TableRow key={transacao.id}>
-                    <TableCell className="text-muted-foreground font-mono text-sm">
-                      {startIndex + index + 1}
-                    </TableCell>
-                    <TableCell>{formatDate(transacao.data)}</TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {transacao.data_pagamento ? formatDate(transacao.data_pagamento) : "-"}
-                    </TableCell>
-                    <TableCell>
-                      {transacao.forma_pagamento === 'transferencia' ? (
-                        <Badge className="bg-primary/10 text-primary hover:bg-primary/20">
-                          <ArrowRightLeft className="h-3 w-3 mr-1" />
-                          Transf.
-                        </Badge>
-                      ) : transacao.tipo === "receita" ? (
-                        <Badge className="bg-success/10 text-success hover:bg-success/20">
-                          <TrendingUp className="h-3 w-3 mr-1" />
-                          Receita
-                        </Badge>
-                      ) : (
-                        <Badge className="bg-destructive/10 text-destructive hover:bg-destructive/20">
-                          <TrendingDown className="h-3 w-3 mr-1" />
-                          Despesa
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="max-w-[150px] truncate">{transacao.descricao || "-"}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="w-2 h-2 rounded-full"
-                          style={{ backgroundColor: getCategoriaCor(transacao.categoria_id) }}
-                        />
-                        {getCategoriaNome(transacao.categoria_id)}
-                      </div>
-                    </TableCell>
-                    <TableCell>{getContaNome(transacao.conta_id)}</TableCell>
-                    <TableCell className="capitalize">
-                      <div className="flex items-center gap-2">
-                        <span>{formasPagamento.find(f => f.value === transacao.forma_pagamento)?.label}</span>
-                        {transacao.forma_pagamento === "credito" && (
-                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
-                            Cartão
+                    {isColVisible("numero") && (
+                      <TableCell className="text-muted-foreground font-mono text-sm">
+                        {startIndex + index + 1}
+                      </TableCell>
+                    )}
+                    {isColVisible("data") && <TableCell>{formatDate(transacao.data)}</TableCell>}
+                    {isColVisible("vencimento") && (
+                      <TableCell className="text-muted-foreground">
+                        {transacao.data_pagamento ? formatDate(transacao.data_pagamento) : "-"}
+                      </TableCell>
+                    )}
+                    {isColVisible("tipo") && (
+                      <TableCell>
+                        {transacao.forma_pagamento === 'transferencia' ? (
+                          <Badge className="bg-primary/10 text-primary hover:bg-primary/20">
+                            <ArrowRightLeft className="h-3 w-3 mr-1" />
+                            Transf.
+                          </Badge>
+                        ) : transacao.tipo === "receita" ? (
+                          <Badge className="bg-success/10 text-success hover:bg-success/20">
+                            <TrendingUp className="h-3 w-3 mr-1" />
+                            Receita
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-destructive/10 text-destructive hover:bg-destructive/20">
+                            <TrendingDown className="h-3 w-3 mr-1" />
+                            Despesa
                           </Badge>
                         )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {transacao.parcelas_total
-                        ? `${transacao.parcela_atual}/${transacao.parcelas_total}`
-                        : "-"
-                      }
-                    </TableCell>
-                    <TableCell className={`text-right font-medium ${transacao.tipo === "receita" ? "text-success" : "text-destructive"}`}>
-                      {transacao.tipo === "receita" ? "+" : "-"}{formatCurrency(Number(transacao.valor))}
-                    </TableCell>
-                    <TableCell>
-                      {isPendente(transacao.is_pago_executado) ? (
-                        <Badge className="bg-warning/10 text-warning hover:bg-warning/20 border border-warning/40">
-                          Pendente
-                        </Badge>
-                      ) : (
-                        <Badge className="bg-success/10 text-success hover:bg-success/20 border border-success/40">
-                          Executado
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-1">
-                        {transacao.is_pago_executado === false && contas.find(c => c.id === transacao.conta_id)?.tipo !== "credito" && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-success"
-                            onClick={() => handleConfirmPayment(transacao)}
-                            title="Confirmar pagamento"
-                          >
-                            <Check className="h-4 w-4" />
-                          </Button>
+                      </TableCell>
+                    )}
+                    {isColVisible("descricao") && (
+                      <TableCell className="max-w-[150px] truncate">{transacao.descricao || "-"}</TableCell>
+                    )}
+                    {isColVisible("categoria") && (
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-2 h-2 rounded-full"
+                            style={{ backgroundColor: getCategoriaCor(transacao.categoria_id) }}
+                          />
+                          {getCategoriaNome(transacao.categoria_id)}
+                        </div>
+                      </TableCell>
+                    )}
+                    {isColVisible("conta") && <TableCell>{getContaNome(transacao.conta_id)}</TableCell>}
+                    {isColVisible("pagamento") && (
+                      <TableCell className="capitalize">
+                        <div className="flex items-center gap-2">
+                          <span>{formasPagamento.find(f => f.value === transacao.forma_pagamento)?.label}</span>
+                          {transacao.forma_pagamento === "credito" && (
+                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
+                              Cartão
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
+                    )}
+                    {isColVisible("parcela") && (
+                      <TableCell>
+                        {transacao.parcelas_total
+                          ? `${transacao.parcela_atual}/${transacao.parcelas_total}`
+                          : "-"
+                        }
+                      </TableCell>
+                    )}
+                    {isColVisible("valor") && (
+                      <TableCell className={`text-right font-medium ${transacao.tipo === "receita" ? "text-success" : "text-destructive"}`}>
+                        {transacao.tipo === "receita" ? "+" : "-"}{formatCurrency(Number(transacao.valor))}
+                      </TableCell>
+                    )}
+                    {isColVisible("status") && (
+                      <TableCell>
+                        {isPendente(transacao.is_pago_executado) ? (
+                          <Badge className="bg-warning/10 text-warning hover:bg-warning/20 border border-warning/40">
+                            Pendente
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-success/10 text-success hover:bg-success/20 border border-success/40">
+                            Executado
+                          </Badge>
                         )}
-                        <Button variant="ghost" size="icon" onClick={() => handleEdit(transacao)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(transacao)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
+                      </TableCell>
+                    )}
+                    {isColVisible("acoes") && (
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          {transacao.is_pago_executado === false && contas.find(c => c.id === transacao.conta_id)?.tipo !== "credito" && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-success"
+                              onClick={() => handleConfirmPayment(transacao)}
+                              title="Confirmar pagamento"
+                            >
+                              <Check className="h-4 w-4" />
+                            </Button>
+                          )}
+                          <Button variant="ghost" size="icon" onClick={() => handleEdit(transacao)}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(transacao)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
                 {transacoes.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={12} className="text-center py-16">
+                    <TableCell colSpan={TABLE_COLUMNS.filter(c => isColVisible(c.key)).length} className="text-center py-16">
                       <div className="flex flex-col items-center gap-4">
                         <div className="p-4 rounded-full bg-muted">
                           <ArrowRightLeft className="h-10 w-10 text-muted-foreground" />
