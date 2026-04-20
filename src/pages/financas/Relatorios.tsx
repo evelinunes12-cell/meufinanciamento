@@ -9,12 +9,11 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Download, FileText, TrendingUp, TrendingDown } from "lucide-react";
-import { format, parseISO, startOfMonth, endOfMonth, isBefore, isAfter } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
 import { AdvancedFilters, FilterState, getDateRangeFromFilters, getInitialFilterState, getCategoryIdsForFilter } from "@/components/AdvancedFilters";
-import { ProjecaoFluxoCaixaWidget } from "@/components/dashboard/ProjecaoFluxoCaixaWidget";
-import { isExecutado, getDataEfetiva, filterTransacoesPorPeriodoEfetivo } from "@/lib/transactions";
+import { isExecutado, filterTransacoesPorPeriodoEfetivo } from "@/lib/transactions";
 
 interface Transacao {
   id: string;
@@ -143,7 +142,6 @@ const Relatorios = () => {
   const saldo = totalReceitas - totalDespesas;
 
   // Calculate current balance for projection (all time executed transactions)
-  // Calculate current balance for projection (all time executed transactions)
   const saldoAtual = useMemo(() => {
     return contas.reduce((acc, conta) => {
       if (conta.tipo === "credito") return acc;
@@ -175,14 +173,21 @@ const Relatorios = () => {
     return { conta: conta.nome_conta, receitas, despesas, saldo: receitas - despesas };
   }).filter(r => r.receitas !== 0 || r.despesas !== 0);
 
-  // Relatório por forma de pagamento
-  const formasPagamento = ["pix", "debito", "credito", "dinheiro", "transferencia", "outro"];
+  // Relatório por forma de pagamento (exclui transferências para consistência com demais relatórios)
+  const formasPagamento = [
+    { value: "pix", label: "PIX" },
+    { value: "debito", label: "Débito" },
+    { value: "credito", label: "Crédito" },
+    { value: "dinheiro", label: "Dinheiro" },
+    { value: "rendimento", label: "Rendimento" },
+    { value: "outro", label: "Outro" },
+  ];
   const relatorioFormaPagamento = formasPagamento.map(fp => {
-    const total = filteredTransacoes
-      .filter(t => t.forma_pagamento === fp)
-      .reduce((acc, t) => acc + Number(t.valor) * (t.tipo === "despesa" ? -1 : 1), 0);
-    return { forma: fp.charAt(0).toUpperCase() + fp.slice(1), total };
-  }).filter(r => r.total !== 0);
+    const transacoesFp = transacoesValidas.filter(t => t.forma_pagamento === fp.value);
+    const receitas = transacoesFp.filter(t => t.tipo === "receita").reduce((a, t) => a + Number(t.valor), 0);
+    const despesas = transacoesFp.filter(t => t.tipo === "despesa").reduce((a, t) => a + Number(t.valor), 0);
+    return { forma: fp.label, receitas, despesas, total: receitas - despesas };
+  }).filter(r => r.receitas !== 0 || r.despesas !== 0);
 
   const exportToCSV = () => {
     let csv = "";
