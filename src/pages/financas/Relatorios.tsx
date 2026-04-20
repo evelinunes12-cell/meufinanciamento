@@ -141,22 +141,6 @@ const Relatorios = () => {
   const totalDespesas = transacoesValidas.filter(t => t.tipo === "despesa").reduce((acc, t) => acc + Number(t.valor), 0);
   const saldo = totalReceitas - totalDespesas;
 
-  // Calculate current balance for projection (all time executed transactions)
-  const saldoAtual = useMemo(() => {
-    return contas.reduce((acc, conta) => {
-      if (conta.tipo === "credito") return acc;
-      
-      const transacoesConta = allTransacoes.filter(t => 
-        t.conta_id === conta.id && 
-        t.forma_pagamento !== "transferencia" &&
-        isExecutado(t.is_pago_executado)
-      );
-      const receitas = transacoesConta.filter(t => t.tipo === "receita").reduce((a, t) => a + Number(t.valor), 0);
-      const despesas = transacoesConta.filter(t => t.tipo === "despesa").reduce((a, t) => a + Number(t.valor), 0);
-      return acc + Number(conta.saldo_inicial) + receitas - despesas;
-    }, 0);
-  }, [contas, allTransacoes]);
-
   // Relatório por categoria
   const relatorioCategoria = categorias.map(cat => {
     const total = transacoesValidas
