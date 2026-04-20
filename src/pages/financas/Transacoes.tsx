@@ -1172,7 +1172,7 @@ const Transacoes = () => {
         </div>
 
         {/* Desktop Table Layout */}
-        <Card className="shadow-card hidden md:block">
+        <Card className="shadow-card hidden md:block w-full min-w-0">
           <CardContent className="p-0 overflow-x-auto">
             <Table>
               <TableHeader>
