@@ -220,7 +220,7 @@ const AppLayout = ({ children }: AppLayoutProps) => {
         </div>
       </div>
 
-      <main className="lg:pl-64 pt-14 lg:pt-0">
+      <main className="lg:pl-64 pt-14 lg:pt-0 min-w-0 overflow-x-hidden">
         {/* Desktop Header with saldo */}
         <div className="hidden lg:block sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-border/30 overflow-visible">
           <div className="flex items-center justify-end h-16 px-8 gap-3 overflow-visible">
@@ -292,7 +292,7 @@ const AppLayout = ({ children }: AppLayoutProps) => {
           </div>
         </div>
 
-        <div className="p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8">
+        <div className="p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8 min-w-0">
           {children}
         </div>
       </main>
