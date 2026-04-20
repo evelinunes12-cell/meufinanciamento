@@ -25,6 +25,40 @@ import DeleteSeriesDialog from "@/components/DeleteSeriesDialog";
 import CategoryCombobox from "@/components/CategoryCombobox";
 import { isPendente, getDataCompetenciaTransacao, createFixaRecurrenceSeries, propagateFixaUpdate, FIXA_RECURRENCE_WINDOW_MONTHS } from "@/lib/transactions";
 import EditSeriesDialog from "@/components/EditSeriesDialog";
+import ColumnSelector, { ColumnDef } from "@/components/ColumnSelector";
+
+const TABLE_COLUMNS: ColumnDef[] = [
+  { key: "numero", label: "#" },
+  { key: "data", label: "Data", required: true },
+  { key: "vencimento", label: "Vencimento" },
+  { key: "tipo", label: "Tipo" },
+  { key: "descricao", label: "Descrição", required: true },
+  { key: "categoria", label: "Categoria" },
+  { key: "conta", label: "Conta" },
+  { key: "pagamento", label: "Pagamento" },
+  { key: "parcela", label: "Parcela" },
+  { key: "valor", label: "Valor", required: true },
+  { key: "status", label: "Status" },
+  { key: "acoes", label: "Ações", required: true },
+];
+
+const COLUMNS_STORAGE_KEY = "transacoes-visible-columns";
+
+const getInitialColumnVisibility = (): Record<string, boolean> => {
+  const defaults = TABLE_COLUMNS.reduce((acc, col) => {
+    acc[col.key] = true;
+    return acc;
+  }, {} as Record<string, boolean>);
+  try {
+    const saved = localStorage.getItem(COLUMNS_STORAGE_KEY);
+    if (saved) {
+      return { ...defaults, ...JSON.parse(saved) };
+    }
+  } catch {
+    // ignore
+  }
+  return defaults;
+};
 
 interface Transacao {
   id: string;
@@ -130,6 +164,25 @@ const Transacoes = () => {
   }>({ open: false, pendingChanges: null, pendingDataToSave: null });
   const [editSeriesLoading, setEditSeriesLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [visibleColumns, setVisibleColumns] = useState<Record<string, boolean>>(getInitialColumnVisibility);
+
+  // Persist column visibility
+  useEffect(() => {
+    try {
+      localStorage.setItem(COLUMNS_STORAGE_KEY, JSON.stringify(visibleColumns));
+    } catch {
+      // ignore
+    }
+  }, [visibleColumns]);
+
+  const isColVisible = (key: string) => visibleColumns[key] !== false;
+  const resetColumns = () => {
+    const defaults = TABLE_COLUMNS.reduce((acc, col) => {
+      acc[col.key] = true;
+      return acc;
+    }, {} as Record<string, boolean>);
+    setVisibleColumns(defaults);
+  };
 
   // Filters
   const [filters, setFilters] = useState<FilterState>(getInitialFilterState());
