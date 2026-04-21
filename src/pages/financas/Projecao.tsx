@@ -435,12 +435,15 @@ const Projecao = () => {
                         <Info className="h-3 w-3 text-muted-foreground cursor-help" />
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p className="text-xs max-w-48">Média mensal de despesas executadas nos últimos 3 meses fechados. Usada como fallback inteligente na projeção.</p>
+                        <p className="text-xs max-w-48">Média mensal de despesas executadas dos últimos 12 meses fechados (ou menos, conforme histórico disponível). Usada como fallback inteligente na projeção.</p>
                       </TooltipContent>
                     </Tooltip>
                   </div>
                   <p className="text-lg font-bold text-destructive">
                     {formatCurrency(mediaHistorica)}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    Base: {mesesUsadosMedia} {mesesUsadosMedia === 1 ? "mês" : "meses"}
                   </p>
                 </div>
               </div>
