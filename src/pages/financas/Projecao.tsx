@@ -161,13 +161,13 @@ const Projecao = () => {
   }, [contas, transacoes]);
 
   // ==========================================
-  // OBJECTIVE 1: Média Histórica (últimos 3 meses fechados)
+  // OBJECTIVE 1: Média Histórica (últimos 12 meses fechados, ou menos se não houver histórico)
   // ==========================================
-  const mediaHistorica = useMemo(() => {
+  const { mediaHistorica, mesesUsadosMedia } = useMemo(() => {
     const hoje = new Date();
-    const mesesFechados: number[] = [];
+    const mesesComDados: number[] = [];
 
-    for (let i = 1; i <= 3; i++) {
+    for (let i = 1; i <= 12; i++) {
       const mes = subMonths(hoje, i);
       const inicio = startOfMonth(mes);
       const fim = endOfMonth(mes);
@@ -181,11 +181,18 @@ const Projecao = () => {
         })
         .reduce((acc, t) => acc + Number(t.valor), 0);
 
-      mesesFechados.push(despesasMes);
+      // Considera apenas meses que tiveram alguma despesa lançada (registro existente)
+      if (despesasMes > 0) {
+        mesesComDados.push(despesasMes);
+      }
     }
 
-    const total = mesesFechados.reduce((a, b) => a + b, 0);
-    return mesesFechados.some(v => v > 0) ? total / mesesFechados.filter(v => v > 0).length : 0;
+    if (mesesComDados.length === 0) {
+      return { mediaHistorica: 0, mesesUsadosMedia: 0 };
+    }
+
+    const total = mesesComDados.reduce((a, b) => a + b, 0);
+    return { mediaHistorica: total / mesesComDados.length, mesesUsadosMedia: mesesComDados.length };
   }, [transacoesSemTransf, contas]);
 
   // ==========================================
