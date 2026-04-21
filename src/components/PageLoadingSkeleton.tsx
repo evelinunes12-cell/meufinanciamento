@@ -109,21 +109,24 @@ const PageLoadingSkeleton = ({
     statsCount ?? (type === "dashboard" ? 6 : type === "report" ? 4 : 4);
 
   return (
-    <div className="space-y-4 sm:space-y-6 animate-fade-in min-h-[60vh]">
-      {/* Page header — espelha estrutura real (título + subtítulo + ação) */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-        <div className="space-y-2 min-w-0 flex-1">
-          {title ? (
-            <h1 className="text-xl sm:text-2xl font-bold text-foreground truncate">
-              {title}
-            </h1>
-          ) : (
-            <Skeleton className="h-7 sm:h-8 w-48" />
-          )}
-          <Skeleton className="h-4 w-64 max-w-full" />
+    <div className="space-y-6 animate-fade-in min-h-[60vh]">
+      {/* Page header — espelha estrutura do PageHeader (icon + título + descrição + ação) */}
+      <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <Skeleton className="h-10 w-10 rounded-xl shrink-0" />
+          <div className="min-w-0 flex-1 space-y-2">
+            {title ? (
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground truncate">
+                {title}
+              </h1>
+            ) : (
+              <Skeleton className="h-7 sm:h-8 w-48" />
+            )}
+            <Skeleton className="h-4 w-64 max-w-full" />
+          </div>
         </div>
         {showAction && <Skeleton className="h-9 w-32 rounded-md shrink-0" />}
-      </div>
+      </header>
 
       {type === "dashboard" && (
         <>
