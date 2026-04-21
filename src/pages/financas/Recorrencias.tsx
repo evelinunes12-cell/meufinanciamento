@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 
 import AppLayout from "@/components/AppLayout";
+import PageLoadingSkeleton from "@/components/PageLoadingSkeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -556,6 +557,15 @@ const RecorrenciasPage = () => {
       <p className="text-sm">{label}</p>
     </div>
   );
+
+  // ---------- Loading ----------
+  if (isLoading) {
+    return (
+      <AppLayout>
+        <PageLoadingSkeleton type="tabs" title="Recorrências" />
+      </AppLayout>
+    );
+  }
 
   // ---------- Render ----------
   return (

@@ -1,20 +1,28 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
-type PageType = "dashboard" | "list" | "cards" | "report";
+type PageType = "dashboard" | "list" | "cards" | "report" | "tabs";
 
 interface PageLoadingSkeletonProps {
   type?: PageType;
   title?: string;
+  /** Quantidade de KPI/stat cards exibidos no topo (default 4). */
+  statsCount?: number;
+  /** Mostra placeholder para um botão de ação no header. */
+  showAction?: boolean;
 }
 
-const StatsCardsSkeleton = () => (
-  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-    {Array.from({ length: 4 }).map((_, i) => (
-      <Card key={i}>
+const StatsCardsSkeleton = ({ count = 4 }: { count?: number }) => (
+  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 sm:gap-4">
+    {Array.from({ length: count }).map((_, i) => (
+      <Card key={i} className="border-border/50">
         <CardContent className="p-4">
+          <div className="flex items-start justify-between mb-3">
+            <Skeleton className="h-9 w-9 rounded-lg" />
+          </div>
           <Skeleton className="h-3 w-20 mb-2" />
-          <Skeleton className="h-6 w-28" />
+          <Skeleton className="h-6 w-28 mb-1.5" />
+          <Skeleton className="h-3 w-16" />
         </CardContent>
       </Card>
     ))}
@@ -25,16 +33,16 @@ const ListSkeleton = () => (
   <Card>
     <CardContent className="p-0">
       <div className="divide-y divide-border">
-        {Array.from({ length: 6 }).map((_, i) => (
+        {Array.from({ length: 8 }).map((_, i) => (
           <div key={i} className="flex items-center justify-between p-4">
-            <div className="flex items-center gap-3">
-              <Skeleton className="h-9 w-9 rounded-full" />
-              <div className="space-y-1.5">
-                <Skeleton className="h-4 w-32" />
-                <Skeleton className="h-3 w-20" />
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <Skeleton className="h-9 w-9 rounded-full shrink-0" />
+              <div className="space-y-1.5 min-w-0 flex-1">
+                <Skeleton className="h-4 w-40 max-w-full" />
+                <Skeleton className="h-3 w-24 max-w-full" />
               </div>
             </div>
-            <Skeleton className="h-5 w-20" />
+            <Skeleton className="h-5 w-20 shrink-0" />
           </div>
         ))}
       </div>
@@ -42,21 +50,22 @@ const ListSkeleton = () => (
   </Card>
 );
 
-const CardGridSkeleton = () => (
+const CardGridSkeleton = ({ count = 6 }: { count?: number }) => (
   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-    {Array.from({ length: 6 }).map((_, i) => (
+    {Array.from({ length: count }).map((_, i) => (
       <Card key={i}>
         <CardHeader className="pb-3">
           <div className="flex items-center gap-3">
             <Skeleton className="h-10 w-10 rounded-lg" />
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 flex-1">
               <Skeleton className="h-4 w-28" />
               <Skeleton className="h-3 w-16" />
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          <Skeleton className="h-5 w-24" />
+          <Skeleton className="h-5 w-24 mb-2" />
+          <Skeleton className="h-3 w-full" />
         </CardContent>
       </Card>
     ))}
@@ -71,43 +80,66 @@ const ChartSkeleton = () => (
           <Skeleton className="h-5 w-36" />
         </CardHeader>
         <CardContent>
-          <Skeleton className="h-48 w-full rounded-lg" />
+          <Skeleton className="h-64 w-full rounded-lg" />
         </CardContent>
       </Card>
     ))}
   </div>
 );
 
-const PageLoadingSkeleton = ({ type = "dashboard", title }: PageLoadingSkeletonProps) => {
+const TabsSkeleton = () => (
+  <div className="space-y-4">
+    <div className="grid w-full grid-cols-3 max-w-xl gap-1 p-1 bg-muted rounded-lg">
+      {Array.from({ length: 3 }).map((_, i) => (
+        <Skeleton key={i} className="h-8 rounded-md" />
+      ))}
+    </div>
+    <CardGridSkeleton count={6} />
+  </div>
+);
+
+const PageLoadingSkeleton = ({
+  type = "dashboard",
+  title,
+  statsCount,
+  showAction = true,
+}: PageLoadingSkeletonProps) => {
+  // Defaults sensatos por tipo
+  const resolvedStats =
+    statsCount ?? (type === "dashboard" ? 6 : type === "report" ? 4 : 4);
+
   return (
-    <div className="space-y-4 sm:space-y-6 animate-fade-in">
-      {/* Page header skeleton */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-        <div className="space-y-1.5">
+    <div className="space-y-4 sm:space-y-6 animate-fade-in min-h-[60vh]">
+      {/* Page header — espelha estrutura real (título + subtítulo + ação) */}
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+        <div className="space-y-2 min-w-0 flex-1">
           {title ? (
-            <h1 className="text-xl sm:text-2xl font-bold text-foreground">{title}</h1>
+            <h1 className="text-xl sm:text-2xl font-bold text-foreground truncate">
+              {title}
+            </h1>
           ) : (
-            <Skeleton className="h-7 w-48" />
+            <Skeleton className="h-7 sm:h-8 w-48" />
           )}
-          <Skeleton className="h-4 w-64" />
+          <Skeleton className="h-4 w-64 max-w-full" />
         </div>
-        <Skeleton className="h-9 w-32 rounded-md" />
+        {showAction && <Skeleton className="h-9 w-32 rounded-md shrink-0" />}
       </div>
 
       {type === "dashboard" && (
         <>
-          <StatsCardsSkeleton />
+          <StatsCardsSkeleton count={resolvedStats} />
           <ChartSkeleton />
         </>
       )}
 
       {type === "list" && (
         <>
-          {/* Filter bar skeleton */}
+          {/* Filter bar */}
           <div className="flex gap-2 flex-wrap">
-            <Skeleton className="h-9 w-24 rounded-md" />
-            <Skeleton className="h-9 w-24 rounded-md" />
+            <Skeleton className="h-9 w-28 rounded-md" />
+            <Skeleton className="h-9 w-28 rounded-md" />
             <Skeleton className="h-9 w-32 rounded-md" />
+            <Skeleton className="h-9 w-24 rounded-md" />
           </div>
           <ListSkeleton />
         </>
@@ -117,10 +149,12 @@ const PageLoadingSkeleton = ({ type = "dashboard", title }: PageLoadingSkeletonP
 
       {type === "report" && (
         <>
-          <StatsCardsSkeleton />
+          <StatsCardsSkeleton count={resolvedStats} />
           <ListSkeleton />
         </>
       )}
+
+      {type === "tabs" && <TabsSkeleton />}
     </div>
   );
 };
