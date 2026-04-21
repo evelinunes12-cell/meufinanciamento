@@ -558,6 +558,15 @@ const RecorrenciasPage = () => {
     </div>
   );
 
+  // ---------- Loading ----------
+  if (isLoading) {
+    return (
+      <AppLayout>
+        <PageLoadingSkeleton type="tabs" title="Recorrências" />
+      </AppLayout>
+    );
+  }
+
   // ---------- Render ----------
   return (
     <AppLayout>
