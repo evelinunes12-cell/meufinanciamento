@@ -115,7 +115,8 @@ const dueDateOf = (t: Transacao) => parseISO(t.data_pagamento ?? t.data);
 const RecorrenciasPage = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [tab, setTab] = useState<"despesa" | "receita" | "pausada">("despesa");
+  type RecTab = "despesa" | "receita" | "pausada";
+  const { tab, setTab, isTransitioning: isTabSwitching } = useTabTransition<RecTab>("despesa");
 
   // Edit modal state
   const [editGroup, setEditGroup] = useState<RecurrenceGroup | null>(null);
@@ -661,7 +662,7 @@ const RecorrenciasPage = () => {
         </section>
 
         {/* Tabs */}
-        <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)} className="space-y-4">
+        <Tabs value={tab} onValueChange={(v) => setTab(v)} className="space-y-4">
           <TabsList className="grid w-full grid-cols-3 max-w-xl">
             <TabsTrigger value="despesa">
               Despesas{" "}
@@ -684,39 +685,51 @@ const RecorrenciasPage = () => {
           </TabsList>
 
           <TabsContent value="despesa">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {isLoading
-                ? Array.from({ length: 3 }).map((_, i) => (
-                    <Skeleton key={i} className="h-44 w-full rounded-lg" />
-                  ))
-                : despesasGroups.length === 0
-                ? emptyState("Nenhuma despesa fixa cadastrada ainda.")
-                : despesasGroups.map(renderCard)}
-            </div>
+            {isTabSwitching ? (
+              <TabContentSkeleton variant="cards" count={3} />
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {isLoading
+                  ? Array.from({ length: 3 }).map((_, i) => (
+                      <Skeleton key={i} className="h-44 w-full rounded-lg" />
+                    ))
+                  : despesasGroups.length === 0
+                  ? emptyState("Nenhuma despesa fixa cadastrada ainda.")
+                  : despesasGroups.map(renderCard)}
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="receita">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {isLoading
-                ? Array.from({ length: 3 }).map((_, i) => (
-                    <Skeleton key={i} className="h-44 w-full rounded-lg" />
-                  ))
-                : receitasGroups.length === 0
-                ? emptyState("Nenhuma receita fixa cadastrada ainda.")
-                : receitasGroups.map(renderCard)}
-            </div>
+            {isTabSwitching ? (
+              <TabContentSkeleton variant="cards" count={3} />
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {isLoading
+                  ? Array.from({ length: 3 }).map((_, i) => (
+                      <Skeleton key={i} className="h-44 w-full rounded-lg" />
+                    ))
+                  : receitasGroups.length === 0
+                  ? emptyState("Nenhuma receita fixa cadastrada ainda.")
+                  : receitasGroups.map(renderCard)}
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="pausada">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {isLoading
-                ? Array.from({ length: 2 }).map((_, i) => (
-                    <Skeleton key={i} className="h-44 w-full rounded-lg" />
-                  ))
-                : pausadasGroups.length === 0
-                ? emptyState("Nenhuma recorrência pausada.")
-                : pausadasGroups.map(renderCard)}
-            </div>
+            {isTabSwitching ? (
+              <TabContentSkeleton variant="cards" count={2} />
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {isLoading
+                  ? Array.from({ length: 2 }).map((_, i) => (
+                      <Skeleton key={i} className="h-44 w-full rounded-lg" />
+                    ))
+                  : pausadasGroups.length === 0
+                  ? emptyState("Nenhuma recorrência pausada.")
+                  : pausadasGroups.map(renderCard)}
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </div>
