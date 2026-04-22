@@ -3,7 +3,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import AppLayout from "@/components/AppLayout";
-import PageLoadingSkeleton from "@/components/PageLoadingSkeleton";
+import PageLoadingSkeleton, { TabContentSkeleton } from "@/components/PageLoadingSkeleton";
+import { useTabTransition } from "@/hooks/useTabTransition";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,7 +47,7 @@ const Categorias = () => {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState("despesa");
+  const { tab: activeTab, setTab: setActiveTab, isTransitioning: isTabSwitching } = useTabTransition<"despesa" | "receita">("despesa");
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -334,33 +335,41 @@ const Categorias = () => {
           </TabsList>
 
           <TabsContent value="despesa" className="mt-4">
-            <Card className="shadow-card">
-              <CardContent className="p-4 space-y-2">
-                {paginatedMainCategorias.map((cat, index) => (
-                  renderCategoriaWithSubcategorias(cat, index)
-                ))}
-                {categoriasDespesa.length === 0 && (
-                  <p className="text-center py-8 text-muted-foreground">
-                    {searchTerm ? "Nenhuma categoria encontrada" : "Nenhuma categoria de despesa cadastrada"}
-                  </p>
-                )}
-              </CardContent>
-            </Card>
+            {isTabSwitching ? (
+              <TabContentSkeleton variant="list" />
+            ) : (
+              <Card className="shadow-card">
+                <CardContent className="p-4 space-y-2">
+                  {paginatedMainCategorias.map((cat, index) => (
+                    renderCategoriaWithSubcategorias(cat, index)
+                  ))}
+                  {categoriasDespesa.length === 0 && (
+                    <p className="text-center py-8 text-muted-foreground">
+                      {searchTerm ? "Nenhuma categoria encontrada" : "Nenhuma categoria de despesa cadastrada"}
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           <TabsContent value="receita" className="mt-4">
-            <Card className="shadow-card">
-              <CardContent className="p-4 space-y-2">
-                {paginatedMainCategorias.map((cat, index) => (
-                  renderCategoriaWithSubcategorias(cat, index)
-                ))}
-                {categoriasReceita.length === 0 && (
-                  <p className="text-center py-8 text-muted-foreground">
-                    {searchTerm ? "Nenhuma categoria encontrada" : "Nenhuma categoria de receita cadastrada"}
-                  </p>
-                )}
-              </CardContent>
-            </Card>
+            {isTabSwitching ? (
+              <TabContentSkeleton variant="list" />
+            ) : (
+              <Card className="shadow-card">
+                <CardContent className="p-4 space-y-2">
+                  {paginatedMainCategorias.map((cat, index) => (
+                    renderCategoriaWithSubcategorias(cat, index)
+                  ))}
+                  {categoriasReceita.length === 0 && (
+                    <p className="text-center py-8 text-muted-foreground">
+                      {searchTerm ? "Nenhuma categoria encontrada" : "Nenhuma categoria de receita cadastrada"}
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
         </Tabs>
 

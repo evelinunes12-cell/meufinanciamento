@@ -1,7 +1,7 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
-type PageType = "dashboard" | "list" | "cards" | "report" | "tabs";
+type PageType = "dashboard" | "list" | "cards" | "report" | "tabs" | "tabContent";
 
 interface PageLoadingSkeletonProps {
   type?: PageType;
@@ -160,6 +160,24 @@ const PageLoadingSkeleton = ({
       {type === "tabs" && <TabsSkeleton />}
     </div>
   );
+};
+
+/**
+ * Skeleton compacto para transição interna de Tabs (`onValueChange`).
+ * Mostra apenas o conteúdo da aba (sem repetir header/KPIs da página),
+ * evitando render parcial enquanto os dados da aba carregam.
+ */
+export const TabContentSkeleton = ({
+  variant = "cards",
+  count,
+}: {
+  variant?: "cards" | "list";
+  count?: number;
+}) => {
+  if (variant === "list") {
+    return <ListSkeleton />;
+  }
+  return <CardGridSkeleton count={count ?? 6} />;
 };
 
 export default PageLoadingSkeleton;
