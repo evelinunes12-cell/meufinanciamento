@@ -103,11 +103,69 @@ const TabsSkeleton = () => (
   </div>
 );
 
+/**
+ * Skeleton para tabela densa (header + N linhas) — usado em
+ * páginas como Transações e Parcelas para evitar o "salto" de
+ * layout quando os dados chegam após o fetch inicial.
+ */
+const TableSkeleton = ({
+  columns = 8,
+  rows = 10,
+}: {
+  columns?: number;
+  rows?: number;
+}) => {
+  const cols = Array.from({ length: columns });
+  const rws = Array.from({ length: rows });
+  return (
+    <Card>
+      <CardContent className="p-0 overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              {cols.map((_, i) => (
+                <TableHead key={i} className={i === columns - 1 ? "text-right" : ""}>
+                  <Skeleton
+                    className={`h-4 ${i === columns - 1 ? "w-16 ml-auto" : "w-20"}`}
+                  />
+                </TableHead>
+              ))}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rws.map((_, r) => (
+              <TableRow key={r}>
+                {cols.map((_, c) => (
+                  <TableCell key={c} className={c === columns - 1 ? "text-right" : ""}>
+                    <Skeleton
+                      className={`h-4 ${
+                        c === 0
+                          ? "w-8"
+                          : c === columns - 1
+                          ? "w-16 ml-auto"
+                          : c % 3 === 0
+                          ? "w-28"
+                          : "w-20"
+                      }`}
+                    />
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+};
+
 const PageLoadingSkeleton = ({
   type = "dashboard",
   title,
   statsCount,
   showAction = true,
+  tableColumns,
+  tableRows,
 }: PageLoadingSkeletonProps) => {
   // Defaults sensatos por tipo
   const resolvedStats =
@@ -149,7 +207,14 @@ const PageLoadingSkeleton = ({
             <Skeleton className="h-9 w-32 rounded-md" />
             <Skeleton className="h-9 w-24 rounded-md" />
           </div>
-          <ListSkeleton />
+          <TableSkeleton columns={tableColumns ?? 8} rows={tableRows ?? 10} />
+        </>
+      )}
+
+      {type === "table" && (
+        <>
+          <StatsCardsSkeleton count={resolvedStats} />
+          <TableSkeleton columns={tableColumns ?? 8} rows={tableRows ?? 10} />
         </>
       )}
 
@@ -176,13 +241,18 @@ export const TabContentSkeleton = ({
   variant = "cards",
   count,
 }: {
-  variant?: "cards" | "list";
+  variant?: "cards" | "list" | "table";
   count?: number;
 }) => {
   if (variant === "list") {
     return <ListSkeleton />;
   }
+  if (variant === "table") {
+    return <TableSkeleton rows={count ?? 8} />;
+  }
   return <CardGridSkeleton count={count ?? 6} />;
 };
+
+export { TableSkeleton };
 
 export default PageLoadingSkeleton;
