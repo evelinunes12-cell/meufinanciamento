@@ -47,7 +47,7 @@ const Categorias = () => {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const { tab: activeTab, setTab: setActiveTab, isTransitioning: isTabSwitching } = useTabTransition("despesa");
+  const { tab: activeTab, setTab: setActiveTab, isTransitioning: isTabSwitching } = useTabTransition<"despesa" | "receita">("despesa");
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
 
