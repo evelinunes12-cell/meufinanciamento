@@ -5,6 +5,9 @@ import Header from "@/components/Header";
 import InstallmentsTable from "@/components/InstallmentsTable";
 import StatsCards from "@/components/StatsCards";
 import ExportButton from "@/components/ExportButton";
+import { TableSkeleton } from "@/components/PageLoadingSkeleton";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -131,8 +134,33 @@ const Parcelas = () => {
     return (
       <div className="min-h-screen bg-background">
         <Header />
-        <main className="container mx-auto flex items-center justify-center px-4 py-20">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <main className="container mx-auto px-4 py-8 space-y-6 animate-fade-in">
+          {/* Header skeleton */}
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-2">
+              <Skeleton className="h-7 sm:h-8 w-48" />
+              <Skeleton className="h-4 w-64 max-w-full" />
+            </div>
+            <div className="flex gap-2">
+              <Skeleton className="h-9 w-32 rounded-md" />
+              <Skeleton className="h-9 w-28 rounded-md" />
+            </div>
+          </div>
+          {/* Stats cards skeleton */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 sm:gap-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Card key={i} className="border-border/50">
+                <CardContent className="p-4">
+                  <Skeleton className="h-9 w-9 rounded-lg mb-3" />
+                  <Skeleton className="h-3 w-20 mb-2" />
+                  <Skeleton className="h-6 w-28 mb-1.5" />
+                  <Skeleton className="h-3 w-16" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          {/* Table skeleton */}
+          <TableSkeleton columns={9} rows={10} />
         </main>
       </div>
     );

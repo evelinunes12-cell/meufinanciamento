@@ -824,7 +824,7 @@ const Transacoes = () => {
   if (isLoading) {
     return (
       <AppLayout>
-        <PageLoadingSkeleton type="list" title="Transações" />
+        <PageLoadingSkeleton type="list" title="Transações" tableColumns={12} tableRows={10} />
       </AppLayout>
     );
   }
