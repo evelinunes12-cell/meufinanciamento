@@ -1,7 +1,8 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
-type PageType = "dashboard" | "list" | "cards" | "report" | "tabs" | "tabContent";
+type PageType = "dashboard" | "list" | "cards" | "report" | "tabs" | "tabContent" | "table";
 
 interface PageLoadingSkeletonProps {
   type?: PageType;
@@ -10,6 +11,10 @@ interface PageLoadingSkeletonProps {
   statsCount?: number;
   /** Mostra placeholder para um botão de ação no header. */
   showAction?: boolean;
+  /** Para type="table": número de colunas (default 8). */
+  tableColumns?: number;
+  /** Para type="table": número de linhas (default 10). */
+  tableRows?: number;
 }
 
 const StatsCardsSkeleton = ({ count = 4 }: { count?: number }) => (
