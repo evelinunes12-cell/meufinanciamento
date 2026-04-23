@@ -237,9 +237,14 @@ const Categorias = () => {
           </div>
           <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
             <DialogTrigger asChild>
-              <Button className="gradient-primary text-primary-foreground" onClick={() => setFormData({ ...formData, tipo: activeTab })}>
-                <Plus className="h-4 w-4 mr-2" />
-                Nova Categoria
+              <Button
+                className="gradient-primary text-primary-foreground sm:px-5 px-0 sm:w-auto w-10"
+                onClick={() => setFormData({ ...formData, tipo: activeTab })}
+                aria-label="Nova categoria"
+                title="Nova categoria"
+              >
+                <Plus className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Nova Categoria</span>
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-md">

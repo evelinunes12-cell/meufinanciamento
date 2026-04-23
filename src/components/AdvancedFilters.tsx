@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, ChevronUp, Calendar as CalendarIcon, Filter, X } from "lucide-react";
+import { ChevronDown, ChevronUp, Calendar as CalendarIcon, Filter, X, RotateCcw } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -225,8 +225,14 @@ export const AdvancedFilters = ({
           </>
         )}
         {onResetToDefault && (
-          <Button variant="outline" onClick={onResetToDefault}>
-            Restaurar filtro padrão
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={onResetToDefault}
+            aria-label="Restaurar filtro padrão"
+            title="Restaurar filtro padrão"
+          >
+            <RotateCcw className="h-4 w-4" />
           </Button>
         )}
       </div>
@@ -235,15 +241,17 @@ export const AdvancedFilters = ({
       {(showTipo || showCategoria || showConta || showFormaPagamento || showStatusPagamento) && (
         <Collapsible open={isOpen} onOpenChange={setIsOpen}>
           <CollapsibleTrigger asChild>
-            <Button variant="ghost" size="sm" className="gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="relative"
+              aria-label="Filtros avançados"
+              title="Filtros avançados"
+            >
               <Filter className="h-4 w-4" />
-              Filtros Avançados
               {hasAdvancedFilters && (
-                <span className="bg-primary text-primary-foreground rounded-full px-2 py-0.5 text-xs">
-                  Ativo
-                </span>
+                <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-primary" />
               )}
-              {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
             </Button>
           </CollapsibleTrigger>
           <CollapsibleContent className="pt-4">

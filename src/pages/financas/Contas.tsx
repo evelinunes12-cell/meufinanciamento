@@ -220,9 +220,13 @@ const Contas = () => {
           </div>
           <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
             <DialogTrigger asChild>
-              <Button className="gradient-primary text-primary-foreground">
-                <Plus className="h-4 w-4 mr-2" />
-                Nova Conta
+              <Button
+                className="gradient-primary text-primary-foreground sm:px-5 px-0 sm:w-auto w-10"
+                aria-label="Nova conta"
+                title="Nova conta"
+              >
+                <Plus className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Nova Conta</span>
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-md">
