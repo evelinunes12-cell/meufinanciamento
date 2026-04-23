@@ -566,8 +566,55 @@ const Projecao = () => {
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Detalhamento Mensal</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
+          <CardContent className="p-0 sm:p-6 sm:pt-0">
+            {/* Mobile cards */}
+            <div className="md:hidden divide-y divide-border">
+              {projecaoMensal.map((m, i) => (
+                <div
+                  key={i}
+                  className={`p-3 space-y-2 ${m.saldoAcumulado < 0 ? "bg-destructive/5" : ""}`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold capitalize text-sm">
+                        {format(m.mes, "MMM/yy", { locale: ptBR })}
+                      </span>
+                      {i === 0 && <Badge variant="secondary" className="text-[10px]">Atual</Badge>}
+                    </div>
+                    <span className={`text-sm font-bold ${m.saldoAcumulado >= 0 ? "text-success" : "text-destructive"}`}>
+                      {formatCurrency(m.saldoAcumulado)}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Receitas</span>
+                      <span className="text-success font-medium">+{formatCurrency(m.receitas)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Despesas</span>
+                      <span className="text-destructive font-medium">-{formatCurrency(m.despesasProjetadas)}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">Fonte</span>
+                    <Badge
+                      variant="outline"
+                      className={`text-[10px] ${
+                        m.fonteProjecao === "orcamento"
+                          ? "border-primary/50 text-primary"
+                          : m.fonteProjecao === "media"
+                          ? "border-warning/50 text-warning"
+                          : "border-muted-foreground/50"
+                      }`}
+                    >
+                      {fonteLabel(m.fonteProjecao)}
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* Desktop table */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b text-left">
