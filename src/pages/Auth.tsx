@@ -173,9 +173,9 @@ const Auth = () => {
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
             <span className="text-2xl">💰</span>
           </div>
-          <CardTitle className="text-2xl font-bold">Meu Controle Financeiro</CardTitle>
+          <CardTitle className="text-2xl font-bold">Soma - O seu assistente financeiro</CardTitle>
           <CardDescription>
-            Gerencie suas finanças pessoais e financiamentos
+            Controle gastos, faça gestão de faturas, projeções de caixa e organize o seu dinheiro em um só lugar.
           </CardDescription>
         </CardHeader>
         <CardContent>
