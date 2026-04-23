@@ -48,7 +48,6 @@ const FinanciamentoParcelas = () => {
   const [parcelasByContrato, setParcelasByContrato] = useState<Record<string, Parcela[]>>({});
   const [selectedId, setSelectedId] = useState<string>("");
   const [loading, setLoading] = useState(true);
-  const [resetting, setResetting] = useState(false);
 
   useEffect(() => {
     if (user) fetchData();
