@@ -190,28 +190,6 @@ const FinanciamentoParcelas = () => {
 
             <div className="flex flex-wrap gap-2">
               <ExportButton parcelas={parcelas} financiamento={selectedContrato} />
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="outline" disabled={resetting}>
-                    <RotateCcw className="h-4 w-4 mr-2" />
-                    Recalcular
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Recalcular parcelas do contrato selecionado?</AlertDialogTitle>
-                    <AlertDialogDescription>Isso irá resetar o status de pagamento das parcelas desta aba.</AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleRecalcular}>Confirmar</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-              <Button variant="outline" onClick={fetchData}>
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Atualizar
-              </Button>
             </div>
           </div>
 
