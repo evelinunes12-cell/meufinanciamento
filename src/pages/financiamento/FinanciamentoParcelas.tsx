@@ -99,34 +99,6 @@ const FinanciamentoParcelas = () => {
   const selectedContrato = useMemo(() => financiamentos.find((item) => item.id === selectedId) || null, [financiamentos, selectedId]);
   const parcelas = selectedId ? parcelasByContrato[selectedId] || [] : [];
 
-  const handleRecalcular = async () => {
-    if (!selectedContrato) return;
-
-    setResetting(true);
-
-    const { error } = await supabase
-      .from("parcelas")
-      .update({
-        pago: false,
-        data_pagamento: null,
-        antecipada: false,
-        valor_pago: null,
-        economia: null,
-        dias_antecedencia: 0,
-        amortizacao: null,
-        juros: null,
-      })
-      .eq("financiamento_id", selectedContrato.id);
-
-    if (error) {
-      toast({ title: "Erro", description: "Erro ao recalcular parcelas", variant: "destructive" });
-    } else {
-      toast({ title: "Sucesso", description: "Parcelas do contrato selecionado foram resetadas" });
-      fetchData();
-    }
-
-    setResetting(false);
-  };
 
   if (loading) {
     return (
