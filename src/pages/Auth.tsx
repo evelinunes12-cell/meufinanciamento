@@ -167,11 +167,11 @@ const Auth = () => {
   }
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 px-4">
+    <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 px-4 border-2 border-primary">
       <Card className="w-full max-w-md mx-auto shadow-card animate-fade-in">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-            <span className="text-2xl">💰</span>
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 border-2 border-primary">
+            <span className="font-extrabold text-primary text-2xl text-center">+</span>
           </div>
           <CardTitle className="text-2xl font-bold">Soma - O seu assistente financeiro</CardTitle>
           <CardDescription>
