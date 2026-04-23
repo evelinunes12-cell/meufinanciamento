@@ -351,20 +351,25 @@ const Projecao = () => {
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Projeção Inteligente</h1>
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl font-bold text-foreground">Projeção Inteligente</h1>
             <p className="text-muted-foreground text-sm">
               Simulação baseada em orçamentos, lançamentos e média histórica
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             <Target className="h-4 w-4 text-muted-foreground hidden sm:block" />
-            <ToggleGroup type="single" value={cenario} onValueChange={(v) => v && setCenario(v as Cenario)} className="bg-muted rounded-lg p-1">
+            <ToggleGroup
+              type="single"
+              value={cenario}
+              onValueChange={(v) => v && setCenario(v as Cenario)}
+              className="bg-muted rounded-lg p-1 w-full sm:w-auto"
+            >
               {(Object.keys(CENARIO_CONFIG) as Cenario[]).map(c => (
                 <ToggleGroupItem
                   key={c}
                   value={c}
-                  className="text-xs px-3 py-1.5 data-[state=on]:bg-background data-[state=on]:shadow-sm"
+                  className="text-xs px-2 sm:px-3 py-1.5 flex-1 sm:flex-none data-[state=on]:bg-background data-[state=on]:shadow-sm"
                 >
                   <Tooltip>
                     <TooltipTrigger asChild>
