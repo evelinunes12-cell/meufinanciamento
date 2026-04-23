@@ -18,7 +18,8 @@ import {
   LogOut,
   Menu,
   X,
-  Settings
+  Settings,
+  CirclePlus
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -98,10 +99,10 @@ const AppSidebar = () => {
       <div className="p-4 border-b border-border">
         <Link to="/financas" className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl gradient-primary shadow-soft">
-            <Wallet className="h-5 w-5 text-primary-foreground" />
+            <CirclePlus className="h-5 w-5 text-primary-foreground" />
           </div>
-          <span className="text-lg font-bold text-foreground">
-            Meu Controle Financeiro
+          <span className="font-bold text-foreground text-sm">
+            Soma | Assistente Financeiro
           </span>
         </Link>
       </div>
