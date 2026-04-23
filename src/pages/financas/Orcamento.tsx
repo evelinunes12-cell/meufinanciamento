@@ -329,9 +329,14 @@ const Orcamento = () => {
             </label>
           <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
             <DialogTrigger asChild>
-              <Button className="gradient-primary text-primary-foreground" disabled={categoriasDisponiveis.length === 0}>
-                <Plus className="h-4 w-4 mr-2" />
-                Definir Limite
+              <Button
+                className="gradient-primary text-primary-foreground sm:w-auto w-10 sm:px-5 px-0"
+                disabled={categoriasDisponiveis.length === 0}
+                aria-label="Definir limite"
+                title="Definir limite"
+              >
+                <Plus className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Definir Limite</span>
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-md">
