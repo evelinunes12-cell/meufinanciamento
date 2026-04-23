@@ -5,22 +5,11 @@ import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import StatsCards from "@/components/StatsCards";
 import InstallmentsTable from "@/components/InstallmentsTable";
 import ExportButton from "@/components/ExportButton";
-import { RefreshCw, RotateCcw, Landmark, Plus } from "lucide-react";
+import { Landmark, Plus } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 type TipoContrato = "financiamento" | "emprestimo";
