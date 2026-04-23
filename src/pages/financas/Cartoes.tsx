@@ -641,9 +641,10 @@ const getFaturaFechada = (cartao: Conta) => {
                                       variant="outline"
                                       className="gap-1 text-xs"
                                       onClick={() => handleFecharEPagarAberta(cartao)}
+                                      aria-label="Fechar e pagar fatura"
                                     >
                                       <Lock className="h-3 w-3" />
-                                      Fechar e Pagar
+                                      <span className="hidden sm:inline">Fechar e Pagar</span>
                                     </Button>
                                   </TooltipTrigger>
                                   <TooltipContent>
@@ -657,9 +658,10 @@ const getFaturaFechada = (cartao: Conta) => {
                                       variant="outline"
                                       className="gap-1 text-xs border-primary/50 text-primary hover:bg-primary hover:text-primary-foreground"
                                       onClick={() => handleAnteciparFatura(cartao)}
+                                      aria-label="Antecipar fatura"
                                     >
                                       <Zap className="h-3 w-3" />
-                                      Antecipar
+                                      <span className="hidden sm:inline">Antecipar</span>
                                     </Button>
                                   </TooltipTrigger>
                                   <TooltipContent>

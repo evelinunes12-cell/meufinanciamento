@@ -76,9 +76,9 @@ export function CustomizeDashboardModal({ visibility, onVisibilityChange }: Cust
   return (
     <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (o) setLocalVisibility(visibility); }}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
-          <Settings2 className="h-4 w-4 mr-2" />
-          Personalizar
+        <Button variant="outline" size="sm" aria-label="Personalizar dashboard" title="Personalizar">
+          <Settings2 className="h-4 w-4 sm:mr-2" />
+          <span className="hidden sm:inline">Personalizar</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-md">
