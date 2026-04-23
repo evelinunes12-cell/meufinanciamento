@@ -198,9 +198,9 @@ const AppSidebar = () => {
       <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-card border-b border-border px-4 h-14 flex items-center justify-between">
         <Link to="/financas" className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg gradient-primary">
-            <Wallet className="h-4 w-4 text-primary-foreground" />
+            <CirclePlus className="h-4 w-4 text-primary-foreground" />
           </div>
-          <span className="font-semibold text-foreground">Meu Controle</span>
+          <span className="font-semibold text-foreground">Soma | Assistente Financeiro</span>
         </Link>
         <Button variant="ghost" size="icon" onClick={() => setIsMobileOpen(!isMobileOpen)}>
           {isMobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
