@@ -176,7 +176,104 @@ const InstallmentsTable = ({ parcelas, taxaDiaria, onUpdate }: InstallmentsTable
   return (
     <>
       <div className="rounded-xl border border-border bg-card shadow-card overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Mobile cards */}
+        <div className="md:hidden divide-y divide-border">
+          {parcelas.map((parcela) => (
+            <div
+              key={parcela.id}
+              className={cn(
+                "p-3 space-y-2",
+                parcela.pago && parcela.antecipada && "bg-success/5",
+                parcela.pago && !parcela.antecipada && "bg-muted/30"
+              )}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-sm font-bold text-foreground">
+                    #{parcela.numero_parcela}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {format(parseISO(parcela.data_vencimento), "dd/MM/yyyy")}
+                  </span>
+                </div>
+                {parcela.pago ? (
+                  <Badge
+                    variant="default"
+                    className={cn(
+                      "text-[10px]",
+                      parcela.antecipada
+                        ? "bg-success text-success-foreground"
+                        : "bg-primary text-primary-foreground"
+                    )}
+                  >
+                    <Check className="mr-0.5 h-3 w-3" />
+                    {parcela.antecipada ? "Antecipada" : "Paga"}
+                  </Badge>
+                ) : (
+                  <Badge variant="secondary" className="text-[10px]">Pendente</Badge>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Valor</span>
+                <span className="font-semibold text-foreground">
+                  {formatCurrency(parcela.valor_parcela)}
+                </span>
+              </div>
+
+              {parcela.pago && (
+                <>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">Pago</span>
+                    <span className="font-medium">
+                      {formatCurrency(parcela.valor_pago || 0)}
+                      {parcela.data_pagamento && (
+                        <span className="text-muted-foreground ml-1">
+                          ({format(parseISO(parcela.data_pagamento), "dd/MM")})
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                  {parcela.economia && parcela.economia > 0 && (
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Economia</span>
+                      <span className="text-success font-semibold">
+                        {formatCurrency(parcela.economia)}
+                      </span>
+                    </div>
+                  )}
+                </>
+              )}
+
+              <div className="pt-1">
+                {parcela.pago ? (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="w-full text-destructive hover:text-destructive hover:bg-destructive/10 h-8"
+                    onClick={() => setCancelTarget(parcela)}
+                  >
+                    <Undo2 className="mr-1 h-4 w-4" />
+                    Cancelar
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full h-8"
+                    onClick={() => handleOpenDialog(parcela)}
+                  >
+                    <Calculator className="mr-1 h-4 w-4" />
+                    Pagar
+                  </Button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop table */}
+        <div className="hidden md:block overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50">

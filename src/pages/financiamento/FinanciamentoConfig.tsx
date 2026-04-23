@@ -259,13 +259,18 @@ const FinanciamentoConfig = () => {
     <AppLayout>
       <div className="space-y-6 max-w-5xl mx-auto">
         <div className="flex items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Gestor de Contratos</h1>
-            <p className="text-muted-foreground">Gerencie seus empréstimos e financiamentos por contrato.</p>
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl font-bold text-foreground">Gestor de Contratos</h1>
+            <p className="text-sm text-muted-foreground">Gerencie seus empréstimos e financiamentos por contrato.</p>
           </div>
-          <Button onClick={startCreate} className="gradient-primary text-primary-foreground">
-            <Plus className="h-4 w-4 mr-2" />
-            Adicionar Novo Contrato
+          <Button
+            onClick={startCreate}
+            className="gradient-primary text-primary-foreground sm:w-auto w-10 sm:px-5 px-0 shrink-0"
+            aria-label="Adicionar novo contrato"
+            title="Adicionar novo contrato"
+          >
+            <Plus className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Adicionar Novo Contrato</span>
           </Button>
         </div>
 

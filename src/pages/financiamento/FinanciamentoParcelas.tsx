@@ -5,22 +5,11 @@ import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import StatsCards from "@/components/StatsCards";
 import InstallmentsTable from "@/components/InstallmentsTable";
 import ExportButton from "@/components/ExportButton";
-import { RefreshCw, RotateCcw, Landmark, Plus } from "lucide-react";
+import { Landmark, Plus } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 type TipoContrato = "financiamento" | "emprestimo";
@@ -59,7 +48,6 @@ const FinanciamentoParcelas = () => {
   const [parcelasByContrato, setParcelasByContrato] = useState<Record<string, Parcela[]>>({});
   const [selectedId, setSelectedId] = useState<string>("");
   const [loading, setLoading] = useState(true);
-  const [resetting, setResetting] = useState(false);
 
   useEffect(() => {
     if (user) fetchData();
@@ -111,34 +99,6 @@ const FinanciamentoParcelas = () => {
   const selectedContrato = useMemo(() => financiamentos.find((item) => item.id === selectedId) || null, [financiamentos, selectedId]);
   const parcelas = selectedId ? parcelasByContrato[selectedId] || [] : [];
 
-  const handleRecalcular = async () => {
-    if (!selectedContrato) return;
-
-    setResetting(true);
-
-    const { error } = await supabase
-      .from("parcelas")
-      .update({
-        pago: false,
-        data_pagamento: null,
-        antecipada: false,
-        valor_pago: null,
-        economia: null,
-        dias_antecedencia: 0,
-        amortizacao: null,
-        juros: null,
-      })
-      .eq("financiamento_id", selectedContrato.id);
-
-    if (error) {
-      toast({ title: "Erro", description: "Erro ao recalcular parcelas", variant: "destructive" });
-    } else {
-      toast({ title: "Sucesso", description: "Parcelas do contrato selecionado foram resetadas" });
-      fetchData();
-    }
-
-    setResetting(false);
-  };
 
   if (loading) {
     return (
@@ -190,28 +150,6 @@ const FinanciamentoParcelas = () => {
 
             <div className="flex flex-wrap gap-2">
               <ExportButton parcelas={parcelas} financiamento={selectedContrato} />
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="outline" disabled={resetting}>
-                    <RotateCcw className="h-4 w-4 mr-2" />
-                    Recalcular
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Recalcular parcelas do contrato selecionado?</AlertDialogTitle>
-                    <AlertDialogDescription>Isso irá resetar o status de pagamento das parcelas desta aba.</AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleRecalcular}>Confirmar</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-              <Button variant="outline" onClick={fetchData}>
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Atualizar
-              </Button>
             </div>
           </div>
 

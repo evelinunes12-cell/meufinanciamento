@@ -218,13 +218,13 @@ const Relatorios = () => {
     <AppLayout>
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Relatórios</h1>
-            <p className="text-muted-foreground">Análise detalhada das suas finanças</p>
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl font-bold text-foreground">Relatórios</h1>
+            <p className="text-sm text-muted-foreground">Análise detalhada das suas finanças</p>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex w-full sm:w-auto gap-2">
             <Select value={tipoRelatorio} onValueChange={setTipoRelatorio}>
-              <SelectTrigger className="w-40">
+              <SelectTrigger className="flex-1 sm:flex-none sm:w-40">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -234,9 +234,9 @@ const Relatorios = () => {
                 <SelectItem value="pagamento">Por Pagamento</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline" onClick={exportToCSV}>
-              <Download className="h-4 w-4 mr-2" />
-              Exportar CSV
+            <Button variant="outline" onClick={exportToCSV} className="sm:w-auto w-10 sm:px-5 px-0" aria-label="Exportar CSV" title="Exportar CSV">
+              <Download className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Exportar CSV</span>
             </Button>
           </div>
         </div>
