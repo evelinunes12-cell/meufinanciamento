@@ -196,12 +196,12 @@ const Categorias = () => {
           )}
         </div>
       </div>
-      <div className="flex gap-1">
+      <div className="flex gap-2 sm:gap-1">
         <Button variant="ghost" size="icon" onClick={() => handleEdit(categoria)}>
-          <Edit className="h-4 w-4" />
+          <Edit className="h-4 w-4 sm:h-4 sm:w-4 h-5 w-5" />
         </Button>
         <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(categoria.id)}>
-          <Trash2 className="h-4 w-4" />
+          <Trash2 className="h-4 w-4 sm:h-4 sm:w-4 h-5 w-5" />
         </Button>
       </div>
     </div>

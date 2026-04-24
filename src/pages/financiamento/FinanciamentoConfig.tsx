@@ -292,12 +292,12 @@ const FinanciamentoConfig = () => {
                         <p className="text-xs text-muted-foreground capitalize">{item.tipo}</p>
                         <p className="text-sm text-muted-foreground mt-1">{item.numero_parcelas}x de {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(item.valor_parcela)}</p>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 sm:gap-2">
                         <Button size="icon" variant="outline" onClick={() => startEdit(item)}>
-                          <Pencil className="h-4 w-4" />
+                          <Pencil className="h-4 w-4 sm:h-4 sm:w-4 h-5 w-5" />
                         </Button>
                         <Button size="icon" variant="outline" onClick={() => handleDelete(item.id)}>
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-4 w-4 sm:h-4 sm:w-4 h-5 w-5" />
                         </Button>
                       </div>
                     </div>

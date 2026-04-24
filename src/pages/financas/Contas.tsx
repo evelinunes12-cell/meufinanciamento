@@ -392,16 +392,16 @@ const Contas = () => {
                           setOfxModalOpen(true);
                         }}
                       >
-                        <Upload className="h-4 w-4" />
+                        <Upload className="h-4 w-4 sm:h-4 sm:w-4 h-5 w-5" />
                       </Button>
                     )}
                     <Button variant="ghost" size="icon" onClick={() => handleEdit(conta)}>
-                      <Edit className="h-4 w-4" />
+                      <Edit className="h-4 w-4 sm:h-4 sm:w-4 h-5 w-5" />
                     </Button>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button variant="ghost" size="icon" className="text-destructive">
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-4 w-4 sm:h-4 sm:w-4 h-5 w-5" />
                         </Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent>
