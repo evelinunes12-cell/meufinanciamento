@@ -7,9 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useTheme } from "next-themes";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ExportSettingsButton } from "@/components/dashboard/ExportSettingsButton";
 import LimparDadosModal from "@/components/LimparDadosModal";
-import { User, Shield, Palette, Database, LogOut, Mail, Sun, Moon, Monitor, Trash2 } from "lucide-react";
+import { User, Shield, Palette, LogOut, Mail, Sun, Moon, Monitor, Trash2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 const Configuracoes = () => {
@@ -172,26 +171,6 @@ const Configuracoes = () => {
                     </SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Dados e Backup */}
-          <Card className="shadow-card">
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-2">
-                <Database className="h-5 w-5 text-primary" />
-                <CardTitle className="text-lg">Dados e Backup</CardTitle>
-              </div>
-              <CardDescription>Exporte ou importe suas configurações</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">Preferências Locais</Label>
-                <p className="text-sm text-muted-foreground mb-3">
-                  Salve suas configurações de widgets e filtros
-                </p>
-                <ExportSettingsButton />
               </div>
             </CardContent>
           </Card>
