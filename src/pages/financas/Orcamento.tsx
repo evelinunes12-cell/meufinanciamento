@@ -493,14 +493,14 @@ const Orcamento = () => {
                                 <div className="w-2 h-2 rounded-full" style={{ backgroundColor: mainCor }} />
                                 <span className="text-sm text-foreground">{mainNome} (direto)</span>
                               </div>
-                              <div className="flex items-center gap-1">
-                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleEdit(group.mainOrcamento!)}>
-                                  <Edit className="h-3 w-3" />
-                                </Button>
-                                <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => handleDelete(group.mainOrcamento!.id)}>
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
-                              </div>
+                                <div className="flex items-center gap-2 sm:gap-1">
+                                  <Button variant="ghost" size="icon" className="h-10 w-10 sm:h-6 sm:w-6" onClick={() => handleEdit(group.mainOrcamento!)}>
+                                    <Edit className="h-5 w-5 sm:h-3 sm:w-3" />
+                                  </Button>
+                                  <Button variant="ghost" size="icon" className="h-10 w-10 sm:h-6 sm:w-6 text-destructive" onClick={() => handleDelete(group.mainOrcamento!.id)}>
+                                    <Trash2 className="h-5 w-5 sm:h-3 sm:w-3" />
+                                  </Button>
+                                </div>
                             </div>
                             {(() => {
                               const gastoDir = getGastosDiretos(group.mainOrcamento!.categoria_id);
@@ -532,13 +532,13 @@ const Orcamento = () => {
                                   <div className="w-2 h-2 rounded-full" style={{ backgroundColor: subCat?.cor || "#888" }} />
                                   <span className="text-sm text-foreground">{subCat?.nome || "-"}</span>
                                 </div>
-                                <div className="flex items-center gap-1">
+                                <div className="flex items-center gap-2 sm:gap-1">
                                   {renderStatusIcon(subPct)}
-                                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleEdit(subOrc)}>
-                                    <Edit className="h-3 w-3" />
+                                  <Button variant="ghost" size="icon" className="h-10 w-10 sm:h-6 sm:w-6" onClick={() => handleEdit(subOrc)}>
+                                    <Edit className="h-5 w-5 sm:h-3 sm:w-3" />
                                   </Button>
-                                  <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => handleDelete(subOrc.id)}>
-                                    <Trash2 className="h-3 w-3" />
+                                  <Button variant="ghost" size="icon" className="h-10 w-10 sm:h-6 sm:w-6 text-destructive" onClick={() => handleDelete(subOrc.id)}>
+                                    <Trash2 className="h-5 w-5 sm:h-3 sm:w-3" />
                                   </Button>
                                 </div>
                               </div>

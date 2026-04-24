@@ -1192,17 +1192,17 @@ const Transacoes = () => {
                     <span>•</span>
                     <span>{getContaNome(transacao.conta_id)}</span>
                   </div>
-                  <div className="flex items-center gap-0.5">
+                  <div className="flex items-center gap-1 sm:gap-0.5">
                     {transacao.is_pago_executado === false && contas.find(c => c.id === transacao.conta_id)?.tipo !== "credito" && (
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-success" onClick={() => handleConfirmPayment(transacao)} title="Confirmar">
-                        <Check className="h-3.5 w-3.5" />
+                      <Button variant="ghost" size="icon" className="h-10 w-10 sm:h-7 sm:w-7 text-success" onClick={() => handleConfirmPayment(transacao)} title="Confirmar">
+                        <Check className="h-5 w-5 sm:h-3.5 sm:w-3.5" />
                       </Button>
                     )}
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(transacao)}>
-                      <Edit className="h-3.5 w-3.5" />
+                    <Button variant="ghost" size="icon" className="h-10 w-10 sm:h-7 sm:w-7" onClick={() => handleEdit(transacao)}>
+                      <Edit className="h-5 w-5 sm:h-3.5 sm:w-3.5" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(transacao)}>
-                      <Trash2 className="h-3.5 w-3.5" />
+                    <Button variant="ghost" size="icon" className="h-10 w-10 sm:h-7 sm:w-7 text-destructive" onClick={() => handleDelete(transacao)}>
+                      <Trash2 className="h-5 w-5 sm:h-3.5 sm:w-3.5" />
                     </Button>
                   </div>
                 </div>
