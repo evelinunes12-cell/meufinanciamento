@@ -1,8 +1,8 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { Bell, Trash2, ExternalLink } from "lucide-react";
 import { addDays, differenceInCalendarDays, format, parseISO, setDate, startOfDay, startOfMonth, endOfMonth, isBefore, isAfter } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { getDataEfetiva } from "@/lib/transactions";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Transacao {
   id: string;
@@ -51,6 +53,21 @@ interface Orcamento {
   mes_referencia: string;
 }
 
+interface Parcela {
+  id: string;
+  financiamento_id: string;
+  numero_parcela: number;
+  data_vencimento: string;
+  valor_parcela: number;
+  pago: boolean | null;
+}
+
+interface Financiamento {
+  id: string;
+  nome: string;
+  tipo: string;
+}
+
 interface Notificacao {
   id: string;
   message: string;
@@ -59,11 +76,27 @@ interface Notificacao {
 }
 
 const ALERTA_ORCAMENTO_PCT = 90;
+const LEMBRETE_QUINZENAL_KEY = "lembrete_quinzenal_dismissed_at";
+const DIAS_INTERVALO_LEMBRETE = 15;
 
 const Notifications = () => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  const [lembreteQuinzenalDismissedAt, setLembreteQuinzenalDismissedAt] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem(LEMBRETE_QUINZENAL_KEY);
+  });
+
+  // Sync localStorage value if it changes externally
+  useEffect(() => {
+    const handler = () => {
+      setLembreteQuinzenalDismissedAt(localStorage.getItem(LEMBRETE_QUINZENAL_KEY));
+    };
+    window.addEventListener("storage", handler);
+    return () => window.removeEventListener("storage", handler);
+  }, []);
 
   const transacoes = useMemo(() => {
     const entradas = queryClient.getQueriesData({ queryKey: ["transacoes"] });
@@ -100,6 +133,41 @@ const Notifications = () => {
     });
     return todos as Orcamento[];
   }, [queryClient]);
+
+  // Fetch financing contracts and pending installments for due-date alerts
+  const { data: parcelasComContrato = [] } = useQuery({
+    queryKey: ["notifications-parcelas", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data: contratos } = await supabase
+        .from("financiamento")
+        .select("id, nome, tipo")
+        .eq("user_id", user.id);
+      if (!contratos || contratos.length === 0) return [];
+
+      const ids = contratos.map((c) => c.id);
+      const hoje = format(new Date(), "yyyy-MM-dd");
+      const limiteFuturo = format(addDays(new Date(), 7), "yyyy-MM-dd");
+      const limitePassado = format(addDays(new Date(), -90), "yyyy-MM-dd");
+
+      const { data: parcelas } = await supabase
+        .from("parcelas")
+        .select("id, financiamento_id, numero_parcela, data_vencimento, valor_parcela, pago")
+        .in("financiamento_id", ids)
+        .eq("pago", false)
+        .gte("data_vencimento", limitePassado)
+        .lte("data_vencimento", limiteFuturo);
+
+      const contratoMap = new Map<string, Financiamento>(contratos.map((c) => [c.id, c as Financiamento]));
+      return ((parcelas || []) as Parcela[]).map((p) => ({
+        parcela: p,
+        contrato: contratoMap.get(p.financiamento_id),
+      }));
+    },
+    enabled: !!user?.id,
+    staleTime: 5 * 60 * 1000, // 5 min
+    refetchOnMount: true,
+  });
 
   const allNotifications = useMemo(() => {
     const hoje = startOfDay(new Date());
@@ -207,8 +275,85 @@ const Notifications = () => {
       })
       .filter(Boolean) as Notificacao[];
 
-    return [...alertasDespesas, ...alertasFatura, ...alertasOrcamento].sort((a, b) => a.dateTag.localeCompare(b.dateTag));
-  }, [contas, transacoes, categorias, orcamentos]);
+    // --- Alertas de vencimento de parcelas de financiamentos/empréstimos ---
+    // Regra: 5 dias antes, 1 dia antes, no dia, e após vencimento (lembrete semanal)
+    const alertasParcelas: Notificacao[] = parcelasComContrato
+      .map(({ parcela, contrato }) => {
+        if (!contrato) return null;
+        const dataVenc = startOfDay(parseISO(parcela.data_vencimento));
+        const diff = differenceInCalendarDays(dataVenc, hoje);
+        const tipoLabel = contrato.tipo === "emprestimo" ? "Empréstimo" : "Financiamento";
+        const nomeContrato = contrato.nome || tipoLabel;
+        const valorFormatado = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(parcela.valor_parcela));
+        const route = "/financiamento/parcelas";
+
+        // Antes do vencimento: apenas 5 dias antes ou 1 dia antes
+        if (diff === 5) {
+          return {
+            id: `parcela-${parcela.id}-5d`,
+            message: `${tipoLabel} ${nomeContrato}: parcela ${parcela.numero_parcela} (${valorFormatado}) vence em 5 dias (${format(dataVenc, "dd/MM")}).`,
+            dateTag: `a-${format(dataVenc, "yyyy-MM-dd")}`,
+            route,
+          } as Notificacao;
+        }
+        if (diff === 1) {
+          return {
+            id: `parcela-${parcela.id}-1d`,
+            message: `${tipoLabel} ${nomeContrato}: parcela ${parcela.numero_parcela} (${valorFormatado}) vence amanhã.`,
+            dateTag: `a-${format(dataVenc, "yyyy-MM-dd")}`,
+            route,
+          } as Notificacao;
+        }
+        if (diff === 0) {
+          return {
+            id: `parcela-${parcela.id}-hoje`,
+            message: `⚠️ ${tipoLabel} ${nomeContrato}: parcela ${parcela.numero_parcela} (${valorFormatado}) vence hoje!`,
+            dateTag: `a-${format(dataVenc, "yyyy-MM-dd")}`,
+            route,
+          } as Notificacao;
+        }
+        // Após vencimento: lembrete semanal (a cada 7 dias)
+        if (diff < 0) {
+          const diasAtraso = Math.abs(diff);
+          // Mostrar no dia 1, 7, 14, 21... (dia 1 = primeiro dia após venc)
+          if (diasAtraso === 1 || diasAtraso % 7 === 0) {
+            return {
+              id: `parcela-${parcela.id}-atrasada-${diasAtraso}`,
+              message: `🔴 ${tipoLabel} ${nomeContrato}: parcela ${parcela.numero_parcela} (${valorFormatado}) está ${diasAtraso} dia${diasAtraso > 1 ? "s" : ""} em atraso.`,
+              dateTag: `a-${format(dataVenc, "yyyy-MM-dd")}`,
+              route,
+            } as Notificacao;
+          }
+        }
+        return null;
+      })
+      .filter(Boolean) as Notificacao[];
+
+    // --- Lembrete quinzenal de atualização de transações ---
+    const alertasQuinzenal: Notificacao[] = [];
+    const hojeStr = format(hoje, "yyyy-MM-dd");
+    const ultimoDismiss = lembreteQuinzenalDismissedAt ? parseISO(lembreteQuinzenalDismissedAt) : null;
+    const diasDesdeUltimoDismiss = ultimoDismiss
+      ? differenceInCalendarDays(hoje, startOfDay(ultimoDismiss))
+      : Infinity;
+
+    if (diasDesdeUltimoDismiss >= DIAS_INTERVALO_LEMBRETE) {
+      alertasQuinzenal.push({
+        id: `quinzenal-${hojeStr}`,
+        message: "📝 Lembrete quinzenal: atualize seus registros de transações para manter o controle financeiro em dia.",
+        dateTag: "quinzenal",
+        route: "/financas/transacoes",
+      });
+    }
+
+    return [
+      ...alertasParcelas,
+      ...alertasDespesas,
+      ...alertasFatura,
+      ...alertasOrcamento,
+      ...alertasQuinzenal,
+    ].sort((a, b) => a.dateTag.localeCompare(b.dateTag));
+  }, [contas, transacoes, categorias, orcamentos, parcelasComContrato, lembreteQuinzenalDismissedAt]);
 
   const notifications = useMemo(
     () => allNotifications.filter((n) => !dismissed.has(n.id)),
@@ -217,11 +362,24 @@ const Notifications = () => {
 
   const handleClearAll = useCallback(() => {
     setDismissed(new Set(allNotifications.map((n) => n.id)));
+    // Se houver lembrete quinzenal entre os dispensados, registrar a data
+    const temQuinzenal = allNotifications.some((n) => n.dateTag === "quinzenal");
+    if (temQuinzenal) {
+      const agora = new Date().toISOString();
+      localStorage.setItem(LEMBRETE_QUINZENAL_KEY, agora);
+      setLembreteQuinzenalDismissedAt(agora);
+    }
   }, [allNotifications]);
 
   const handleNavigate = useCallback(
-    (route: string) => {
-      navigate(route);
+    (notification: Notificacao) => {
+      // Se for o lembrete quinzenal, registrar dismissal
+      if (notification.dateTag === "quinzenal") {
+        const agora = new Date().toISOString();
+        localStorage.setItem(LEMBRETE_QUINZENAL_KEY, agora);
+        setLembreteQuinzenalDismissedAt(agora);
+      }
+      navigate(notification.route);
     },
     [navigate]
   );
@@ -262,7 +420,7 @@ const Notifications = () => {
               {notifications.map((notification) => (
                 <button
                   key={notification.id}
-                  onClick={() => handleNavigate(notification.route)}
+                  onClick={() => handleNavigate(notification)}
                   className="flex items-center gap-2 w-full rounded-md border p-3 text-sm text-left hover:bg-accent transition-colors cursor-pointer"
                 >
                   <span className="flex-1">{notification.message}</span>
