@@ -167,10 +167,19 @@ const Categorias = () => {
   const availableParentCategorias = categorias
     .filter(c => c.tipo === formData.tipo && !c.categoria_pai_id && c.id !== editingId);
 
-  const currentCategorias = activeTab === "receita" ? categoriasReceita : categoriasDespesa;
-  const totalPages = Math.ceil(mainCategorias.length / ITEMS_PER_PAGE);
+  // Build flat ordered list: each main category followed by its subcategories
+  type FlatItem = { categoria: Categoria; isSubcategory: boolean; mainIndex: number };
+  const flatItems: FlatItem[] = [];
+  mainCategorias.forEach((main, idx) => {
+    flatItems.push({ categoria: main, isSubcategory: false, mainIndex: idx });
+    getSubcategorias(main.id).forEach((sub) => {
+      flatItems.push({ categoria: sub, isSubcategory: true, mainIndex: idx });
+    });
+  });
+
+  const totalPages = Math.ceil(flatItems.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const paginatedMainCategorias = mainCategorias.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  const paginatedItems = flatItems.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
   const getParentName = (parentId: string | null) => {
     if (!parentId) return null;
@@ -345,8 +354,13 @@ const Categorias = () => {
             ) : (
               <Card className="shadow-card">
                 <CardContent className="p-4 space-y-2">
-                  {paginatedMainCategorias.map((cat, index) => (
-                    renderCategoriaWithSubcategorias(cat, index)
+                  {paginatedItems.map((item, index) => (
+                    <CategoriaCard
+                      key={item.categoria.id}
+                      categoria={item.categoria}
+                      index={item.isSubcategory ? 0 : item.mainIndex - (currentPage - 1) * ITEMS_PER_PAGE}
+                      isSubcategory={item.isSubcategory}
+                    />
                   ))}
                   {categoriasDespesa.length === 0 && (
                     <p className="text-center py-8 text-muted-foreground">
@@ -364,8 +378,13 @@ const Categorias = () => {
             ) : (
               <Card className="shadow-card">
                 <CardContent className="p-4 space-y-2">
-                  {paginatedMainCategorias.map((cat, index) => (
-                    renderCategoriaWithSubcategorias(cat, index)
+                  {paginatedItems.map((item, index) => (
+                    <CategoriaCard
+                      key={item.categoria.id}
+                      categoria={item.categoria}
+                      index={item.isSubcategory ? 0 : item.mainIndex - (currentPage - 1) * ITEMS_PER_PAGE}
+                      isSubcategory={item.isSubcategory}
+                    />
                   ))}
                   {categoriasReceita.length === 0 && (
                     <p className="text-center py-8 text-muted-foreground">
@@ -382,7 +401,7 @@ const Categorias = () => {
         {totalPages > 1 && (
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
-              Mostrando {startIndex + 1} - {Math.min(startIndex + ITEMS_PER_PAGE, mainCategorias.length)} de {mainCategorias.length} categorias principais
+              Mostrando {startIndex + 1} - {Math.min(startIndex + ITEMS_PER_PAGE, flatItems.length)} de {flatItems.length} categorias
             </p>
             <div className="flex items-center gap-2">
               <Button
