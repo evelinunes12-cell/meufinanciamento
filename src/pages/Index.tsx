@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Car, ChevronRight, Sparkles, Info } from "lucide-react";
+import { CirclePlus, ChevronRight, Sparkles, Info } from "lucide-react";
 import Header from "@/components/Header";
 import FinancingForm from "@/components/FinancingForm";
 import { Button } from "@/components/ui/button";
@@ -38,10 +38,10 @@ const Index = () => {
           {/* Hero Section */}
           <div className="mb-8 text-center animate-fade-in">
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl gradient-primary shadow-lg">
-              <Car className="h-8 w-8 text-primary-foreground" />
+              <CirclePlus className="h-8 w-8 text-primary-foreground" />
             </div>
             <h1 className="mb-2 text-3xl font-bold text-foreground">
-              Meu Financiamento
+              Soma | Assistente Financeiro
             </h1>
             <p className="text-muted-foreground">
               Controle seu financiamento de veículo e economize com antecipações
