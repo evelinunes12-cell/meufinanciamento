@@ -354,8 +354,13 @@ const Categorias = () => {
             ) : (
               <Card className="shadow-card">
                 <CardContent className="p-4 space-y-2">
-                  {paginatedMainCategorias.map((cat, index) => (
-                    renderCategoriaWithSubcategorias(cat, index)
+                  {paginatedItems.map((item, index) => (
+                    <CategoriaCard
+                      key={item.categoria.id}
+                      categoria={item.categoria}
+                      index={item.isSubcategory ? 0 : item.mainIndex - (currentPage - 1) * ITEMS_PER_PAGE}
+                      isSubcategory={item.isSubcategory}
+                    />
                   ))}
                   {categoriasDespesa.length === 0 && (
                     <p className="text-center py-8 text-muted-foreground">
@@ -373,8 +378,13 @@ const Categorias = () => {
             ) : (
               <Card className="shadow-card">
                 <CardContent className="p-4 space-y-2">
-                  {paginatedMainCategorias.map((cat, index) => (
-                    renderCategoriaWithSubcategorias(cat, index)
+                  {paginatedItems.map((item, index) => (
+                    <CategoriaCard
+                      key={item.categoria.id}
+                      categoria={item.categoria}
+                      index={item.isSubcategory ? 0 : item.mainIndex - (currentPage - 1) * ITEMS_PER_PAGE}
+                      isSubcategory={item.isSubcategory}
+                    />
                   ))}
                   {categoriasReceita.length === 0 && (
                     <p className="text-center py-8 text-muted-foreground">
@@ -391,7 +401,7 @@ const Categorias = () => {
         {totalPages > 1 && (
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
-              Mostrando {startIndex + 1} - {Math.min(startIndex + ITEMS_PER_PAGE, mainCategorias.length)} de {mainCategorias.length} categorias principais
+              Mostrando {startIndex + 1} - {Math.min(startIndex + ITEMS_PER_PAGE, flatItems.length)} de {flatItems.length} categorias
             </p>
             <div className="flex items-center gap-2">
               <Button
