@@ -391,8 +391,30 @@ const Notifications = () => {
     [allNotifications, dismissed]
   );
 
+  // Limpa do localStorage as dispensadas cujos IDs não existem mais entre as ativas,
+  // evitando acumulação indefinida no storage.
+  useEffect(() => {
+    if (dismissed.size === 0) return;
+    const ativos = new Set(allNotifications.map((n) => n.id));
+    let mudou = false;
+    const novas = new Set<string>();
+    dismissed.forEach((id) => {
+      if (ativos.has(id)) {
+        novas.add(id);
+      } else {
+        mudou = true;
+      }
+    });
+    if (mudou) {
+      setDismissed(novas);
+      saveDismissed(user?.id, novas);
+    }
+  }, [allNotifications, dismissed, user?.id]);
+
   const handleClearAll = useCallback(() => {
-    setDismissed(new Set(allNotifications.map((n) => n.id)));
+    const novas = new Set(allNotifications.map((n) => n.id));
+    setDismissed(novas);
+    saveDismissed(user?.id, novas);
     // Se houver lembrete quinzenal entre os dispensados, registrar a data
     const temQuinzenal = allNotifications.some((n) => n.dateTag === "quinzenal");
     if (temQuinzenal) {
@@ -400,10 +422,17 @@ const Notifications = () => {
       localStorage.setItem(LEMBRETE_QUINZENAL_KEY, agora);
       setLembreteQuinzenalDismissedAt(agora);
     }
-  }, [allNotifications]);
+  }, [allNotifications, user?.id]);
 
   const handleNavigate = useCallback(
     (notification: Notificacao) => {
+      // Marcar como dispensada (persistente) para não reaparecer enquanto pendente
+      setDismissed((prev) => {
+        const novas = new Set(prev);
+        novas.add(notification.id);
+        saveDismissed(user?.id, novas);
+        return novas;
+      });
       // Se for o lembrete quinzenal, registrar dismissal
       if (notification.dateTag === "quinzenal") {
         const agora = new Date().toISOString();
@@ -412,7 +441,7 @@ const Notifications = () => {
       }
       navigate(notification.route);
     },
-    [navigate]
+    [navigate, user?.id]
   );
 
   return (
