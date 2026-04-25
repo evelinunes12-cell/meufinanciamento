@@ -173,7 +173,7 @@ const Auth = () => {
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 border-2 border-primary">
             <span className="font-extrabold text-primary text-2xl text-center">+</span>
           </div>
-          <CardTitle className="text-2xl font-bold">Soma - O seu assistente financeiro</CardTitle>
+          <CardTitle className="text-2xl font-bold">Soma | Assistente Financeiro</CardTitle>
           <CardDescription>
             Controle gastos, faça gestão de faturas, projeções de caixa e organize o seu dinheiro em um só lugar.
           </CardDescription>
