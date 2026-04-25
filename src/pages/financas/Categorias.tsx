@@ -167,10 +167,19 @@ const Categorias = () => {
   const availableParentCategorias = categorias
     .filter(c => c.tipo === formData.tipo && !c.categoria_pai_id && c.id !== editingId);
 
-  const currentCategorias = activeTab === "receita" ? categoriasReceita : categoriasDespesa;
-  const totalPages = Math.ceil(mainCategorias.length / ITEMS_PER_PAGE);
+  // Build flat ordered list: each main category followed by its subcategories
+  type FlatItem = { categoria: Categoria; isSubcategory: boolean; mainIndex: number };
+  const flatItems: FlatItem[] = [];
+  mainCategorias.forEach((main, idx) => {
+    flatItems.push({ categoria: main, isSubcategory: false, mainIndex: idx });
+    getSubcategorias(main.id).forEach((sub) => {
+      flatItems.push({ categoria: sub, isSubcategory: true, mainIndex: idx });
+    });
+  });
+
+  const totalPages = Math.ceil(flatItems.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const paginatedMainCategorias = mainCategorias.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  const paginatedItems = flatItems.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
   const getParentName = (parentId: string | null) => {
     if (!parentId) return null;
