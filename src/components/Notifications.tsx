@@ -78,25 +78,56 @@ interface Notificacao {
 const ALERTA_ORCAMENTO_PCT = 90;
 const LEMBRETE_QUINZENAL_KEY = "lembrete_quinzenal_dismissed_at";
 const DIAS_INTERVALO_LEMBRETE = 15;
+const DISMISSED_KEY_PREFIX = "notificacoes_dispensadas_";
+
+const getDismissedKey = (userId: string | undefined) =>
+  `${DISMISSED_KEY_PREFIX}${userId || "anon"}`;
+
+const loadDismissed = (userId: string | undefined): Set<string> => {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = localStorage.getItem(getDismissedKey(userId));
+    if (!raw) return new Set();
+    const arr = JSON.parse(raw);
+    return new Set(Array.isArray(arr) ? arr : []);
+  } catch {
+    return new Set();
+  }
+};
+
+const saveDismissed = (userId: string | undefined, ids: Set<string>) => {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(getDismissedKey(userId), JSON.stringify(Array.from(ids)));
+  } catch {
+    // ignore quota errors
+  }
+};
 
 const Notifications = () => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  const [dismissed, setDismissed] = useState<Set<string>>(() => loadDismissed(user?.id));
   const [lembreteQuinzenalDismissedAt, setLembreteQuinzenalDismissedAt] = useState<string | null>(() => {
     if (typeof window === "undefined") return null;
     return localStorage.getItem(LEMBRETE_QUINZENAL_KEY);
   });
 
+  // Recarrega a lista de dispensadas quando o usuário mudar
+  useEffect(() => {
+    setDismissed(loadDismissed(user?.id));
+  }, [user?.id]);
+
   // Sync localStorage value if it changes externally
   useEffect(() => {
     const handler = () => {
       setLembreteQuinzenalDismissedAt(localStorage.getItem(LEMBRETE_QUINZENAL_KEY));
+      setDismissed(loadDismissed(user?.id));
     };
     window.addEventListener("storage", handler);
     return () => window.removeEventListener("storage", handler);
-  }, []);
+  }, [user?.id]);
 
   const transacoes = useMemo(() => {
     const entradas = queryClient.getQueriesData({ queryKey: ["transacoes"] });
@@ -360,8 +391,30 @@ const Notifications = () => {
     [allNotifications, dismissed]
   );
 
+  // Limpa do localStorage as dispensadas cujos IDs não existem mais entre as ativas,
+  // evitando acumulação indefinida no storage.
+  useEffect(() => {
+    if (dismissed.size === 0) return;
+    const ativos = new Set(allNotifications.map((n) => n.id));
+    let mudou = false;
+    const novas = new Set<string>();
+    dismissed.forEach((id) => {
+      if (ativos.has(id)) {
+        novas.add(id);
+      } else {
+        mudou = true;
+      }
+    });
+    if (mudou) {
+      setDismissed(novas);
+      saveDismissed(user?.id, novas);
+    }
+  }, [allNotifications, dismissed, user?.id]);
+
   const handleClearAll = useCallback(() => {
-    setDismissed(new Set(allNotifications.map((n) => n.id)));
+    const novas = new Set(allNotifications.map((n) => n.id));
+    setDismissed(novas);
+    saveDismissed(user?.id, novas);
     // Se houver lembrete quinzenal entre os dispensados, registrar a data
     const temQuinzenal = allNotifications.some((n) => n.dateTag === "quinzenal");
     if (temQuinzenal) {
@@ -369,10 +422,17 @@ const Notifications = () => {
       localStorage.setItem(LEMBRETE_QUINZENAL_KEY, agora);
       setLembreteQuinzenalDismissedAt(agora);
     }
-  }, [allNotifications]);
+  }, [allNotifications, user?.id]);
 
   const handleNavigate = useCallback(
     (notification: Notificacao) => {
+      // Marcar como dispensada (persistente) para não reaparecer enquanto pendente
+      setDismissed((prev) => {
+        const novas = new Set(prev);
+        novas.add(notification.id);
+        saveDismissed(user?.id, novas);
+        return novas;
+      });
       // Se for o lembrete quinzenal, registrar dismissal
       if (notification.dateTag === "quinzenal") {
         const agora = new Date().toISOString();
@@ -381,7 +441,7 @@ const Notifications = () => {
       }
       navigate(notification.route);
     },
-    [navigate]
+    [navigate, user?.id]
   );
 
   return (
