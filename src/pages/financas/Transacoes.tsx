@@ -31,7 +31,6 @@ const TABLE_COLUMNS: ColumnDef[] = [
   { key: "numero", label: "#" },
   { key: "data", label: "Data", required: true },
   { key: "vencimento", label: "Vencimento" },
-  { key: "tipo", label: "Tipo" },
   { key: "descricao", label: "Descrição", required: true },
   { key: "categoria", label: "Categoria" },
   { key: "conta", label: "Conta" },
@@ -1248,7 +1247,6 @@ const Transacoes = () => {
                   {isColVisible("numero") && <TableHead className="w-12">#</TableHead>}
                   {isColVisible("data") && <TableHead>Data</TableHead>}
                   {isColVisible("vencimento") && <TableHead>Vencimento</TableHead>}
-                  {isColVisible("tipo") && <TableHead>Tipo</TableHead>}
                   {isColVisible("descricao") && <TableHead>Descrição</TableHead>}
                   {isColVisible("categoria") && <TableHead>Categoria</TableHead>}
                   {isColVisible("conta") && <TableHead>Conta</TableHead>}
@@ -1271,26 +1269,6 @@ const Transacoes = () => {
                     {isColVisible("vencimento") && (
                       <TableCell className="text-muted-foreground">
                         {transacao.data_pagamento ? formatDate(transacao.data_pagamento) : "-"}
-                      </TableCell>
-                    )}
-                    {isColVisible("tipo") && (
-                      <TableCell>
-                        {transacao.forma_pagamento === 'transferencia' ? (
-                          <Badge className="bg-primary/10 text-primary hover:bg-primary/20">
-                            <ArrowRightLeft className="h-3 w-3 mr-1" />
-                            Transf.
-                          </Badge>
-                        ) : transacao.tipo === "receita" ? (
-                          <Badge className="bg-success/10 text-success hover:bg-success/20">
-                            <TrendingUp className="h-3 w-3 mr-1" />
-                            Receita
-                          </Badge>
-                        ) : (
-                          <Badge className="bg-destructive/10 text-destructive hover:bg-destructive/20">
-                            <TrendingDown className="h-3 w-3 mr-1" />
-                            Despesa
-                          </Badge>
-                        )}
                       </TableCell>
                     )}
                     {isColVisible("descricao") && (
