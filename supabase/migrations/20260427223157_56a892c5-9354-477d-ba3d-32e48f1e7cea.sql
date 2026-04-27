@@ -1,0 +1,1 @@
+ALTER TABLE public.financiamento ADD COLUMN IF NOT EXISTS categoria_id UUID REFERENCES public.categorias(id) ON DELETE SET NULL;

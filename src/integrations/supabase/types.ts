@@ -152,6 +152,7 @@ export type Database = {
       }
       financiamento: {
         Row: {
+          categoria_id: string | null
           created_at: string | null
           data_contratacao: string | null
           data_primeira_parcela: string
@@ -168,6 +169,7 @@ export type Database = {
           valor_parcela: number
         }
         Insert: {
+          categoria_id?: string | null
           created_at?: string | null
           data_contratacao?: string | null
           data_primeira_parcela: string
@@ -184,6 +186,7 @@ export type Database = {
           valor_parcela: number
         }
         Update: {
+          categoria_id?: string | null
           created_at?: string | null
           data_contratacao?: string | null
           data_primeira_parcela?: string
@@ -199,7 +202,15 @@ export type Database = {
           valor_financiado?: number
           valor_parcela?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "financiamento_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "categorias"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       orcamentos: {
         Row: {
