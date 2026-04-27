@@ -25,6 +25,7 @@ interface Financiamento {
   taxa_diaria: number;
   taxa_mensal: number;
   data_primeira_parcela: string;
+  categoria_id?: string | null;
 }
 
 interface Parcela {
@@ -183,7 +184,7 @@ const FinanciamentoParcelas = () => {
                     <CardDescription>Clique em uma parcela para registrar pagamento</CardDescription>
                   </CardHeader>
                   <CardContent className="p-0">
-                    <InstallmentsTable parcelas={currentParcelas} taxaDiaria={item.taxa_diaria} onUpdate={fetchData} />
+                    <InstallmentsTable parcelas={currentParcelas} taxaDiaria={item.taxa_diaria} onUpdate={fetchData} contrato={{ id: item.id, nome: item.nome, tipo: item.tipo, categoria_id: item.categoria_id }} />
                   </CardContent>
                 </Card>
               </TabsContent>
