@@ -126,6 +126,26 @@ const InstallmentsTable = ({ parcelas, taxaDiaria, onUpdate, contrato }: Install
 
       if (error) throw error;
 
+      // Espelho: remover a transação de despesa correspondente (se existir)
+      if (contrato && user) {
+        try {
+          const descricaoEsperada = `Parcela ${cancelTarget.numero_parcela} - ${contrato.nome}`;
+          const { error: delErr } = await supabase
+            .from("transacoes")
+            .delete()
+            .eq("user_id", user.id)
+            .eq("tipo", "despesa")
+            .eq("descricao", descricaoEsperada);
+          if (delErr) throw delErr;
+        } catch (delErr: any) {
+          toast({
+            title: "Pagamento cancelado, mas...",
+            description: `Não foi possível remover a despesa do fluxo de caixa: ${delErr.message}`,
+            variant: "destructive",
+          });
+        }
+      }
+
       toast({
         title: "Pagamento cancelado",
         description: `Parcela ${cancelTarget.numero_parcela} voltou para pendente.`,
