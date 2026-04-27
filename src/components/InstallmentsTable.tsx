@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Check, Calendar, Calculator, Loader2, AlertTriangle, Undo2 } from "lucide-react";
@@ -24,6 +24,13 @@ import {
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -36,6 +43,8 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { calcularAntecipacao, formatCurrency, formatCurrencyInput, parseCurrencyInput } from "@/lib/calculations";
+import { garantirCategoriaContrato } from "@/lib/contratoCategoria";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Parcela {
   id: string;
@@ -52,13 +61,28 @@ interface Parcela {
   dias_antecedencia: number | null;
 }
 
+interface ContratoInfo {
+  id: string;
+  nome: string;
+  tipo: "financiamento" | "emprestimo";
+  categoria_id?: string | null;
+}
+
+interface ContaOpcao {
+  id: string;
+  nome_conta: string;
+  tipo: string;
+}
+
 interface InstallmentsTableProps {
   parcelas: Parcela[];
   taxaDiaria: number;
   onUpdate: () => void;
+  contrato?: ContratoInfo;
 }
 
-const InstallmentsTable = ({ parcelas, taxaDiaria, onUpdate }: InstallmentsTableProps) => {
+const InstallmentsTable = ({ parcelas, taxaDiaria, onUpdate, contrato }: InstallmentsTableProps) => {
+  const { user } = useAuth();
   const [selectedParcela, setSelectedParcela] = useState<Parcela | null>(null);
   const [dataPagamento, setDataPagamento] = useState<Date>();
   const [valorPagoManual, setValorPagoManual] = useState("");
@@ -67,6 +91,20 @@ const InstallmentsTable = ({ parcelas, taxaDiaria, onUpdate }: InstallmentsTable
   const [calculoRealizado, setCalculoRealizado] = useState(false);
   const [cancelTarget, setCancelTarget] = useState<Parcela | null>(null);
   const [isCanceling, setIsCanceling] = useState(false);
+  const [contas, setContas] = useState<ContaOpcao[]>([]);
+  const [contaOrigemId, setContaOrigemId] = useState<string>("");
+
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("contas")
+      .select("id, nome_conta, tipo")
+      .eq("user_id", user.id)
+      .neq("tipo", "cartao_credito")
+      .order("nome_conta", { ascending: true })
+      .then(({ data }) => setContas((data || []) as ContaOpcao[]));
+  }, [user]);
+
 
   const handleCancelarPagamento = async () => {
     if (!cancelTarget) return;
