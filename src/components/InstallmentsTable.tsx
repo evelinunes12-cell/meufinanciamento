@@ -126,17 +126,65 @@ const InstallmentsTable = ({ parcelas, taxaDiaria, onUpdate, contrato }: Install
 
       if (error) throw error;
 
-      // Espelho: remover a transação de despesa correspondente (se existir)
+      // Espelho: remover a transação de despesa correspondente (com fallbacks)
       if (contrato && user) {
         try {
-          const descricaoEsperada = `Parcela ${cancelTarget.numero_parcela} - ${contrato.nome}`;
-          const { error: delErr } = await supabase
+          const numero = cancelTarget.numero_parcela;
+          const nome = contrato.nome ?? "";
+          const descricaoEsperada = `Parcela ${numero} - ${nome}`;
+          const valorParcela = Number(cancelTarget.valor_parcela);
+          const dataPagto = cancelTarget.data_pagamento;
+
+          // Buscar candidatos por user + tipo despesa
+          let query = supabase
             .from("transacoes")
-            .delete()
+            .select("id, descricao, valor, categoria_id, data_pagamento, data")
             .eq("user_id", user.id)
-            .eq("tipo", "despesa")
-            .eq("descricao", descricaoEsperada);
-          if (delErr) throw delErr;
+            .eq("tipo", "despesa");
+
+          // Restringe pela categoria do contrato quando disponível (mais preciso)
+          if (contrato.categoria_id) {
+            query = query.eq("categoria_id", contrato.categoria_id);
+          }
+
+          const { data: candidatos, error: selErr } = await query;
+          if (selErr) throw selErr;
+
+          const lista = candidatos ?? [];
+          // 1) Match exato pela descrição
+          let alvo = lista.find((t) => t.descricao === descricaoEsperada);
+
+          // 2) Fallback: descrição contém "Parcela N" e parte do nome do contrato
+          if (!alvo) {
+            const nomeFrag = nome.trim().split(/\s+/).slice(0, 2).join(" ").toLowerCase();
+            alvo = lista.find((t) => {
+              const d = (t.descricao ?? "").toLowerCase();
+              return d.includes(`parcela ${numero}`) && (nomeFrag ? d.includes(nomeFrag) : true);
+            });
+          }
+
+          // 3) Fallback: mesma categoria + mesma data de pagamento + mesmo valor
+          if (!alvo && dataPagto) {
+            alvo = lista.find(
+              (t) =>
+                (t.data_pagamento === dataPagto || t.data === dataPagto) &&
+                Math.abs(Number(t.valor) - valorParcela) < 0.01
+            );
+          }
+
+          // 4) Último fallback: qualquer candidato com mesmo valor exato
+          if (!alvo) {
+            alvo = lista.find((t) => Math.abs(Number(t.valor) - valorParcela) < 0.01);
+          }
+
+          if (alvo) {
+            const { error: delErr } = await supabase
+              .from("transacoes")
+              .delete()
+              .eq("id", alvo.id)
+              .eq("user_id", user.id);
+            if (delErr) throw delErr;
+          }
         } catch (delErr: any) {
           toast({
             title: "Pagamento cancelado, mas...",
