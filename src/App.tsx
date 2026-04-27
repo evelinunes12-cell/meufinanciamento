@@ -8,6 +8,8 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { SaldoProvider } from "@/contexts/SaldoContext";
 import { ThemeProvider } from "next-themes";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import DashboardFinancas from "./pages/financas/DashboardFinancas";
+import Transacoes from "./pages/financas/Transacoes";
 
 // Lazy-loaded pages for code-splitting
 const Auth = lazy(() => import("./pages/Auth"));
@@ -15,8 +17,6 @@ const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Finanças Pessoais
-const DashboardFinancas = lazy(() => import("./pages/financas/DashboardFinancas"));
-const Transacoes = lazy(() => import("./pages/financas/Transacoes"));
 const Contas = lazy(() => import("./pages/financas/Contas"));
 const Categorias = lazy(() => import("./pages/financas/Categorias"));
 const Cartoes = lazy(() => import("./pages/financas/Cartoes"));
