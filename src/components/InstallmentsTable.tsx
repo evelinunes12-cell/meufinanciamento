@@ -526,6 +526,34 @@ const InstallmentsTable = ({ parcelas, taxaDiaria, onUpdate, contrato }: Install
               </Popover>
             </div>
 
+            {/* Conta de Origem (obrigatório p/ lançar no fluxo de caixa) */}
+            <div className="space-y-2">
+              <Label className="text-base">
+                Conta de Origem <span className="text-destructive">*</span>
+              </Label>
+              <Select value={contaOrigemId} onValueChange={setContaOrigemId}>
+                <SelectTrigger className="h-12">
+                  <SelectValue placeholder="Selecione a conta debitada" />
+                </SelectTrigger>
+                <SelectContent>
+                  {contas.length === 0 ? (
+                    <div className="px-3 py-2 text-sm text-muted-foreground">
+                      Nenhuma conta bancária cadastrada
+                    </div>
+                  ) : (
+                    contas.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.nome_conta}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Será criada uma despesa automática nesta conta no fluxo de caixa.
+              </p>
+            </div>
+
             {/* Botão Calcular */}
             {!calculoRealizado && (
               <Button
