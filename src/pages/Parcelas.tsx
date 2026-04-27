@@ -303,6 +303,12 @@ const Parcelas = () => {
             parcelas={parcelas}
             taxaDiaria={financiamento.taxa_diaria}
             onUpdate={fetchData}
+            contrato={{
+              id: financiamento.id,
+              nome: (financiamento as any).nome || "Contrato",
+              tipo: ((financiamento as any).tipo || "financiamento") as "financiamento" | "emprestimo",
+              categoria_id: (financiamento as any).categoria_id ?? null,
+            }}
           />
         </div>
       </main>

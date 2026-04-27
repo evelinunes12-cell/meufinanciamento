@@ -16,6 +16,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { formatCurrencyInput, parseCurrencyInput } from "@/lib/calculations";
 import { financiamentoSchema } from "@/lib/validations";
+import { garantirCategoriaContrato } from "@/lib/contratoCategoria";
 
 type TipoContrato = "financiamento" | "emprestimo";
 
@@ -216,10 +217,12 @@ const FinanciamentoConfig = () => {
           description: "Dados do contrato salvos. Histórico de parcelas preservado.",
         });
       } else {
-        // CRIAÇÃO: insere financiamento e gera parcelas iniciais.
+        // CRIAÇÃO: garante categoria, insere financiamento e gera parcelas iniciais.
+        const categoriaId = await garantirCategoriaContrato(payload.nome, payload.tipo, user.id);
+
         const { data: financiamento, error } = await supabase
           .from("financiamento")
-          .insert([payload])
+          .insert([{ ...payload, categoria_id: categoriaId }])
           .select("id")
           .single();
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Check, Calendar, Calculator, Loader2, AlertTriangle, Undo2 } from "lucide-react";
@@ -24,6 +24,13 @@ import {
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -36,6 +43,8 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { calcularAntecipacao, formatCurrency, formatCurrencyInput, parseCurrencyInput } from "@/lib/calculations";
+import { garantirCategoriaContrato } from "@/lib/contratoCategoria";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Parcela {
   id: string;
@@ -52,13 +61,28 @@ interface Parcela {
   dias_antecedencia: number | null;
 }
 
+interface ContratoInfo {
+  id: string;
+  nome: string;
+  tipo: "financiamento" | "emprestimo";
+  categoria_id?: string | null;
+}
+
+interface ContaOpcao {
+  id: string;
+  nome_conta: string;
+  tipo: string;
+}
+
 interface InstallmentsTableProps {
   parcelas: Parcela[];
   taxaDiaria: number;
   onUpdate: () => void;
+  contrato?: ContratoInfo;
 }
 
-const InstallmentsTable = ({ parcelas, taxaDiaria, onUpdate }: InstallmentsTableProps) => {
+const InstallmentsTable = ({ parcelas, taxaDiaria, onUpdate, contrato }: InstallmentsTableProps) => {
+  const { user } = useAuth();
   const [selectedParcela, setSelectedParcela] = useState<Parcela | null>(null);
   const [dataPagamento, setDataPagamento] = useState<Date>();
   const [valorPagoManual, setValorPagoManual] = useState("");
@@ -67,6 +91,20 @@ const InstallmentsTable = ({ parcelas, taxaDiaria, onUpdate }: InstallmentsTable
   const [calculoRealizado, setCalculoRealizado] = useState(false);
   const [cancelTarget, setCancelTarget] = useState<Parcela | null>(null);
   const [isCanceling, setIsCanceling] = useState(false);
+  const [contas, setContas] = useState<ContaOpcao[]>([]);
+  const [contaOrigemId, setContaOrigemId] = useState<string>("");
+
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("contas")
+      .select("id, nome_conta, tipo")
+      .eq("user_id", user.id)
+      .neq("tipo", "cartao_credito")
+      .order("nome_conta", { ascending: true })
+      .then(({ data }) => setContas((data || []) as ContaOpcao[]));
+  }, [user]);
+
 
   const handleCancelarPagamento = async () => {
     if (!cancelTarget) return;
@@ -106,6 +144,7 @@ const InstallmentsTable = ({ parcelas, taxaDiaria, onUpdate }: InstallmentsTable
     setDataPagamento(new Date());
     setValorPagoManual("");
     setCalculoRealizado(false);
+    setContaOrigemId("");
     setDialogOpen(true);
   };
 
@@ -126,6 +165,15 @@ const InstallmentsTable = ({ parcelas, taxaDiaria, onUpdate }: InstallmentsTable
   const handleConfirmarPagamento = async () => {
     if (!selectedParcela || !dataPagamento || !calculo) return;
 
+    if (!contaOrigemId) {
+      toast({
+        title: "Conta de origem obrigatória",
+        description: "Selecione a conta de onde o pagamento foi debitado.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -134,12 +182,28 @@ const InstallmentsTable = ({ parcelas, taxaDiaria, onUpdate }: InstallmentsTable
         : calculo.valorPago;
 
       const economiaFinal = selectedParcela.valor_parcela - valorFinal;
+      const dataPagamentoStr = format(dataPagamento, "yyyy-MM-dd");
 
+      // Self-healing: garantir categoria_id no contrato (legado)
+      let categoriaId = contrato?.categoria_id || null;
+      if (contrato && user && !categoriaId) {
+        try {
+          categoriaId = await garantirCategoriaContrato(contrato.nome, contrato.tipo, user.id);
+          await supabase
+            .from("financiamento")
+            .update({ categoria_id: categoriaId })
+            .eq("id", contrato.id);
+        } catch (err) {
+          if (import.meta.env.DEV) console.error("Falha ao garantir categoria:", err);
+        }
+      }
+
+      // 1) Atualiza parcela
       const { error } = await supabase
         .from("parcelas")
         .update({
           pago: true,
-          data_pagamento: format(dataPagamento, "yyyy-MM-dd"),
+          data_pagamento: dataPagamentoStr,
           antecipada: calculo.isAntecipada,
           valor_pago: valorFinal,
           economia: Math.max(0, economiaFinal),
@@ -150,6 +214,32 @@ const InstallmentsTable = ({ parcelas, taxaDiaria, onUpdate }: InstallmentsTable
         .eq("id", selectedParcela.id);
 
       if (error) throw error;
+
+      // 2) Espelho no fluxo de caixa (transação de despesa)
+      if (contrato && user) {
+        try {
+          const { error: txErr } = await supabase.from("transacoes").insert({
+            user_id: user.id,
+            conta_id: contaOrigemId,
+            categoria_id: categoriaId,
+            valor: valorFinal,
+            tipo: "despesa",
+            forma_pagamento: "debito",
+            data: dataPagamentoStr,
+            data_pagamento: dataPagamentoStr,
+            data_execucao_pagamento: dataPagamentoStr,
+            is_pago_executado: true,
+            descricao: `Parcela ${selectedParcela.numero_parcela} - ${contrato.nome}`,
+          });
+          if (txErr) throw txErr;
+        } catch (txErr: any) {
+          toast({
+            title: "Pagamento registrado, mas...",
+            description: `Não foi possível lançar a despesa no fluxo de caixa: ${txErr.message}`,
+            variant: "destructive",
+          });
+        }
+      }
 
       toast({
         title: "Pagamento registrado!",
@@ -434,6 +524,34 @@ const InstallmentsTable = ({ parcelas, taxaDiaria, onUpdate }: InstallmentsTable
                   />
                 </PopoverContent>
               </Popover>
+            </div>
+
+            {/* Conta de Origem (obrigatório p/ lançar no fluxo de caixa) */}
+            <div className="space-y-2">
+              <Label className="text-base">
+                Conta de Origem <span className="text-destructive">*</span>
+              </Label>
+              <Select value={contaOrigemId} onValueChange={setContaOrigemId}>
+                <SelectTrigger className="h-12">
+                  <SelectValue placeholder="Selecione a conta debitada" />
+                </SelectTrigger>
+                <SelectContent>
+                  {contas.length === 0 ? (
+                    <div className="px-3 py-2 text-sm text-muted-foreground">
+                      Nenhuma conta bancária cadastrada
+                    </div>
+                  ) : (
+                    contas.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.nome_conta}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Será criada uma despesa automática nesta conta no fluxo de caixa.
+              </p>
             </div>
 
             {/* Botão Calcular */}
