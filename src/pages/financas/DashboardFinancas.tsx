@@ -704,7 +704,12 @@ const DashboardFinancas = () => {
                       />
                       </PieChart>
                     </ResponsiveContainer>
-                    {renderLegendList(despesasPorCategoria)}
+                    {renderLegendList(
+                      despesasPorCategoria,
+                      categoryViewMode === "main"
+                        ? (item) => item.categoriaId && setDrilldown({ tipo: "despesa", categoriaId: item.categoriaId })
+                        : undefined,
+                    )}
                   </div>
                 ) : (
                   <div className="flex items-center justify-center h-[300px] text-muted-foreground">
