@@ -725,7 +725,21 @@ const DashboardFinancas = () => {
                   <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
                     <ResponsiveContainer width="100%" height={300}>
                       <PieChart>
-                        <Pie data={receitasPorCategoria} cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={2} dataKey="value">
+                        <Pie
+                          data={receitasPorCategoria}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={60}
+                          outerRadius={100}
+                          paddingAngle={2}
+                          dataKey="value"
+                          cursor={categoryViewMode === "main" ? "pointer" : "default"}
+                          onClick={(d: any) => {
+                            if (categoryViewMode === "main" && d?.categoriaId) {
+                              setDrilldown({ tipo: "receita", categoriaId: d.categoriaId });
+                            }
+                          }}
+                        >
                           {receitasPorCategoria.map((entry, index) => (
                             <Cell key={`cell-rec-${index}`} fill={entry.color || COLORS[index % COLORS.length]} />
                           ))}
