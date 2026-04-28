@@ -215,6 +215,7 @@ const InstallmentsTable = ({ parcelas, taxaDiaria, onUpdate, contrato }: Install
         description: `Parcela ${cancelTarget.numero_parcela} voltou para pendente.`,
       });
       setCancelTarget(null);
+      await invalidarFluxoCaixa();
       onUpdate();
     } catch (error: any) {
       toast({ title: "Erro", description: error.message, variant: "destructive" });
