@@ -16,6 +16,9 @@ import { EvolucaoMensalWidget } from "@/components/dashboard/EvolucaoMensalWidge
 import { ProximosFechamentosWidget } from "@/components/dashboard/ProximosFechamentosWidget";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { format, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { 
   isExecutado, 
   isPendente, 
