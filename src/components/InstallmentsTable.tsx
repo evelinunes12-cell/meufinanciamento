@@ -336,6 +336,7 @@ const InstallmentsTable = ({ parcelas, taxaDiaria, onUpdate, contrato }: Install
       });
 
       setDialogOpen(false);
+      await invalidarFluxoCaixa();
       onUpdate();
     } catch (error: any) {
       toast({
