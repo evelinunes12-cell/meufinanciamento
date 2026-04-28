@@ -885,6 +885,107 @@ const DashboardFinancas = () => {
           </div>
         )}
       </div>
+
+      {/* Drilldown subcategorias + lançamentos */}
+      <Dialog open={!!drilldown} onOpenChange={(open) => !open && setDrilldown(null)}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {drilldownData?.cat && (
+                <span
+                  className="w-3 h-3 rounded-full shrink-0"
+                  style={{ backgroundColor: drilldownData.cat.cor }}
+                />
+              )}
+              <span className="truncate">{drilldownData?.cat?.nome ?? ""}</span>
+            </DialogTitle>
+            <DialogDescription>
+              {drilldown?.tipo === "despesa" ? "Despesas" : "Receitas"} desta categoria — total {drilldownData ? formatCurrency(drilldownData.total) : ""}
+            </DialogDescription>
+          </DialogHeader>
+
+          {drilldownData && (
+            <div className="flex-1 overflow-y-auto space-y-6 pr-1">
+              {drilldownData.subBuckets.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+                  <ResponsiveContainer width="100%" height={240}>
+                    <PieChart>
+                      <Pie
+                        data={drilldownData.subBuckets}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={90}
+                        paddingAngle={2}
+                        dataKey="value"
+                      >
+                        {drilldownData.subBuckets.map((entry, index) => (
+                          <Cell key={`sub-cell-${index}`} fill={entry.color || COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <RechartsTooltip
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            const entry = payload[0];
+                            const value = entry.value as number;
+                            const percent = drilldownData.total > 0 ? ((value / drilldownData.total) * 100).toFixed(1) : "0";
+                            return (
+                              <div className="bg-popover border border-border rounded-lg p-2 shadow-lg">
+                                <p className="font-medium text-foreground text-xs">{entry.name}</p>
+                                <p className="text-xs text-foreground">{formatCurrency(value)}</p>
+                                <p className="text-[10px] text-muted-foreground">{percent}%</p>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  {renderLegendList(drilldownData.subBuckets.map(b => ({ name: b.name, value: b.value, color: b.color })))}
+                </div>
+              ) : (
+                <div className="text-center text-sm text-muted-foreground py-6">
+                  Sem subcategorias com lançamentos no período.
+                </div>
+              )}
+
+              <div>
+                <h4 className="text-sm font-semibold mb-2">
+                  Lançamentos ({drilldownData.lancamentos.length})
+                </h4>
+                {drilldownData.lancamentos.length === 0 ? (
+                  <div className="text-center text-sm text-muted-foreground py-6 border rounded-md">
+                    Nenhum lançamento no período.
+                  </div>
+                ) : (
+                  <div className="border rounded-md divide-y">
+                    {drilldownData.lancamentos.map((t) => (
+                      <div key={t.id} className="flex items-center justify-between gap-3 p-3 text-sm">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span
+                              className="w-2 h-2 rounded-full shrink-0"
+                              style={{ backgroundColor: t.categoriaCor || drilldownData.cat.cor }}
+                            />
+                            <p className="font-medium truncate">{t.descricao || "—"}</p>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {format(parseISO(t.data), "dd/MM/yyyy", { locale: ptBR })} · {t.categoriaNome}
+                          </p>
+                        </div>
+                        <span className={`font-semibold tabular-nums whitespace-nowrap ${drilldown?.tipo === "despesa" ? "text-destructive" : "text-success"}`}>
+                          {formatCurrency(Number(t.valor))}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 };
