@@ -96,6 +96,7 @@ const DashboardFinancas = () => {
   const [filters, setFilters] = useState<FilterState>(getInitialFilterState);
   const [categoryViewMode, setCategoryViewMode] = useState<"main" | "sub">("main");
   const [saldoContasMode, setSaldoContasMode] = useState<"total" | "mes">("total");
+  const [drilldown, setDrilldown] = useState<{ tipo: "despesa" | "receita"; categoriaId: string } | null>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem(storageKey);
