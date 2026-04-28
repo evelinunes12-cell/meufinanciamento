@@ -342,14 +342,25 @@ const DashboardFinancas = () => {
   }, [drilldown, categorias, transacoesValidas]);
 
 
-  const renderLegendList = (dataList: Array<{ name: string; value: number; color?: string }>) => {
+  const renderLegendList = (
+    dataList: Array<{ name: string; value: number; color?: string; categoriaId?: string }>,
+    onItemClick?: (item: { categoriaId?: string }) => void,
+  ) => {
     const total = dataList.reduce((sum, item) => sum + item.value, 0);
     return (
       <div className="max-h-[260px] overflow-y-auto space-y-2 pr-1">
         {dataList.map((item, idx) => {
           const percent = total > 0 ? ((item.value / total) * 100).toFixed(1) : "0.0";
+          const clickable = !!onItemClick && !!item.categoriaId;
           return (
-            <div key={`${item.name}-${idx}`} className="flex items-center justify-between text-xs border rounded-md p-2 gap-2">
+            <div
+              key={`${item.name}-${idx}`}
+              role={clickable ? "button" : undefined}
+              tabIndex={clickable ? 0 : undefined}
+              onClick={clickable ? () => onItemClick!(item) : undefined}
+              onKeyDown={clickable ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onItemClick!(item); } } : undefined}
+              className={`flex items-center justify-between text-xs border rounded-md p-2 gap-2 ${clickable ? "cursor-pointer hover:bg-accent/40 transition-colors" : ""}`}
+            >
               <div className="flex items-center gap-2 min-w-0">
                 <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color || COLORS[idx % COLORS.length] }} />
                 <span className="truncate">{item.name}</span>
