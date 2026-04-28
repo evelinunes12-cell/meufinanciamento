@@ -752,7 +752,12 @@ const DashboardFinancas = () => {
                         <RechartsTooltip />
                       </PieChart>
                     </ResponsiveContainer>
-                    {renderLegendList(receitasPorCategoria)}
+                    {renderLegendList(
+                      receitasPorCategoria,
+                      categoryViewMode === "main"
+                        ? (item) => item.categoriaId && setDrilldown({ tipo: "receita", categoriaId: item.categoriaId })
+                        : undefined,
+                    )}
                   </div>
                 ) : (
                   <div className="flex items-center justify-center h-[300px] text-muted-foreground">
