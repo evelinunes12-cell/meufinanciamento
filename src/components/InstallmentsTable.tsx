@@ -85,6 +85,8 @@ interface InstallmentsTableProps {
 
 const InstallmentsTable = ({ parcelas, taxaDiaria, onUpdate, contrato }: InstallmentsTableProps) => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const { refetch: refetchSaldo } = useSaldo();
   const [selectedParcela, setSelectedParcela] = useState<Parcela | null>(null);
   const [dataPagamento, setDataPagamento] = useState<Date>();
   const [valorPagoManual, setValorPagoManual] = useState("");
@@ -95,6 +97,18 @@ const InstallmentsTable = ({ parcelas, taxaDiaria, onUpdate, contrato }: Install
   const [isCanceling, setIsCanceling] = useState(false);
   const [contas, setContas] = useState<ContaOpcao[]>([]);
   const [contaOrigemId, setContaOrigemId] = useState<string>("");
+
+  const invalidarFluxoCaixa = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["transacoes"] }),
+      queryClient.invalidateQueries({ queryKey: ["saldo-contas"] }),
+      queryClient.invalidateQueries({ queryKey: ["dashboard-financas"] }),
+      queryClient.invalidateQueries({ queryKey: ["orcamentos"] }),
+      queryClient.invalidateQueries({ queryKey: ["contas"] }),
+      queryClient.invalidateQueries({ queryKey: ["projecao"] }),
+    ]);
+    refetchSaldo();
+  };
 
   useEffect(() => {
     if (!user) return;
