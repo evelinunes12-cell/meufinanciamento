@@ -16,6 +16,9 @@ import { EvolucaoMensalWidget } from "@/components/dashboard/EvolucaoMensalWidge
 import { ProximosFechamentosWidget } from "@/components/dashboard/ProximosFechamentosWidget";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { format, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { 
   isExecutado, 
   isPendente, 
@@ -93,6 +96,7 @@ const DashboardFinancas = () => {
   const [filters, setFilters] = useState<FilterState>(getInitialFilterState);
   const [categoryViewMode, setCategoryViewMode] = useState<"main" | "sub">("main");
   const [saldoContasMode, setSaldoContasMode] = useState<"total" | "mes">("total");
+  const [drilldown, setDrilldown] = useState<{ tipo: "despesa" | "receita"; categoriaId: string } | null>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem(storageKey);
@@ -257,7 +261,7 @@ const DashboardFinancas = () => {
           const total = transacoesValidas
             .filter(t => t.categoria_id && allCategoryIds.includes(t.categoria_id) && t.tipo === "despesa")
             .reduce((acc, t) => acc + Number(t.valor), 0);
-          return { name: cat.nome, value: total, color: cat.cor };
+          return { name: cat.nome, value: total, color: cat.cor, categoriaId: cat.id };
         })
         .filter(item => item.value > 0)
     : categorias
@@ -270,7 +274,7 @@ const DashboardFinancas = () => {
             ? categorias.find(c => c.id === cat.categoria_pai_id) 
             : null;
           const displayName = parentCat ? `${parentCat.nome} > ${cat.nome}` : cat.nome;
-          return { name: displayName, value: total, color: cat.cor };
+          return { name: displayName, value: total, color: cat.cor, categoriaId: cat.id };
         })
         .filter(item => item.value > 0)
   ).sort((a, b) => b.value - a.value);
@@ -284,7 +288,7 @@ const DashboardFinancas = () => {
           const total = transacoesValidas
             .filter(t => t.categoria_id && allCategoryIds.includes(t.categoria_id) && t.tipo === "receita")
             .reduce((acc, t) => acc + Number(t.valor), 0);
-          return { name: cat.nome, value: total, color: cat.cor };
+          return { name: cat.nome, value: total, color: cat.cor, categoriaId: cat.id };
         })
         .filter(item => item.value > 0)
     : categorias
@@ -295,19 +299,68 @@ const DashboardFinancas = () => {
             .reduce((acc, t) => acc + Number(t.valor), 0);
           const parentCat = cat.categoria_pai_id ? categorias.find(c => c.id === cat.categoria_pai_id) : null;
           const displayName = parentCat ? `${parentCat.nome} > ${cat.nome}` : cat.nome;
-          return { name: displayName, value: total, color: cat.cor };
+          return { name: displayName, value: total, color: cat.cor, categoriaId: cat.id };
         })
         .filter(item => item.value > 0)
   ).sort((a, b) => b.value - a.value);
 
-  const renderLegendList = (dataList: Array<{ name: string; value: number; color?: string }>) => {
+  // Drilldown: subcategorias + lançamentos da categoria principal selecionada
+  const drilldownData = useMemo(() => {
+    if (!drilldown) return null;
+    const cat = categorias.find(c => c.id === drilldown.categoriaId);
+    if (!cat) return null;
+    const subcats = categorias.filter(c => c.categoria_pai_id === cat.id);
+    const allIds = [cat.id, ...subcats.map(s => s.id)];
+
+    const subBuckets = [
+      ...subcats.map(s => {
+        const total = transacoesValidas
+          .filter(t => t.categoria_id === s.id && t.tipo === drilldown.tipo)
+          .reduce((acc, t) => acc + Number(t.valor), 0);
+        return { id: s.id, name: s.nome, color: s.cor, value: total };
+      }),
+      // Lançamentos diretos na categoria pai (sem subcategoria)
+      (() => {
+        const total = transacoesValidas
+          .filter(t => t.categoria_id === cat.id && t.tipo === drilldown.tipo)
+          .reduce((acc, t) => acc + Number(t.valor), 0);
+        return { id: cat.id, name: "Sem subcategoria", color: cat.cor, value: total };
+      })(),
+    ].filter(b => b.value > 0).sort((a, b) => b.value - a.value);
+
+    const lancamentos = transacoesValidas
+      .filter(t => t.categoria_id && allIds.includes(t.categoria_id) && t.tipo === drilldown.tipo)
+      .map(t => {
+        const tcat = categorias.find(c => c.id === t.categoria_id);
+        return { ...t, categoriaNome: tcat?.nome || "—", categoriaCor: tcat?.cor };
+      })
+      .sort((a, b) => (a.data < b.data ? 1 : -1));
+
+    const total = subBuckets.reduce((s, b) => s + b.value, 0);
+
+    return { cat, subBuckets, lancamentos, total };
+  }, [drilldown, categorias, transacoesValidas]);
+
+
+  const renderLegendList = (
+    dataList: Array<{ name: string; value: number; color?: string; categoriaId?: string }>,
+    onItemClick?: (item: { categoriaId?: string }) => void,
+  ) => {
     const total = dataList.reduce((sum, item) => sum + item.value, 0);
     return (
       <div className="max-h-[260px] overflow-y-auto space-y-2 pr-1">
         {dataList.map((item, idx) => {
           const percent = total > 0 ? ((item.value / total) * 100).toFixed(1) : "0.0";
+          const clickable = !!onItemClick && !!item.categoriaId;
           return (
-            <div key={`${item.name}-${idx}`} className="flex items-center justify-between text-xs border rounded-md p-2 gap-2">
+            <div
+              key={`${item.name}-${idx}`}
+              role={clickable ? "button" : undefined}
+              tabIndex={clickable ? 0 : undefined}
+              onClick={clickable ? () => onItemClick!(item) : undefined}
+              onKeyDown={clickable ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onItemClick!(item); } } : undefined}
+              className={`flex items-center justify-between text-xs border rounded-md p-2 gap-2 ${clickable ? "cursor-pointer hover:bg-accent/40 transition-colors" : ""}`}
+            >
               <div className="flex items-center gap-2 min-w-0">
                 <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color || COLORS[idx % COLORS.length] }} />
                 <span className="truncate">{item.name}</span>
@@ -620,6 +673,12 @@ const DashboardFinancas = () => {
                         outerRadius={100}
                         paddingAngle={2}
                         dataKey="value"
+                        cursor={categoryViewMode === "main" ? "pointer" : "default"}
+                        onClick={(d: any) => {
+                          if (categoryViewMode === "main" && d?.categoriaId) {
+                            setDrilldown({ tipo: "despesa", categoriaId: d.categoriaId });
+                          }
+                        }}
                       >
                         {despesasPorCategoria.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color || COLORS[index % COLORS.length]} />
@@ -645,7 +704,12 @@ const DashboardFinancas = () => {
                       />
                       </PieChart>
                     </ResponsiveContainer>
-                    {renderLegendList(despesasPorCategoria)}
+                    {renderLegendList(
+                      despesasPorCategoria,
+                      categoryViewMode === "main"
+                        ? (item) => item.categoriaId && setDrilldown({ tipo: "despesa", categoriaId: item.categoriaId })
+                        : undefined,
+                    )}
                   </div>
                 ) : (
                   <div className="flex items-center justify-center h-[300px] text-muted-foreground">
@@ -666,7 +730,21 @@ const DashboardFinancas = () => {
                   <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
                     <ResponsiveContainer width="100%" height={300}>
                       <PieChart>
-                        <Pie data={receitasPorCategoria} cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={2} dataKey="value">
+                        <Pie
+                          data={receitasPorCategoria}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={60}
+                          outerRadius={100}
+                          paddingAngle={2}
+                          dataKey="value"
+                          cursor={categoryViewMode === "main" ? "pointer" : "default"}
+                          onClick={(d: any) => {
+                            if (categoryViewMode === "main" && d?.categoriaId) {
+                              setDrilldown({ tipo: "receita", categoriaId: d.categoriaId });
+                            }
+                          }}
+                        >
                           {receitasPorCategoria.map((entry, index) => (
                             <Cell key={`cell-rec-${index}`} fill={entry.color || COLORS[index % COLORS.length]} />
                           ))}
@@ -674,7 +752,12 @@ const DashboardFinancas = () => {
                         <RechartsTooltip />
                       </PieChart>
                     </ResponsiveContainer>
-                    {renderLegendList(receitasPorCategoria)}
+                    {renderLegendList(
+                      receitasPorCategoria,
+                      categoryViewMode === "main"
+                        ? (item) => item.categoriaId && setDrilldown({ tipo: "receita", categoriaId: item.categoriaId })
+                        : undefined,
+                    )}
                   </div>
                 ) : (
                   <div className="flex items-center justify-center h-[300px] text-muted-foreground">
@@ -802,6 +885,107 @@ const DashboardFinancas = () => {
           </div>
         )}
       </div>
+
+      {/* Drilldown subcategorias + lançamentos */}
+      <Dialog open={!!drilldown} onOpenChange={(open) => !open && setDrilldown(null)}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {drilldownData?.cat && (
+                <span
+                  className="w-3 h-3 rounded-full shrink-0"
+                  style={{ backgroundColor: drilldownData.cat.cor }}
+                />
+              )}
+              <span className="truncate">{drilldownData?.cat?.nome ?? ""}</span>
+            </DialogTitle>
+            <DialogDescription>
+              {drilldown?.tipo === "despesa" ? "Despesas" : "Receitas"} desta categoria — total {drilldownData ? formatCurrency(drilldownData.total) : ""}
+            </DialogDescription>
+          </DialogHeader>
+
+          {drilldownData && (
+            <div className="flex-1 overflow-y-auto space-y-6 pr-1">
+              {drilldownData.subBuckets.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+                  <ResponsiveContainer width="100%" height={240}>
+                    <PieChart>
+                      <Pie
+                        data={drilldownData.subBuckets}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={90}
+                        paddingAngle={2}
+                        dataKey="value"
+                      >
+                        {drilldownData.subBuckets.map((entry, index) => (
+                          <Cell key={`sub-cell-${index}`} fill={entry.color || COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <RechartsTooltip
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            const entry = payload[0];
+                            const value = entry.value as number;
+                            const percent = drilldownData.total > 0 ? ((value / drilldownData.total) * 100).toFixed(1) : "0";
+                            return (
+                              <div className="bg-popover border border-border rounded-lg p-2 shadow-lg">
+                                <p className="font-medium text-foreground text-xs">{entry.name}</p>
+                                <p className="text-xs text-foreground">{formatCurrency(value)}</p>
+                                <p className="text-[10px] text-muted-foreground">{percent}%</p>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  {renderLegendList(drilldownData.subBuckets.map(b => ({ name: b.name, value: b.value, color: b.color })))}
+                </div>
+              ) : (
+                <div className="text-center text-sm text-muted-foreground py-6">
+                  Sem subcategorias com lançamentos no período.
+                </div>
+              )}
+
+              <div>
+                <h4 className="text-sm font-semibold mb-2">
+                  Lançamentos ({drilldownData.lancamentos.length})
+                </h4>
+                {drilldownData.lancamentos.length === 0 ? (
+                  <div className="text-center text-sm text-muted-foreground py-6 border rounded-md">
+                    Nenhum lançamento no período.
+                  </div>
+                ) : (
+                  <div className="border rounded-md divide-y">
+                    {drilldownData.lancamentos.map((t) => (
+                      <div key={t.id} className="flex items-center justify-between gap-3 p-3 text-sm">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span
+                              className="w-2 h-2 rounded-full shrink-0"
+                              style={{ backgroundColor: t.categoriaCor || drilldownData.cat.cor }}
+                            />
+                            <p className="font-medium truncate">{t.descricao || "—"}</p>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {format(parseISO(t.data), "dd/MM/yyyy", { locale: ptBR })} · {t.categoriaNome}
+                          </p>
+                        </div>
+                        <span className={`font-semibold tabular-nums whitespace-nowrap ${drilldown?.tipo === "despesa" ? "text-destructive" : "text-success"}`}>
+                          {formatCurrency(Number(t.valor))}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 };
