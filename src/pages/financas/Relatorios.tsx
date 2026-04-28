@@ -459,14 +459,17 @@ const Relatorios = () => {
               <>
                 <div className="md:hidden divide-y divide-border">
                   {relatorioFormaPagamento.map((r, i) => (
-                    <div key={i} className="p-3 space-y-1">
-                      <p className="text-sm font-semibold">{r.forma}</p>
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-success">Rec: {formatCurrency(r.receitas)}</span>
-                        <span className="text-destructive">Desp: {formatCurrency(r.despesas)}</span>
-                        <span className={`font-bold ${r.total >= 0 ? "text-success" : "text-destructive"}`}>
+                    <div key={i} className="p-4 space-y-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm font-medium text-foreground truncate">{r.forma}</p>
+                        <span className={`text-base font-bold tabular-nums shrink-0 ${r.total >= 0 ? "text-success" : "text-destructive"}`}>
                           {formatCurrency(r.total)}
                         </span>
+                      </div>
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                        <span>↑ {formatCurrency(r.receitas)}</span>
+                        <span>·</span>
+                        <span>↓ {formatCurrency(r.despesas)}</span>
                       </div>
                     </div>
                   ))}
