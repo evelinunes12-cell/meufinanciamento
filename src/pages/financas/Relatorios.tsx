@@ -368,15 +368,12 @@ const Relatorios = () => {
               <>
                 <div className="md:hidden divide-y divide-border">
                   {relatorioCategoria.map((r, i) => (
-                    <div key={i} className="flex items-center justify-between p-3">
-                      <div className="flex items-center gap-2">
+                    <div key={i} className="flex items-center justify-between gap-3 p-4">
+                      <div className="flex items-center gap-3 min-w-0">
                         <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: r.cor }} />
-                        <div>
-                          <span className="text-sm font-medium">{r.categoria}</span>
-                          <p className="text-xs text-muted-foreground capitalize">{r.tipo}</p>
-                        </div>
+                        <span className="text-sm font-medium text-foreground truncate">{r.categoria}</span>
                       </div>
-                      <span className={`text-sm font-bold ${r.total >= 0 ? "text-success" : "text-destructive"}`}>
+                      <span className={`text-base font-bold tabular-nums shrink-0 ${r.total >= 0 ? "text-success" : "text-destructive"}`}>
                         {formatCurrency(Math.abs(r.total))}
                       </span>
                     </div>
