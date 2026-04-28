@@ -261,7 +261,7 @@ const DashboardFinancas = () => {
           const total = transacoesValidas
             .filter(t => t.categoria_id && allCategoryIds.includes(t.categoria_id) && t.tipo === "despesa")
             .reduce((acc, t) => acc + Number(t.valor), 0);
-          return { name: cat.nome, value: total, color: cat.cor };
+          return { name: cat.nome, value: total, color: cat.cor, categoriaId: cat.id };
         })
         .filter(item => item.value > 0)
     : categorias
@@ -274,7 +274,7 @@ const DashboardFinancas = () => {
             ? categorias.find(c => c.id === cat.categoria_pai_id) 
             : null;
           const displayName = parentCat ? `${parentCat.nome} > ${cat.nome}` : cat.nome;
-          return { name: displayName, value: total, color: cat.cor };
+          return { name: displayName, value: total, color: cat.cor, categoriaId: cat.id };
         })
         .filter(item => item.value > 0)
   ).sort((a, b) => b.value - a.value);
@@ -288,7 +288,7 @@ const DashboardFinancas = () => {
           const total = transacoesValidas
             .filter(t => t.categoria_id && allCategoryIds.includes(t.categoria_id) && t.tipo === "receita")
             .reduce((acc, t) => acc + Number(t.valor), 0);
-          return { name: cat.nome, value: total, color: cat.cor };
+          return { name: cat.nome, value: total, color: cat.cor, categoriaId: cat.id };
         })
         .filter(item => item.value > 0)
     : categorias
@@ -299,10 +299,48 @@ const DashboardFinancas = () => {
             .reduce((acc, t) => acc + Number(t.valor), 0);
           const parentCat = cat.categoria_pai_id ? categorias.find(c => c.id === cat.categoria_pai_id) : null;
           const displayName = parentCat ? `${parentCat.nome} > ${cat.nome}` : cat.nome;
-          return { name: displayName, value: total, color: cat.cor };
+          return { name: displayName, value: total, color: cat.cor, categoriaId: cat.id };
         })
         .filter(item => item.value > 0)
   ).sort((a, b) => b.value - a.value);
+
+  // Drilldown: subcategorias + lançamentos da categoria principal selecionada
+  const drilldownData = useMemo(() => {
+    if (!drilldown) return null;
+    const cat = categorias.find(c => c.id === drilldown.categoriaId);
+    if (!cat) return null;
+    const subcats = categorias.filter(c => c.categoria_pai_id === cat.id);
+    const allIds = [cat.id, ...subcats.map(s => s.id)];
+
+    const subBuckets = [
+      ...subcats.map(s => {
+        const total = transacoesValidas
+          .filter(t => t.categoria_id === s.id && t.tipo === drilldown.tipo)
+          .reduce((acc, t) => acc + Number(t.valor), 0);
+        return { id: s.id, name: s.nome, color: s.cor, value: total };
+      }),
+      // Lançamentos diretos na categoria pai (sem subcategoria)
+      (() => {
+        const total = transacoesValidas
+          .filter(t => t.categoria_id === cat.id && t.tipo === drilldown.tipo)
+          .reduce((acc, t) => acc + Number(t.valor), 0);
+        return { id: cat.id, name: "Sem subcategoria", color: cat.cor, value: total };
+      })(),
+    ].filter(b => b.value > 0).sort((a, b) => b.value - a.value);
+
+    const lancamentos = transacoesValidas
+      .filter(t => t.categoria_id && allIds.includes(t.categoria_id) && t.tipo === drilldown.tipo)
+      .map(t => {
+        const tcat = categorias.find(c => c.id === t.categoria_id);
+        return { ...t, categoriaNome: tcat?.nome || "—", categoriaCor: tcat?.cor };
+      })
+      .sort((a, b) => (a.data < b.data ? 1 : -1));
+
+    const total = subBuckets.reduce((s, b) => s + b.value, 0);
+
+    return { cat, subBuckets, lancamentos, total };
+  }, [drilldown, categorias, transacoesValidas]);
+
 
   const renderLegendList = (dataList: Array<{ name: string; value: number; color?: string }>) => {
     const total = dataList.reduce((sum, item) => sum + item.value, 0);
