@@ -45,6 +45,8 @@ import { toast } from "@/hooks/use-toast";
 import { calcularAntecipacao, formatCurrency, formatCurrencyInput, parseCurrencyInput } from "@/lib/calculations";
 import { garantirCategoriaContrato } from "@/lib/contratoCategoria";
 import { useAuth } from "@/hooks/useAuth";
+import { useQueryClient } from "@tanstack/react-query";
+import { useSaldo } from "@/contexts/SaldoContext";
 
 interface Parcela {
   id: string;
