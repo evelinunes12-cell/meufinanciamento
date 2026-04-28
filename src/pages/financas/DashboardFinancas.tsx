@@ -673,6 +673,12 @@ const DashboardFinancas = () => {
                         outerRadius={100}
                         paddingAngle={2}
                         dataKey="value"
+                        cursor={categoryViewMode === "main" ? "pointer" : "default"}
+                        onClick={(d: any) => {
+                          if (categoryViewMode === "main" && d?.categoriaId) {
+                            setDrilldown({ tipo: "despesa", categoriaId: d.categoriaId });
+                          }
+                        }}
                       >
                         {despesasPorCategoria.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color || COLORS[index % COLORS.length]} />
