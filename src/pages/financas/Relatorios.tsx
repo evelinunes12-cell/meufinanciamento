@@ -413,14 +413,17 @@ const Relatorios = () => {
               <>
                 <div className="md:hidden divide-y divide-border">
                   {relatorioConta.map((r, i) => (
-                    <div key={i} className="p-3 space-y-1">
-                      <p className="text-sm font-semibold">{r.conta}</p>
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-success">Rec: {formatCurrency(r.receitas)}</span>
-                        <span className="text-destructive">Desp: {formatCurrency(r.despesas)}</span>
-                        <span className={`font-bold ${r.saldo >= 0 ? "text-success" : "text-destructive"}`}>
+                    <div key={i} className="p-4 space-y-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm font-medium text-foreground truncate">{r.conta}</p>
+                        <span className={`text-base font-bold tabular-nums shrink-0 ${r.saldo >= 0 ? "text-success" : "text-destructive"}`}>
                           {formatCurrency(r.saldo)}
                         </span>
+                      </div>
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                        <span>↑ {formatCurrency(r.receitas)}</span>
+                        <span>·</span>
+                        <span>↓ {formatCurrency(r.despesas)}</span>
                       </div>
                     </div>
                   ))}
