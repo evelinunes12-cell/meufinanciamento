@@ -360,7 +360,12 @@ const FinanciamentoConfig = () => {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="icone">Emoji / Ícone</Label>
-                    <Input id="icone" value={form.icone} onChange={(e) => setForm((prev) => ({ ...prev, icone: e.target.value }))} placeholder="🚗" />
+                    <EmojiPicker
+                      id="icone"
+                      value={form.icone}
+                      onChange={(value) => setForm((prev) => ({ ...prev, icone: value }))}
+                      placeholder="🚗"
+                    />
                   </div>
 
                   <div className="space-y-2">
@@ -375,6 +380,22 @@ const FinanciamentoConfig = () => {
                   <div className="space-y-2">
                     <Label htmlFor="numeroParcelas">Número de Parcelas</Label>
                     <Input id="numeroParcelas" type="number" min="1" max="600" value={form.numeroParcelas} onChange={(e) => setForm((prev) => ({ ...prev, numeroParcelas: e.target.value }))} required />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="totalAPagar">Total a Pagar (calculado)</Label>
+                    <Input
+                      id="totalAPagar"
+                      value={formatBRL(totalAPagar)}
+                      readOnly
+                      tabIndex={-1}
+                      className="bg-muted/50 cursor-default font-semibold"
+                    />
+                    {totalJuros > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        Juros estimados: <span className="font-medium text-foreground">{formatBRL(totalJuros)}</span>
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
