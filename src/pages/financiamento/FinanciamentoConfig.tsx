@@ -17,6 +17,10 @@ import { ptBR } from "date-fns/locale";
 import { formatCurrencyInput, parseCurrencyInput } from "@/lib/calculations";
 import { financiamentoSchema } from "@/lib/validations";
 import { garantirCategoriaContrato } from "@/lib/contratoCategoria";
+import EmojiPicker from "@/components/EmojiPicker";
+
+const formatBRL = (value: number) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 
 type TipoContrato = "financiamento" | "emprestimo";
 
