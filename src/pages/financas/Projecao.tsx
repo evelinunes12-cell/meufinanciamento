@@ -226,9 +226,15 @@ const Projecao = () => {
       const inicio = startOfMonth(mes);
       const fim = endOfMonth(mes);
 
+      // For the current month (i===0), executed transactions are already reflected
+      // in saldoAtual. Count only pending ones to avoid double-counting.
+      // For future months, all transactions are pending by definition.
+      const isMesAtual = i === 0;
+
       const receitas = transacoesSemTransf
         .filter(t => {
           if (t.tipo !== "receita") return false;
+          if (isMesAtual && isExecutado(t.is_pago_executado)) return false;
           const de = parseISO(getDataEfetivaStr(t, contas));
           return !isBefore(de, inicio) && !isAfter(de, fim);
         })
@@ -237,6 +243,7 @@ const Projecao = () => {
       const despesasLancadas = transacoesSemTransf
         .filter(t => {
           if (t.tipo !== "despesa") return false;
+          if (isMesAtual && isExecutado(t.is_pago_executado)) return false;
           const de = parseISO(getDataEfetivaStr(t, contas));
           return !isBefore(de, inicio) && !isAfter(de, fim);
         })
@@ -249,8 +256,8 @@ const Projecao = () => {
       ];
       const melhor = candidatos.reduce((a, b) => (b.valor > a.valor ? b : a));
 
-      const despesasBase = i === 0 ? despesasLancadas : melhor.valor;
-      const fonteProjecao = i === 0 ? "lancadas" as const : melhor.fonte;
+      const despesasBase = isMesAtual ? despesasLancadas : melhor.valor;
+      const fonteProjecao = isMesAtual ? "lancadas" as const : melhor.fonte;
 
       meses.push({ mes, label: format(mes, "MMM/yy", { locale: ptBR }), receitas, despesasLancadas, despesasBase, fonteProjecao });
     }
