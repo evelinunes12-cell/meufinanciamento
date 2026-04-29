@@ -88,6 +88,17 @@ const FinanciamentoConfig = () => {
     [form.tipo]
   );
 
+  const totalAPagar = useMemo(() => {
+    const valor = parseCurrencyInput(form.valorParcela);
+    const n = parseInt(form.numeroParcelas) || 0;
+    return valor * n;
+  }, [form.valorParcela, form.numeroParcelas]);
+
+  const totalJuros = useMemo(() => {
+    const principal = parseCurrencyInput(form.valorFinanciado);
+    return Math.max(0, totalAPagar - principal);
+  }, [totalAPagar, form.valorFinanciado]);
+
   const resetForm = () => {
     setForm(initialForm);
     setEditingId(null);
