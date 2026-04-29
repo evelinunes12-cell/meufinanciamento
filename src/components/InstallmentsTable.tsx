@@ -551,93 +551,80 @@ const InstallmentsTable = ({ parcelas, taxaDiaria, onUpdate, contrato }: Install
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="text-xl">
-              Registrar Pagamento - Parcela {selectedParcela?.numero_parcela}
+        <DialogContent className="sm:max-w-md p-0 gap-0 max-h-[90vh] flex flex-col">
+          <DialogHeader className="px-5 pt-5 pb-3 border-b">
+            <DialogTitle className="text-base font-semibold">
+              Pagar parcela {selectedParcela?.numero_parcela}
+              <span className="ml-2 text-sm font-normal text-muted-foreground">
+                {formatCurrency(selectedParcela?.valor_parcela || 0)}
+                {selectedParcela && (
+                  <> · venc. {format(parseISO(selectedParcela.data_vencimento), "dd/MM/yyyy")}</>
+                )}
+              </span>
             </DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-5 py-4">
-            {/* Info da Parcela */}
-            <div className="rounded-lg bg-muted/50 p-4">
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <span className="text-muted-foreground">Valor Original:</span>
-                  <p className="font-semibold text-lg">
-                    {formatCurrency(selectedParcela?.valor_parcela || 0)}
-                  </p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Vencimento:</span>
-                  <p className="font-semibold">
-                    {selectedParcela &&
-                      format(parseISO(selectedParcela.data_vencimento), "dd/MM/yyyy")}
-                  </p>
-                </div>
+          <div className="px-5 py-4 space-y-4 overflow-y-auto flex-1">
+            {/* Data + Conta lado a lado */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Data do pagamento</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal h-9",
+                        !dataPagamento && "text-muted-foreground"
+                      )}
+                    >
+                      <Calendar className="mr-2 h-4 w-4 shrink-0" />
+                      <span className="truncate">
+                        {dataPagamento
+                          ? format(dataPagamento, "dd/MM/yyyy", { locale: ptBR })
+                          : "Selecione"}
+                      </span>
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="single"
+                      selected={dataPagamento}
+                      onSelect={(date) => {
+                        setDataPagamento(date);
+                        setCalculoRealizado(false);
+                      }}
+                      locale={ptBR}
+                      initialFocus
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
-            </div>
 
-            {/* Data do Pagamento */}
-            <div className="space-y-2">
-              <Label className="text-base">Data do Pagamento</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal h-12",
-                      !dataPagamento && "text-muted-foreground"
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">
+                  Conta de origem <span className="text-destructive">*</span>
+                </Label>
+                <Select value={contaOrigemId} onValueChange={setContaOrigemId}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {contas.length === 0 ? (
+                      <div className="px-3 py-2 text-sm text-muted-foreground">
+                        Nenhuma conta cadastrada
+                      </div>
+                    ) : (
+                      contas.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.nome_conta}
+                        </SelectItem>
+                      ))
                     )}
-                  >
-                    <Calendar className="mr-2 h-4 w-4" />
-                    {dataPagamento
-                      ? format(dataPagamento, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })
-                      : "Selecione a data"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <CalendarComponent
-                    mode="single"
-                    selected={dataPagamento}
-                    onSelect={(date) => {
-                      setDataPagamento(date);
-                      setCalculoRealizado(false);
-                    }}
-                    locale={ptBR}
-                    initialFocus
-                    className="pointer-events-auto"
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            {/* Conta de Origem (obrigatório p/ lançar no fluxo de caixa) */}
-            <div className="space-y-2">
-              <Label className="text-base">
-                Conta de Origem <span className="text-destructive">*</span>
-              </Label>
-              <Select value={contaOrigemId} onValueChange={setContaOrigemId}>
-                <SelectTrigger className="h-12">
-                  <SelectValue placeholder="Selecione a conta debitada" />
-                </SelectTrigger>
-                <SelectContent>
-                  {contas.length === 0 ? (
-                    <div className="px-3 py-2 text-sm text-muted-foreground">
-                      Nenhuma conta bancária cadastrada
-                    </div>
-                  ) : (
-                    contas.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.nome_conta}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                Será criada uma despesa automática nesta conta no fluxo de caixa.
-              </p>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             {/* Botão Calcular */}
@@ -645,110 +632,111 @@ const InstallmentsTable = ({ parcelas, taxaDiaria, onUpdate, contrato }: Install
               <Button
                 onClick={handleCalcular}
                 variant="secondary"
-                className="w-full h-12"
+                className="w-full h-10"
                 disabled={!dataPagamento}
               >
-                <Calculator className="mr-2 h-5 w-5" />
-                Calcular Valor
+                <Calculator className="mr-2 h-4 w-4" />
+                Calcular valor
               </Button>
             )}
 
             {/* Resultado do Cálculo */}
             {calculo && calculoRealizado && (
-              <div className="space-y-4 animate-fade-in">
+              <div className="space-y-3 animate-fade-in">
                 {calculo.isAtrasada && (
-                  <div className="rounded-lg bg-destructive/10 p-3 flex items-center gap-2 text-destructive">
-                    <AlertTriangle className="h-5 w-5" />
-                    <span className="text-sm font-medium">
-                      Pagamento após o vencimento - sem desconto
+                  <div className="rounded-md bg-destructive/10 px-3 py-2 flex items-center gap-2 text-destructive">
+                    <AlertTriangle className="h-4 w-4 shrink-0" />
+                    <span className="text-xs font-medium">
+                      Pagamento após o vencimento — sem desconto
                     </span>
                   </div>
                 )}
 
-                <div className="rounded-lg border border-border bg-card p-4 space-y-3">
-                  <h4 className="font-semibold text-foreground">Resultado do Cálculo</h4>
-
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div>
-                      <span className="text-muted-foreground">Dias de Antecedência:</span>
-                      <p className="font-semibold text-lg">
-                        {calculo.diasAntecedencia} dias
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Taxa Diária:</span>
-                      <p className="font-semibold">
-                        {(taxaDiaria * 100).toFixed(4)}%
-                      </p>
-                    </div>
+                {/* Destaque: valor a pagar */}
+                <div className="rounded-lg border border-success/30 bg-success/5 p-3">
+                  <div className="text-xs text-muted-foreground">Valor a pagar</div>
+                  <div className="text-2xl font-bold text-success">
+                    {formatCurrency(calculo.valorPago)}
                   </div>
+                  {calculo.economia > 0 && (
+                    <div className="text-xs text-success mt-0.5">
+                      Economia de {formatCurrency(calculo.economia)} ({calculo.diasAntecedencia} dias antes)
+                    </div>
+                  )}
+                </div>
 
-                  <div className="border-t border-border pt-3 space-y-2">
+                {/* Detalhes compactos */}
+                <details className="rounded-md border border-border bg-card text-sm">
+                  <summary className="cursor-pointer px-3 py-2 text-xs text-muted-foreground hover:text-foreground select-none">
+                    Ver detalhes do cálculo
+                  </summary>
+                  <div className="px-3 pb-3 pt-1 space-y-1.5 text-xs">
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Valor Original:</span>
+                      <span className="text-muted-foreground">Valor original</span>
                       <span>{formatCurrency(calculo.valorOriginal)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Valor com Desconto:</span>
-                      <span className="font-semibold text-success text-lg">
-                        {formatCurrency(calculo.valorPago)}
-                      </span>
+                      <span className="text-muted-foreground">Taxa diária</span>
+                      <span>{(taxaDiaria * 100).toFixed(4)}%</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Economia:</span>
-                      <span className="font-bold text-success">
-                        {formatCurrency(calculo.economia)}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="border-t border-border pt-3 space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Juros (estimado):</span>
+                      <span className="text-muted-foreground">Juros (estimado)</span>
                       <span>{formatCurrency(calculo.juros)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Amortização:</span>
-                      <span className="font-medium">{formatCurrency(calculo.amortizacao)}</span>
+                      <span className="text-muted-foreground">Amortização</span>
+                      <span>{formatCurrency(calculo.amortizacao)}</span>
                     </div>
                   </div>
-                </div>
+                </details>
 
                 {/* Valor Manual (opcional) */}
-                <div className="space-y-2">
-                  <Label className="text-sm text-muted-foreground">
-                    Valor Pago (opcional - deixe vazio para usar o calculado)
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">
+                    Ajustar valor pago (opcional)
                   </Label>
                   <Input
                     placeholder="0,00"
                     value={valorPagoManual}
                     onChange={(e) => setValorPagoManual(formatCurrencyInput(e.target.value))}
-                    className="h-11"
+                    className="h-9"
                   />
                 </div>
-
-                {/* Botão Confirmar */}
-                <Button
-                  onClick={handleConfirmarPagamento}
-                  className="w-full h-12"
-                  variant="hero"
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                      Registrando...
-                    </>
-                  ) : (
-                    <>
-                      <Check className="mr-2 h-5 w-5" />
-                      Confirmar Pagamento
-                    </>
-                  )}
-                </Button>
               </div>
             )}
           </div>
+
+          {/* Footer fixo */}
+          {calculo && calculoRealizado && (
+            <div className="px-5 py-3 border-t bg-muted/30 flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setDialogOpen(false)}
+                disabled={isLoading}
+                className="flex-1"
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleConfirmarPagamento}
+                className="flex-1"
+                variant="hero"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Registrando...
+                  </>
+                ) : (
+                  <>
+                    <Check className="mr-2 h-4 w-4" />
+                    Confirmar
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
