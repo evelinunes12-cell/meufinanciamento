@@ -219,35 +219,43 @@ const Projecao = () => {
   // ==========================================
   const projecaoBase = useMemo(() => {
     const hoje = new Date();
-    const meses: { mes: Date; label: string; receitas: number; despesasLancadas: number; despesasBase: number; fonteProjecao: DadosMes["fonteProjecao"] }[] = [];
+    const meses: {
+      mes: Date; label: string;
+      receitas: number; receitasPendentes: number;
+      despesasLancadas: number; despesasLancadasPendentes: number;
+      despesasBase: number; fonteProjecao: DadosMes["fonteProjecao"];
+    }[] = [];
 
     for (let i = 0; i < 6; i++) {
       const mes = addMonths(hoje, i);
       const inicio = startOfMonth(mes);
       const fim = endOfMonth(mes);
-
-      // For the current month (i===0), executed transactions are already reflected
-      // in saldoAtual. Count only pending ones to avoid double-counting.
-      // For future months, all transactions are pending by definition.
       const isMesAtual = i === 0;
 
-      const receitas = transacoesSemTransf
-        .filter(t => {
-          if (t.tipo !== "receita") return false;
-          if (isMesAtual && isExecutado(t.is_pago_executado)) return false;
-          const de = parseISO(getDataEfetivaStr(t, contas));
-          return !isBefore(de, inicio) && !isAfter(de, fim);
-        })
+      const transacoesMes = transacoesSemTransf.filter(t => {
+        const de = parseISO(getDataEfetivaStr(t, contas));
+        return !isBefore(de, inicio) && !isAfter(de, fim);
+      });
+
+      // Totais completos (executadas + pendentes) — para exibição
+      const receitas = transacoesMes
+        .filter(t => t.tipo === "receita")
+        .reduce((acc, t) => acc + Number(t.valor), 0);
+      const despesasLancadas = transacoesMes
+        .filter(t => t.tipo === "despesa")
         .reduce((acc, t) => acc + Number(t.valor), 0);
 
-      const despesasLancadas = transacoesSemTransf
-        .filter(t => {
-          if (t.tipo !== "despesa") return false;
-          if (isMesAtual && isExecutado(t.is_pago_executado)) return false;
-          const de = parseISO(getDataEfetivaStr(t, contas));
-          return !isBefore(de, inicio) && !isAfter(de, fim);
-        })
-        .reduce((acc, t) => acc + Number(t.valor), 0);
+      // Totais pendentes — para cálculo do saldo acumulado (executadas já estão no saldoAtual)
+      const receitasPendentes = isMesAtual
+        ? transacoesMes
+            .filter(t => t.tipo === "receita" && !isExecutado(t.is_pago_executado))
+            .reduce((acc, t) => acc + Number(t.valor), 0)
+        : receitas;
+      const despesasLancadasPendentes = isMesAtual
+        ? transacoesMes
+            .filter(t => t.tipo === "despesa" && !isExecutado(t.is_pago_executado))
+            .reduce((acc, t) => acc + Number(t.valor), 0)
+        : despesasLancadas;
 
       const candidatos = [
         { valor: despesasLancadas, fonte: "lancadas" as const },
@@ -259,7 +267,12 @@ const Projecao = () => {
       const despesasBase = isMesAtual ? despesasLancadas : melhor.valor;
       const fonteProjecao = isMesAtual ? "lancadas" as const : melhor.fonte;
 
-      meses.push({ mes, label: format(mes, "MMM/yy", { locale: ptBR }), receitas, despesasLancadas, despesasBase, fonteProjecao });
+      meses.push({
+        mes, label: format(mes, "MMM/yy", { locale: ptBR }),
+        receitas, receitasPendentes,
+        despesasLancadas, despesasLancadasPendentes,
+        despesasBase, fonteProjecao,
+      });
     }
     return meses;
   }, [transacoesSemTransf, contas, totalOrcamentos, mediaHistorica]);
@@ -268,8 +281,13 @@ const Projecao = () => {
   const buildProjecao = (fator: number): DadosMes[] => {
     let saldoAcumulado = saldoAtual;
     return projecaoBase.map((m, i) => {
-      const despesasProjetadas = i === 0 ? m.despesasBase : m.despesasBase * (1 + fator);
-      saldoAcumulado = saldoAcumulado + m.receitas - despesasProjetadas;
+      const isMesAtual = i === 0;
+      const despesasProjetadas = isMesAtual ? m.despesasBase : m.despesasBase * (1 + fator);
+      // Saldo acumulado: no mês atual usa apenas pendentes (executadas já em saldoAtual);
+      // demais meses usa o total projetado.
+      const receitasParaSaldo = isMesAtual ? m.receitasPendentes : m.receitas;
+      const despesasParaSaldo = isMesAtual ? m.despesasLancadasPendentes : despesasProjetadas;
+      saldoAcumulado = saldoAcumulado + receitasParaSaldo - despesasParaSaldo;
       return {
         mes: m.mes, label: m.label, receitas: m.receitas,
         despesasLancadas: m.despesasLancadas, despesasProjetadas,
