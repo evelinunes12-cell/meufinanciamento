@@ -185,6 +185,25 @@ const Cartoes = () => {
     vencimentoFatura: string;
     tipo: "fechada" | "aberta" | "antecipada";
   }>({ open: false, cartaoId: "", cartaoNome: "", valorFatura: 0, vencimentoFatura: "", tipo: "fechada" });
+  const [parcelarModal, setParcelarModal] = useState<{
+    open: boolean;
+    cartaoId: string;
+    cartaoNome: string;
+    cartaoFechamento: number;
+    cartaoVencimento: number;
+    valorFatura: number;
+    vencimentoFatura: string;
+    mesReferencia: string;
+  }>({
+    open: false,
+    cartaoId: "",
+    cartaoNome: "",
+    cartaoFechamento: 1,
+    cartaoVencimento: 10,
+    valorFatura: 0,
+    vencimentoFatura: "",
+    mesReferencia: "",
+  });
 
   const { data, isLoading } = useQuery({
     queryKey: ["cartoes", user?.id],
