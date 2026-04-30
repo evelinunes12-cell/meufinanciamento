@@ -49,6 +49,7 @@ interface Transacao {
   descricao: string | null;
   parcela_atual: number | null;
   parcelas_total: number | null;
+  mes_fatura_override: string | null;
 }
 
 // ==========================================
