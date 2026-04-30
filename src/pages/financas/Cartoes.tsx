@@ -635,6 +635,7 @@ const Cartoes = () => {
                           const todasPagas = transacoesFechada.length > 0 && pendentes.length === 0 && faturasAnteriores === 0;
                           const semTransacoes = transacoesFechada.length === 0 && faturasAnteriores === 0;
                           const isPaga = todasPagas || semTransacoes;
+                          const foiParcelada = faturaFoiParcelada(cartao);
 
                           return (
                             <div className={`p-3 rounded-lg border ${isPaga ? "bg-success/10 border-success/30" : "bg-warning/10 border-warning/30"}`}>
