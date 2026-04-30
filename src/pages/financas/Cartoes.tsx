@@ -683,15 +683,37 @@ const Cartoes = () => {
                                 </div>
                                 <div className="flex gap-1">
                                   {totalFechada > 0 && (
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      className="gap-1 border-warning text-warning hover:bg-warning hover:text-warning-foreground"
-                                      onClick={() => handlePagarFatura(cartao)}
-                                    >
-                                      <Banknote className="h-4 w-4" />
-                                      Pagar
-                                    </Button>
+                                    <>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="gap-1 border-warning text-warning hover:bg-warning hover:text-warning-foreground"
+                                        onClick={() => handlePagarFatura(cartao)}
+                                      >
+                                        <Banknote className="h-4 w-4" />
+                                        Pagar
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="gap-1 border-primary/50 text-primary hover:bg-primary hover:text-primary-foreground"
+                                        onClick={() => {
+                                          setParcelarModal({
+                                            open: true,
+                                            cartaoId: cartao.id,
+                                            cartaoNome: cartao.nome_conta,
+                                            cartaoFechamento: cartao.dia_fechamento || 1,
+                                            cartaoVencimento: cartao.dia_vencimento || 10,
+                                            valorFatura: Math.max(0, totalFechada),
+                                            vencimentoFatura: format(faturasInfo.fechada.vencimento, "yyyy-MM-dd"),
+                                            mesReferencia: format(faturasInfo.fechada.vencimento, "yyyy-MM"),
+                                          });
+                                        }}
+                                      >
+                                        <Split className="h-4 w-4" />
+                                        Parcelar
+                                      </Button>
+                                    </>
                                   )}
                                   {!isPaga && totalFechada === 0 && pendentes.length > 0 && (
                                     <Button
