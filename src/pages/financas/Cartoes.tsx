@@ -13,12 +13,19 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Switch } from "@/components/ui/switch";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CreditCard, Calendar, AlertTriangle, Banknote, Info, History, Lock, LockOpen, Zap, Check } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { CreditCard, Calendar, AlertTriangle, Banknote, Info, History, Lock, LockOpen, Zap, Check, MoreVertical, ArrowLeft, ArrowRight, Split } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { format, subMonths } from "date-fns";
+import { format, subMonths, addMonths, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Link } from "react-router-dom";
 import PagarFaturaModal from "@/components/PagarFaturaModal";
+import ParcelarFaturaModal from "@/components/ParcelarFaturaModal";
 import { getDataCompetenciaTransacao } from "@/lib/transactions";
 
 interface Conta {
@@ -42,6 +49,7 @@ interface Transacao {
   descricao: string | null;
   parcela_atual: number | null;
   parcelas_total: number | null;
+  mes_fatura_override: string | null;
 }
 
 // ==========================================
@@ -139,8 +147,7 @@ async function fetchCartoesData(userId: string | undefined) {
     supabase.from("contas").select("*").eq("tipo", "credito"),
     supabase
       .from("transacoes")
-      .select("id, conta_id, valor, tipo, data, data_pagamento, is_pago_executado, descricao, parcela_atual, parcelas_total")
-      .eq("tipo", "despesa"),
+      .select("id, conta_id, valor, tipo, data, data_pagamento, is_pago_executado, descricao, parcela_atual, parcelas_total, mes_fatura_override"),
     supabase.from("contas").select("*"),
   ]);
 
@@ -178,6 +185,25 @@ const Cartoes = () => {
     vencimentoFatura: string;
     tipo: "fechada" | "aberta" | "antecipada";
   }>({ open: false, cartaoId: "", cartaoNome: "", valorFatura: 0, vencimentoFatura: "", tipo: "fechada" });
+  const [parcelarModal, setParcelarModal] = useState<{
+    open: boolean;
+    cartaoId: string;
+    cartaoNome: string;
+    cartaoFechamento: number;
+    cartaoVencimento: number;
+    valorFatura: number;
+    vencimentoFatura: string;
+    mesReferencia: string;
+  }>({
+    open: false,
+    cartaoId: "",
+    cartaoNome: "",
+    cartaoFechamento: 1,
+    cartaoVencimento: 10,
+    valorFatura: 0,
+    vencimentoFatura: "",
+    mesReferencia: "",
+  });
 
   const { data, isLoading } = useQuery({
     queryKey: ["cartoes", user?.id],
@@ -209,10 +235,16 @@ const Cartoes = () => {
         data_pagamento: transacao.data_pagamento,
         conta_id: transacao.conta_id,
         parcela_atual: transacao.parcela_atual,
+        mes_fatura_override: transacao.mes_fatura_override,
       },
       todasContas
     );
   };
+
+  // Signed value: receita on a credit card (e.g. Crédito de Ajuste, estorno)
+  // reduces the invoice total — negate it for any invoice math.
+  const signedValue = (t: Transacao) =>
+    t.tipo === "receita" ? -Number(t.valor) : Number(t.valor);
 
   const getTransacoesCiclo = (cartaoId: string, inicio: string, fim: string) => {
     return transacoes
@@ -233,13 +265,13 @@ const Cartoes = () => {
       });
   };
 
-const getFaturaFechada = (cartao: Conta) => {
+  const getFaturaFechada = (cartao: Conta) => {
     const isForced = forceClose[cartao.id] || false;
     const { fechada } = getFaturasInfo(cartao, new Date(), isForced);
     const transacoesCiclo = getTransacoesCiclo(cartao.id, fechada.inicio, fechada.fim);
     return transacoesCiclo
       .filter(t => t.is_pago_executado !== true)
-      .reduce((acc, t) => acc + Number(t.valor), 0);
+      .reduce((acc, t) => acc + signedValue(t), 0);
   };
 
   const getFaturasAnterioresNaoPagas = (cartao: Conta) => {
@@ -251,21 +283,58 @@ const getFaturaFechada = (cartao: Conta) => {
         const dataCompetencia = getDataCompetencia(t);
         return dataCompetencia < fechada.inicio && t.is_pago_executado !== true;
       })
-      .reduce((acc, t) => acc + Number(t.valor), 0);
+      .reduce((acc, t) => acc + signedValue(t), 0);
   };
 
   const getFaturaAberta = (cartao: Conta) => {
     const isForced = forceClose[cartao.id] || false;
     const { aberta } = getFaturasInfo(cartao, new Date(), isForced);
     const transacoesCiclo = getTransacoesCiclo(cartao.id, aberta.inicio, aberta.fim);
-    return transacoesCiclo.reduce((acc, t) => acc + Number(t.valor), 0);
+    return transacoesCiclo.reduce((acc, t) => acc + signedValue(t), 0);
   };
 
   const getSaldoDevedor = (cartaoId: string) => {
     return transacoes
       .filter(t => t.conta_id === cartaoId && t.is_pago_executado !== true)
-      .reduce((acc, t) => acc + Number(t.valor), 0);
+      .reduce((acc, t) => acc + signedValue(t), 0);
   };
+
+  // Detects whether a closed invoice has a "Crédito de Ajuste" — i.e. it was parceled.
+  const faturaFoiParcelada = (cartao: Conta) => {
+    const isForced = forceClose[cartao.id] || false;
+    const { fechada } = getFaturasInfo(cartao, new Date(), isForced);
+    const ciclo = getTransacoesCiclo(cartao.id, fechada.inicio, fechada.fim);
+    return ciclo.some(t => t.tipo === "receita" && (t.descricao || "").toLowerCase().includes("crédito de ajuste"));
+  };
+
+  const moverFatura = async (transacao: Transacao, direcao: "anterior" | "seguinte") => {
+    // Build current invoice month-ref. If override exists, use it; else, derive from competência.
+    const baseMesRef =
+      transacao.mes_fatura_override ||
+      format(parseISO(getDataCompetencia(transacao)), "yyyy-MM");
+    const baseDate = parseISO(`${baseMesRef}-15`);
+    const novoMesRef = format(
+      addMonths(baseDate, direcao === "seguinte" ? 1 : -1),
+      "yyyy-MM"
+    );
+
+    const { error } = await supabase
+      .from("transacoes")
+      .update({ mes_fatura_override: novoMesRef })
+      .eq("id", transacao.id);
+
+    if (error) {
+      toast({ title: "Erro ao mover", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({
+      title: "Transação movida",
+      description: `Para ${format(parseISO(`${novoMesRef}-15`), "MMMM/yyyy", { locale: ptBR })}.`,
+    });
+    queryClient.invalidateQueries({ queryKey: ["cartoes"] });
+    queryClient.invalidateQueries({ queryKey: ["transacoes"] });
+  };
+
 
   const renderFaturaDetalhes = (transacoesCiclo: Transacao[], emptyText: string) => {
     if (transacoesCiclo.length === 0) {
@@ -274,29 +343,81 @@ const getFaturaFechada = (cartao: Conta) => {
 
     return (
       <div className="space-y-2 pt-1">
-        {transacoesCiclo.map((transacao) => (
-          <div
-            key={transacao.id}
-            className="flex items-center justify-between gap-2 text-xs border-b border-border/60 pb-2 last:border-0 last:pb-0"
-          >
-            <div className="min-w-0">
-              <p className="font-medium text-foreground truncate">
-                {transacao.descricao || "Sem descrição"}
-              </p>
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <span>{format(new Date(transacao.data), "dd/MM")}</span>
-                {transacao.parcelas_total && transacao.parcela_atual && transacao.parcelas_total > 1 && (
-                  <Badge variant="outline" className="text-[10px] px-1 py-0">
-                    {transacao.parcela_atual}/{transacao.parcelas_total}
-                  </Badge>
-                )}
+        {transacoesCiclo.map((transacao) => {
+          const isReceita = transacao.tipo === "receita";
+          return (
+            <div
+              key={transacao.id}
+              className="flex items-center justify-between gap-2 text-xs border-b border-border/60 pb-2 last:border-0 last:pb-0"
+            >
+              <div className="min-w-0 flex-1">
+                <p className="font-medium text-foreground truncate">
+                  {transacao.descricao || "Sem descrição"}
+                </p>
+                <div className="flex items-center gap-2 text-muted-foreground flex-wrap">
+                  <span>{format(new Date(transacao.data), "dd/MM")}</span>
+                  {transacao.parcelas_total && transacao.parcela_atual && transacao.parcelas_total > 1 && (
+                    <Badge variant="outline" className="text-[10px] px-1 py-0">
+                      {transacao.parcela_atual}/{transacao.parcelas_total}
+                    </Badge>
+                  )}
+                  {transacao.mes_fatura_override && (
+                    <Badge variant="outline" className="text-[10px] px-1 py-0 border-primary/40 text-primary">
+                      Movida
+                    </Badge>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <p className={`font-semibold whitespace-nowrap ${isReceita ? "text-success" : "text-foreground"}`}>
+                  {isReceita ? "−" : ""}{formatCurrency(Number(transacao.valor))}
+                </p>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      aria-label="Mais ações"
+                    >
+                      <MoreVertical className="h-3.5 w-3.5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuItem onClick={() => moverFatura(transacao, "anterior")}>
+                      <ArrowLeft className="h-4 w-4 mr-2" />
+                      Mover para fatura anterior
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => moverFatura(transacao, "seguinte")}>
+                      <ArrowRight className="h-4 w-4 mr-2" />
+                      Mover para fatura seguinte
+                    </DropdownMenuItem>
+                    {transacao.mes_fatura_override && (
+                      <DropdownMenuItem
+                        onClick={async () => {
+                          const { error } = await supabase
+                            .from("transacoes")
+                            .update({ mes_fatura_override: null })
+                            .eq("id", transacao.id);
+                          if (error) {
+                            toast({ title: "Erro", description: error.message, variant: "destructive" });
+                            return;
+                          }
+                          toast({ title: "Movimentação desfeita" });
+                          queryClient.invalidateQueries({ queryKey: ["cartoes"] });
+                          queryClient.invalidateQueries({ queryKey: ["transacoes"] });
+                        }}
+                      >
+                        <Check className="h-4 w-4 mr-2" />
+                        Restaurar fatura original
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
-            <p className="font-semibold text-foreground whitespace-nowrap">
-              {formatCurrency(Number(transacao.valor))}
-            </p>
-          </div>
-        ))}
+          );
+        })}
       </div>
     );
   };
@@ -329,7 +450,7 @@ const getFaturaFechada = (cartao: Conta) => {
     const transacoesCiclo = getTransacoesCiclo(cartao.id, fechada.inicio, fechada.fim);
     const valor = transacoesCiclo
       .filter(t => t.is_pago_executado !== true)
-      .reduce((acc, t) => acc + Number(t.valor), 0);
+      .reduce((acc, t) => acc + signedValue(t), 0);
     const faturasAnteriores = getFaturasAnterioresNaoPagas(cartao);
     
     setFaturaModal({
@@ -362,13 +483,13 @@ const getFaturaFechada = (cartao: Conta) => {
     const ciclos = getHistoricoCiclos(cartao, 12);
     return ciclos.map(ciclo => {
       const transacoesCiclo = getTransacoesCiclo(cartao.id, ciclo.inicio, ciclo.fim);
-      const valorFechado = transacoesCiclo.reduce((acc, t) => acc + Number(t.valor), 0);
+      const valorFechado = transacoesCiclo.reduce((acc, t) => acc + signedValue(t), 0);
       const valorPago = transacoesCiclo
         .filter(t => t.is_pago_executado === true)
-        .reduce((acc, t) => acc + Number(t.valor), 0);
+        .reduce((acc, t) => acc + signedValue(t), 0);
       const valorPendente = transacoesCiclo
         .filter(t => t.is_pago_executado !== true)
-        .reduce((acc, t) => acc + Number(t.valor), 0);
+        .reduce((acc, t) => acc + signedValue(t), 0);
 
       return {
         mesReferencia: ciclo.mesReferencia,
@@ -514,6 +635,7 @@ const getFaturaFechada = (cartao: Conta) => {
                           const todasPagas = transacoesFechada.length > 0 && pendentes.length === 0 && faturasAnteriores === 0;
                           const semTransacoes = transacoesFechada.length === 0 && faturasAnteriores === 0;
                           const isPaga = todasPagas || semTransacoes;
+                          const foiParcelada = faturaFoiParcelada(cartao);
 
                           return (
                             <div className={`p-3 rounded-lg border ${isPaga ? "bg-success/10 border-success/30" : "bg-warning/10 border-warning/30"}`}>
@@ -531,6 +653,12 @@ const getFaturaFechada = (cartao: Conta) => {
                                     <Badge variant={isPaga ? "outline" : "destructive"} className={`text-[9px] px-1.5 py-0 ${isPaga ? "border-success text-success" : ""}`}>
                                       {isPaga ? "✓ Paga" : "Pendente"}
                                     </Badge>
+                                    {foiParcelada && (
+                                      <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-primary text-primary">
+                                        <Split className="h-2.5 w-2.5 mr-0.5" />
+                                        Fatura Parcelada
+                                      </Badge>
+                                    )}
                                     <Tooltip>
                                       <TooltipTrigger asChild>
                                         <Info className="h-3 w-3 text-muted-foreground cursor-help" />
@@ -555,15 +683,37 @@ const getFaturaFechada = (cartao: Conta) => {
                                 </div>
                                 <div className="flex gap-1">
                                   {totalFechada > 0 && (
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      className="gap-1 border-warning text-warning hover:bg-warning hover:text-warning-foreground"
-                                      onClick={() => handlePagarFatura(cartao)}
-                                    >
-                                      <Banknote className="h-4 w-4" />
-                                      Pagar
-                                    </Button>
+                                    <>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="gap-1 border-warning text-warning hover:bg-warning hover:text-warning-foreground"
+                                        onClick={() => handlePagarFatura(cartao)}
+                                      >
+                                        <Banknote className="h-4 w-4" />
+                                        Pagar
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="gap-1 border-primary/50 text-primary hover:bg-primary hover:text-primary-foreground"
+                                        onClick={() => {
+                                          setParcelarModal({
+                                            open: true,
+                                            cartaoId: cartao.id,
+                                            cartaoNome: cartao.nome_conta,
+                                            cartaoFechamento: cartao.dia_fechamento || 1,
+                                            cartaoVencimento: cartao.dia_vencimento || 10,
+                                            valorFatura: Math.max(0, totalFechada),
+                                            vencimentoFatura: format(faturasInfo.fechada.vencimento, "yyyy-MM-dd"),
+                                            mesReferencia: format(faturasInfo.fechada.vencimento, "yyyy-MM"),
+                                          });
+                                        }}
+                                      >
+                                        <Split className="h-4 w-4" />
+                                        Parcelar
+                                      </Button>
+                                    </>
                                   )}
                                   {!isPaga && totalFechada === 0 && pendentes.length > 0 && (
                                     <Button
@@ -808,6 +958,18 @@ const getFaturaFechada = (cartao: Conta) => {
         valorFatura={faturaModal.valorFatura}
         vencimentoFatura={faturaModal.vencimentoFatura}
         contasDisponiveis={todasContas.filter(c => c.tipo !== "credito")}
+      />
+
+      <ParcelarFaturaModal
+        open={parcelarModal.open}
+        onOpenChange={(open) => setParcelarModal((prev) => ({ ...prev, open }))}
+        cartaoId={parcelarModal.cartaoId}
+        cartaoNome={parcelarModal.cartaoNome}
+        cartaoFechamento={parcelarModal.cartaoFechamento}
+        cartaoVencimento={parcelarModal.cartaoVencimento}
+        valorFatura={parcelarModal.valorFatura}
+        vencimentoFatura={parcelarModal.vencimentoFatura}
+        mesReferencia={parcelarModal.mesReferencia}
       />
     </AppLayout>
   );

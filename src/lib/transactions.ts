@@ -394,6 +394,7 @@ interface TransacaoComDatas {
 
 interface TransacaoComCompetencia extends TransacaoComDatas {
   parcela_atual?: number | null;
+  mes_fatura_override?: string | null;
 }
 
 interface ContaCartao {
@@ -433,6 +434,12 @@ export function getDataCompetenciaTransacao(
 
   if (conta?.tipo !== "credito") {
     return transacao.data;
+  }
+
+  // Manual override (move between invoices) takes priority
+  if (transacao.mes_fatura_override) {
+    // Format: 'YYYY-MM' -> use day 15 as a stable mid-month anchor
+    return `${transacao.mes_fatura_override}-15`;
   }
 
   const indiceParcela = Math.max(0, (transacao.parcela_atual ?? 1) - 1);

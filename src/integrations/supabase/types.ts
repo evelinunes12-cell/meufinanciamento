@@ -323,6 +323,7 @@ export type Database = {
           forma_pagamento: string
           id: string
           is_pago_executado: boolean | null
+          mes_fatura_override: string | null
           parcela_atual: number | null
           parcelas_total: number | null
           recorrencia: string | null
@@ -345,6 +346,7 @@ export type Database = {
           forma_pagamento: string
           id?: string
           is_pago_executado?: boolean | null
+          mes_fatura_override?: string | null
           parcela_atual?: number | null
           parcelas_total?: number | null
           recorrencia?: string | null
@@ -367,6 +369,7 @@ export type Database = {
           forma_pagamento?: string
           id?: string
           is_pago_executado?: boolean | null
+          mes_fatura_override?: string | null
           parcela_atual?: number | null
           parcelas_total?: number | null
           recorrencia?: string | null
