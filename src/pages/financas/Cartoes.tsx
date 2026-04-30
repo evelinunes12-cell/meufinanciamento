@@ -431,7 +431,7 @@ const Cartoes = () => {
     const transacoesCiclo = getTransacoesCiclo(cartao.id, fechada.inicio, fechada.fim);
     const valor = transacoesCiclo
       .filter(t => t.is_pago_executado !== true)
-      .reduce((acc, t) => acc + Number(t.valor), 0);
+      .reduce((acc, t) => acc + signedValue(t), 0);
     const faturasAnteriores = getFaturasAnterioresNaoPagas(cartao);
     
     setFaturaModal({
