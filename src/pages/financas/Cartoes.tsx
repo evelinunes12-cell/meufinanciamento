@@ -216,10 +216,16 @@ const Cartoes = () => {
         data_pagamento: transacao.data_pagamento,
         conta_id: transacao.conta_id,
         parcela_atual: transacao.parcela_atual,
+        mes_fatura_override: transacao.mes_fatura_override,
       },
       todasContas
     );
   };
+
+  // Signed value: receita on a credit card (e.g. Crédito de Ajuste, estorno)
+  // reduces the invoice total — negate it for any invoice math.
+  const signedValue = (t: Transacao) =>
+    t.tipo === "receita" ? -Number(t.valor) : Number(t.valor);
 
   const getTransacoesCiclo = (cartaoId: string, inicio: string, fim: string) => {
     return transacoes
@@ -240,13 +246,13 @@ const Cartoes = () => {
       });
   };
 
-const getFaturaFechada = (cartao: Conta) => {
+  const getFaturaFechada = (cartao: Conta) => {
     const isForced = forceClose[cartao.id] || false;
     const { fechada } = getFaturasInfo(cartao, new Date(), isForced);
     const transacoesCiclo = getTransacoesCiclo(cartao.id, fechada.inicio, fechada.fim);
     return transacoesCiclo
       .filter(t => t.is_pago_executado !== true)
-      .reduce((acc, t) => acc + Number(t.valor), 0);
+      .reduce((acc, t) => acc + signedValue(t), 0);
   };
 
   const getFaturasAnterioresNaoPagas = (cartao: Conta) => {
@@ -258,21 +264,58 @@ const getFaturaFechada = (cartao: Conta) => {
         const dataCompetencia = getDataCompetencia(t);
         return dataCompetencia < fechada.inicio && t.is_pago_executado !== true;
       })
-      .reduce((acc, t) => acc + Number(t.valor), 0);
+      .reduce((acc, t) => acc + signedValue(t), 0);
   };
 
   const getFaturaAberta = (cartao: Conta) => {
     const isForced = forceClose[cartao.id] || false;
     const { aberta } = getFaturasInfo(cartao, new Date(), isForced);
     const transacoesCiclo = getTransacoesCiclo(cartao.id, aberta.inicio, aberta.fim);
-    return transacoesCiclo.reduce((acc, t) => acc + Number(t.valor), 0);
+    return transacoesCiclo.reduce((acc, t) => acc + signedValue(t), 0);
   };
 
   const getSaldoDevedor = (cartaoId: string) => {
     return transacoes
       .filter(t => t.conta_id === cartaoId && t.is_pago_executado !== true)
-      .reduce((acc, t) => acc + Number(t.valor), 0);
+      .reduce((acc, t) => acc + signedValue(t), 0);
   };
+
+  // Detects whether a closed invoice has a "Crédito de Ajuste" — i.e. it was parceled.
+  const faturaFoiParcelada = (cartao: Conta) => {
+    const isForced = forceClose[cartao.id] || false;
+    const { fechada } = getFaturasInfo(cartao, new Date(), isForced);
+    const ciclo = getTransacoesCiclo(cartao.id, fechada.inicio, fechada.fim);
+    return ciclo.some(t => t.tipo === "receita" && (t.descricao || "").toLowerCase().includes("crédito de ajuste"));
+  };
+
+  const moverFatura = async (transacao: Transacao, direcao: "anterior" | "seguinte") => {
+    // Build current invoice month-ref. If override exists, use it; else, derive from competência.
+    const baseMesRef =
+      transacao.mes_fatura_override ||
+      format(parseISO(getDataCompetencia(transacao)), "yyyy-MM");
+    const baseDate = parseISO(`${baseMesRef}-15`);
+    const novoMesRef = format(
+      addMonths(baseDate, direcao === "seguinte" ? 1 : -1),
+      "yyyy-MM"
+    );
+
+    const { error } = await supabase
+      .from("transacoes")
+      .update({ mes_fatura_override: novoMesRef })
+      .eq("id", transacao.id);
+
+    if (error) {
+      toast({ title: "Erro ao mover", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({
+      title: "Transação movida",
+      description: `Para ${format(parseISO(`${novoMesRef}-15`), "MMMM/yyyy", { locale: ptBR })}.`,
+    });
+    queryClient.invalidateQueries({ queryKey: ["cartoes"] });
+    queryClient.invalidateQueries({ queryKey: ["transacoes"] });
+  };
+
 
   const renderFaturaDetalhes = (transacoesCiclo: Transacao[], emptyText: string) => {
     if (transacoesCiclo.length === 0) {
