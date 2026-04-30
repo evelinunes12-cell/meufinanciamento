@@ -653,6 +653,12 @@ const Cartoes = () => {
                                     <Badge variant={isPaga ? "outline" : "destructive"} className={`text-[9px] px-1.5 py-0 ${isPaga ? "border-success text-success" : ""}`}>
                                       {isPaga ? "✓ Paga" : "Pendente"}
                                     </Badge>
+                                    {foiParcelada && (
+                                      <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-primary text-primary">
+                                        <Split className="h-2.5 w-2.5 mr-0.5" />
+                                        Fatura Parcelada
+                                      </Badge>
+                                    )}
                                     <Tooltip>
                                       <TooltipTrigger asChild>
                                         <Info className="h-3 w-3 text-muted-foreground cursor-help" />
