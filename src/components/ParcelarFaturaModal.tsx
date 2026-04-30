@@ -251,7 +251,7 @@ const ParcelarFaturaModal = ({
             Parcelar Fatura
           </DialogTitle>
           <DialogDescription className="text-xs">
-            {cartaoNome} · venc. {format(parseISO(vencimentoFatura), "dd/MM/yyyy", { locale: ptBR })}
+            {cartaoNome}{vencimentoFatura ? ` · venc. ${format(parseISO(vencimentoFatura), "dd/MM/yyyy", { locale: ptBR })}` : ""}
           </DialogDescription>
         </DialogHeader>
 
