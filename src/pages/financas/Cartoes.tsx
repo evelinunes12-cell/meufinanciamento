@@ -147,8 +147,7 @@ async function fetchCartoesData(userId: string | undefined) {
     supabase.from("contas").select("*").eq("tipo", "credito"),
     supabase
       .from("transacoes")
-      .select("id, conta_id, valor, tipo, data, data_pagamento, is_pago_executado, descricao, parcela_atual, parcelas_total")
-      .eq("tipo", "despesa"),
+      .select("id, conta_id, valor, tipo, data, data_pagamento, is_pago_executado, descricao, parcela_atual, parcelas_total, mes_fatura_override"),
     supabase.from("contas").select("*"),
   ]);
 
