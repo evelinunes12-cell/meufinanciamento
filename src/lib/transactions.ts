@@ -394,6 +394,7 @@ interface TransacaoComDatas {
 
 interface TransacaoComCompetencia extends TransacaoComDatas {
   parcela_atual?: number | null;
+  mes_fatura_override?: string | null;
 }
 
 interface ContaCartao {
