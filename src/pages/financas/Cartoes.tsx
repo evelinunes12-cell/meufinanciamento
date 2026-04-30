@@ -464,13 +464,13 @@ const Cartoes = () => {
     const ciclos = getHistoricoCiclos(cartao, 12);
     return ciclos.map(ciclo => {
       const transacoesCiclo = getTransacoesCiclo(cartao.id, ciclo.inicio, ciclo.fim);
-      const valorFechado = transacoesCiclo.reduce((acc, t) => acc + Number(t.valor), 0);
+      const valorFechado = transacoesCiclo.reduce((acc, t) => acc + signedValue(t), 0);
       const valorPago = transacoesCiclo
         .filter(t => t.is_pago_executado === true)
-        .reduce((acc, t) => acc + Number(t.valor), 0);
+        .reduce((acc, t) => acc + signedValue(t), 0);
       const valorPendente = transacoesCiclo
         .filter(t => t.is_pago_executado !== true)
-        .reduce((acc, t) => acc + Number(t.valor), 0);
+        .reduce((acc, t) => acc + signedValue(t), 0);
 
       return {
         mesReferencia: ciclo.mesReferencia,
