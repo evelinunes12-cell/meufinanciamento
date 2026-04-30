@@ -959,6 +959,18 @@ const Cartoes = () => {
         vencimentoFatura={faturaModal.vencimentoFatura}
         contasDisponiveis={todasContas.filter(c => c.tipo !== "credito")}
       />
+
+      <ParcelarFaturaModal
+        open={parcelarModal.open}
+        onOpenChange={(open) => setParcelarModal((prev) => ({ ...prev, open }))}
+        cartaoId={parcelarModal.cartaoId}
+        cartaoNome={parcelarModal.cartaoNome}
+        cartaoFechamento={parcelarModal.cartaoFechamento}
+        cartaoVencimento={parcelarModal.cartaoVencimento}
+        valorFatura={parcelarModal.valorFatura}
+        vencimentoFatura={parcelarModal.vencimentoFatura}
+        mesReferencia={parcelarModal.mesReferencia}
+      />
     </AppLayout>
   );
 };
