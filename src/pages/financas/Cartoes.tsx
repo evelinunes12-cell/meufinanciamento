@@ -324,29 +324,81 @@ const Cartoes = () => {
 
     return (
       <div className="space-y-2 pt-1">
-        {transacoesCiclo.map((transacao) => (
-          <div
-            key={transacao.id}
-            className="flex items-center justify-between gap-2 text-xs border-b border-border/60 pb-2 last:border-0 last:pb-0"
-          >
-            <div className="min-w-0">
-              <p className="font-medium text-foreground truncate">
-                {transacao.descricao || "Sem descrição"}
-              </p>
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <span>{format(new Date(transacao.data), "dd/MM")}</span>
-                {transacao.parcelas_total && transacao.parcela_atual && transacao.parcelas_total > 1 && (
-                  <Badge variant="outline" className="text-[10px] px-1 py-0">
-                    {transacao.parcela_atual}/{transacao.parcelas_total}
-                  </Badge>
-                )}
+        {transacoesCiclo.map((transacao) => {
+          const isReceita = transacao.tipo === "receita";
+          return (
+            <div
+              key={transacao.id}
+              className="flex items-center justify-between gap-2 text-xs border-b border-border/60 pb-2 last:border-0 last:pb-0"
+            >
+              <div className="min-w-0 flex-1">
+                <p className="font-medium text-foreground truncate">
+                  {transacao.descricao || "Sem descrição"}
+                </p>
+                <div className="flex items-center gap-2 text-muted-foreground flex-wrap">
+                  <span>{format(new Date(transacao.data), "dd/MM")}</span>
+                  {transacao.parcelas_total && transacao.parcela_atual && transacao.parcelas_total > 1 && (
+                    <Badge variant="outline" className="text-[10px] px-1 py-0">
+                      {transacao.parcela_atual}/{transacao.parcelas_total}
+                    </Badge>
+                  )}
+                  {transacao.mes_fatura_override && (
+                    <Badge variant="outline" className="text-[10px] px-1 py-0 border-primary/40 text-primary">
+                      Movida
+                    </Badge>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <p className={`font-semibold whitespace-nowrap ${isReceita ? "text-success" : "text-foreground"}`}>
+                  {isReceita ? "−" : ""}{formatCurrency(Number(transacao.valor))}
+                </p>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      aria-label="Mais ações"
+                    >
+                      <MoreVertical className="h-3.5 w-3.5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuItem onClick={() => moverFatura(transacao, "anterior")}>
+                      <ArrowLeft className="h-4 w-4 mr-2" />
+                      Mover para fatura anterior
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => moverFatura(transacao, "seguinte")}>
+                      <ArrowRight className="h-4 w-4 mr-2" />
+                      Mover para fatura seguinte
+                    </DropdownMenuItem>
+                    {transacao.mes_fatura_override && (
+                      <DropdownMenuItem
+                        onClick={async () => {
+                          const { error } = await supabase
+                            .from("transacoes")
+                            .update({ mes_fatura_override: null })
+                            .eq("id", transacao.id);
+                          if (error) {
+                            toast({ title: "Erro", description: error.message, variant: "destructive" });
+                            return;
+                          }
+                          toast({ title: "Movimentação desfeita" });
+                          queryClient.invalidateQueries({ queryKey: ["cartoes"] });
+                          queryClient.invalidateQueries({ queryKey: ["transacoes"] });
+                        }}
+                      >
+                        <Check className="h-4 w-4 mr-2" />
+                        Restaurar fatura original
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
-            <p className="font-semibold text-foreground whitespace-nowrap">
-              {formatCurrency(Number(transacao.valor))}
-            </p>
-          </div>
-        ))}
+          );
+        })}
       </div>
     );
   };
