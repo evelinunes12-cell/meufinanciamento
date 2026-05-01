@@ -292,7 +292,9 @@ const Cartoes = () => {
     const isForced = forceClose[cartao.id] || false;
     const { aberta } = getFaturasInfo(cartao, new Date(), isForced);
     const transacoesCiclo = getTransacoesCiclo(cartao.id, aberta.inicio, aberta.fim);
-    return transacoesCiclo.reduce((acc, t) => acc + signedValue(t), 0);
+    return transacoesCiclo
+      .filter(t => t.tipo === "receita" || t.is_pago_executado !== true)
+      .reduce((acc, t) => acc + signedValue(t), 0);
   };
 
   const getSaldoDevedor = (cartaoId: string) => {
@@ -524,11 +526,12 @@ const Cartoes = () => {
     return ciclos.map(ciclo => {
       const transacoesCiclo = getTransacoesCiclo(cartao.id, ciclo.inicio, ciclo.fim);
       const valorFechado = transacoesCiclo.reduce((acc, t) => acc + signedValue(t), 0);
-      const valorPago = transacoesCiclo
-        .filter(t => t.is_pago_executado === true)
-        .reduce((acc, t) => acc + signedValue(t), 0);
+      const pagamentosFatura = transacoesCiclo
+        .filter(t => t.tipo === "receita")
+        .reduce((acc, t) => acc + Number(t.valor), 0);
+      const valorPago = Math.max(0, Math.min(valorFechado, pagamentosFatura));
       const valorPendente = transacoesCiclo
-        .filter(t => t.is_pago_executado !== true)
+        .filter(t => t.tipo === "receita" || t.is_pago_executado !== true)
         .reduce((acc, t) => acc + signedValue(t), 0);
 
       return {
