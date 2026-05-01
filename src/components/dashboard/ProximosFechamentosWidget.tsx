@@ -7,7 +7,7 @@ import { format, addMonths, setDate, isBefore, differenceInDays } from "date-fns
 import { ptBR } from "date-fns/locale";
 import { useMemo, useState } from "react";
 import PagarFaturaModal from "@/components/PagarFaturaModal";
-import { calcularFaturaAbertaCartao } from "@/lib/transactions";
+import { calcularFaturaAbertaCartao, getDataCompetenciaTransacao } from "@/lib/transactions";
 
 interface Conta {
   id: string;
@@ -24,6 +24,9 @@ interface Transacao {
   tipo: string;
   conta_id: string;
   data: string;
+  data_pagamento?: string | null;
+  parcela_atual?: number | null;
+  mes_fatura_override?: string | null;
   is_pago_executado: boolean | null;
 }
 
@@ -39,7 +42,9 @@ export function ProximosFechamentosWidget({ contas, transacoes }: ProximosFecham
     cartaoNome: string;
     valorFatura: number;
     vencimentoFatura: string;
-  }>({ open: false, cartaoId: "", cartaoNome: "", valorFatura: 0, vencimentoFatura: "" });
+    transacaoIds: string[];
+    mesReferencia: string;
+  }>({ open: false, cartaoId: "", cartaoNome: "", valorFatura: 0, vencimentoFatura: "", transacaoIds: [], mesReferencia: "" });
   const [fechamentosConfirmados, setFechamentosConfirmados] = useState<Record<string, boolean>>({});
 
   const formatCurrency = (value: number) => {
@@ -172,15 +177,33 @@ export function ProximosFechamentosWidget({ contas, transacoes }: ProximosFecham
                     <Button
                       size="sm"
                       className="h-7 text-xs"
-                      onClick={() =>
+                      onClick={() => {
+                        // Collect all unpaid expense IDs that fall within the
+                        // open invoice cutoff (anything competence ≤ proximoFechamento).
+                        const cutoff = format(cartao.proximoFechamento, "yyyy-MM-dd");
+                        const ids = transacoes
+                          .filter((t) => {
+                            if (t.conta_id !== cartao.id) return false;
+                            if (t.tipo !== "despesa") return false;
+                            if (t.is_pago_executado === true) return false;
+                            const comp = getDataCompetenciaTransacao(
+                              { data: t.data, data_pagamento: t.data_pagamento, conta_id: t.conta_id, parcela_atual: t.parcela_atual, mes_fatura_override: t.mes_fatura_override },
+                              contas
+                            );
+                            return comp <= cutoff;
+                          })
+                          .map((t) => t.id);
+
                         setFaturaModal({
                           open: true,
                           cartaoId: cartao.id,
                           cartaoNome: cartao.nome_conta,
                           valorFatura: Math.max(0, cartao.gastosFatura),
                           vencimentoFatura: cartao.vencimentoFaturaISO,
-                        })
-                      }
+                          transacaoIds: ids,
+                          mesReferencia: format(cartao.proximoVencimento, "yyyy-MM"),
+                        });
+                      }}
                     >
                       Pagar fatura
                     </Button>
@@ -199,6 +222,8 @@ export function ProximosFechamentosWidget({ contas, transacoes }: ProximosFecham
         valorFatura={faturaModal.valorFatura}
         vencimentoFatura={faturaModal.vencimentoFatura}
         contasDisponiveis={contas.filter(c => c.tipo !== "credito")}
+        transacaoIds={faturaModal.transacaoIds}
+        mesReferencia={faturaModal.mesReferencia}
       />
     </Card>
   );

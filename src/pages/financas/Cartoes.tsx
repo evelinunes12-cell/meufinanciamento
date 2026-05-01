@@ -184,7 +184,9 @@ const Cartoes = () => {
     valorFatura: number;
     vencimentoFatura: string;
     tipo: "fechada" | "aberta" | "antecipada";
-  }>({ open: false, cartaoId: "", cartaoNome: "", valorFatura: 0, vencimentoFatura: "", tipo: "fechada" });
+    transacaoIds: string[];
+    mesReferencia: string;
+  }>({ open: false, cartaoId: "", cartaoNome: "", valorFatura: 0, vencimentoFatura: "", tipo: "fechada", transacaoIds: [], mesReferencia: "" });
   const [parcelarModal, setParcelarModal] = useState<{
     open: boolean;
     cartaoId: string;
@@ -428,7 +430,20 @@ const Cartoes = () => {
     const faturaFechada = getFaturaFechada(cartao);
     const faturasAnteriores = getFaturasAnterioresNaoPagas(cartao);
     const valorTotal = faturaFechada + faturasAnteriores;
-    
+
+    // Collect every pending row (closed cycle + earlier unpaid) so the
+    // modal can mark exactly these as executed.
+    const idsCiclo = getTransacoesCiclo(cartao.id, fechada.inicio, fechada.fim)
+      .filter((t) => t.is_pago_executado !== true)
+      .map((t) => t.id);
+    const idsAnteriores = transacoes
+      .filter((t) => {
+        if (t.conta_id !== cartao.id) return false;
+        const dataCompetencia = getDataCompetencia(t);
+        return dataCompetencia < fechada.inicio && t.is_pago_executado !== true;
+      })
+      .map((t) => t.id);
+
     setFaturaModal({
       open: true,
       cartaoId: cartao.id,
@@ -436,6 +451,8 @@ const Cartoes = () => {
       valorFatura: Math.max(0, valorTotal),
       vencimentoFatura: format(fechada.vencimento, "yyyy-MM-dd"),
       tipo: "fechada",
+      transacaoIds: [...idsCiclo, ...idsAnteriores],
+      mesReferencia: format(fechada.vencimento, "yyyy-MM"),
     });
   };
 
@@ -448,11 +465,17 @@ const Cartoes = () => {
     // So we recalculate with forceClose = true
     const { fechada } = getFaturasInfo(cartao, new Date(), true);
     const transacoesCiclo = getTransacoesCiclo(cartao.id, fechada.inicio, fechada.fim);
-    const valor = transacoesCiclo
-      .filter(t => t.is_pago_executado !== true)
-      .reduce((acc, t) => acc + signedValue(t), 0);
+    const pendentesCiclo = transacoesCiclo.filter((t) => t.is_pago_executado !== true);
+    const valor = pendentesCiclo.reduce((acc, t) => acc + signedValue(t), 0);
     const faturasAnteriores = getFaturasAnterioresNaoPagas(cartao);
-    
+    const idsAnteriores = transacoes
+      .filter((t) => {
+        if (t.conta_id !== cartao.id) return false;
+        const dataCompetencia = getDataCompetencia(t);
+        return dataCompetencia < fechada.inicio && t.is_pago_executado !== true;
+      })
+      .map((t) => t.id);
+
     setFaturaModal({
       open: true,
       cartaoId: cartao.id,
@@ -460,6 +483,8 @@ const Cartoes = () => {
       valorFatura: Math.max(0, valor + faturasAnteriores),
       vencimentoFatura: format(fechada.vencimento, "yyyy-MM-dd"),
       tipo: "fechada",
+      transacaoIds: [...pendentesCiclo.map((t) => t.id), ...idsAnteriores],
+      mesReferencia: format(fechada.vencimento, "yyyy-MM"),
     });
   };
 
@@ -467,14 +492,29 @@ const Cartoes = () => {
     const isForced = forceClose[cartao.id] || false;
     const { aberta } = getFaturasInfo(cartao, new Date(), isForced);
     const valorAberta = getFaturaAberta(cartao);
-    
+
+    // Real due date for the open invoice = one month after the closed
+    // invoice's due date (same dia_vencimento, next month).
+    const diaVencimento = cartao.dia_vencimento || 10;
+    const fimAberta = parseISO(aberta.fim);
+    const vencimentoAberta = new Date(fimAberta.getFullYear(), fimAberta.getMonth(), diaVencimento);
+    if (vencimentoAberta <= fimAberta) {
+      vencimentoAberta.setMonth(vencimentoAberta.getMonth() + 1);
+    }
+
+    const idsCiclo = getTransacoesCiclo(cartao.id, aberta.inicio, aberta.fim)
+      .filter((t) => t.is_pago_executado !== true)
+      .map((t) => t.id);
+
     setFaturaModal({
       open: true,
       cartaoId: cartao.id,
       cartaoNome: cartao.nome_conta,
       valorFatura: Math.max(0, valorAberta),
-      vencimentoFatura: format(new Date(aberta.fim), "yyyy-MM-dd"),
+      vencimentoFatura: format(vencimentoAberta, "yyyy-MM-dd"),
       tipo: "antecipada",
+      transacaoIds: idsCiclo,
+      mesReferencia: format(vencimentoAberta, "yyyy-MM"),
     });
   };
 
@@ -958,6 +998,8 @@ const Cartoes = () => {
         valorFatura={faturaModal.valorFatura}
         vencimentoFatura={faturaModal.vencimentoFatura}
         contasDisponiveis={todasContas.filter(c => c.tipo !== "credito")}
+        transacaoIds={faturaModal.transacaoIds}
+        mesReferencia={faturaModal.mesReferencia}
       />
 
       <ParcelarFaturaModal
