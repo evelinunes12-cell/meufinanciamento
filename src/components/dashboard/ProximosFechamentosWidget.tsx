@@ -177,15 +177,33 @@ export function ProximosFechamentosWidget({ contas, transacoes }: ProximosFecham
                     <Button
                       size="sm"
                       className="h-7 text-xs"
-                      onClick={() =>
+                      onClick={() => {
+                        // Collect all unpaid expense IDs that fall within the
+                        // open invoice cutoff (anything competence ≤ proximoFechamento).
+                        const cutoff = format(cartao.proximoFechamento, "yyyy-MM-dd");
+                        const ids = transacoes
+                          .filter((t) => {
+                            if (t.conta_id !== cartao.id) return false;
+                            if (t.tipo !== "despesa") return false;
+                            if (t.is_pago_executado === true) return false;
+                            const comp = getDataCompetenciaTransacao(
+                              { data: t.data, data_pagamento: t.data_pagamento, conta_id: t.conta_id, parcela_atual: t.parcela_atual, mes_fatura_override: t.mes_fatura_override },
+                              contas
+                            );
+                            return comp <= cutoff;
+                          })
+                          .map((t) => t.id);
+
                         setFaturaModal({
                           open: true,
                           cartaoId: cartao.id,
                           cartaoNome: cartao.nome_conta,
                           valorFatura: Math.max(0, cartao.gastosFatura),
                           vencimentoFatura: cartao.vencimentoFaturaISO,
-                        })
-                      }
+                          transacaoIds: ids,
+                          mesReferencia: format(cartao.proximoVencimento, "yyyy-MM"),
+                        });
+                      }}
                     >
                       Pagar fatura
                     </Button>
