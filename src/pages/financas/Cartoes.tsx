@@ -998,6 +998,8 @@ const Cartoes = () => {
         valorFatura={faturaModal.valorFatura}
         vencimentoFatura={faturaModal.vencimentoFatura}
         contasDisponiveis={todasContas.filter(c => c.tipo !== "credito")}
+        transacaoIds={faturaModal.transacaoIds}
+        mesReferencia={faturaModal.mesReferencia}
       />
 
       <ParcelarFaturaModal
