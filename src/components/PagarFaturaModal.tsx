@@ -156,7 +156,7 @@ const PagarFaturaModal = ({
       const { error: errorSaida } = await supabase.from("transacoes").insert(transacaoSaida);
       if (errorSaida) throw errorSaida;
 
-      const { error: errorEntrada } = await supabase.from("transacoes").insert(transacaoEntrada);
+      const { error: errorEntrada } = await supabase.from("transacoes").insert(transacaoEntrada as never);
       if (errorEntrada) throw errorEntrada;
 
       // Se pagamento total, quitar as compras da fatura.
