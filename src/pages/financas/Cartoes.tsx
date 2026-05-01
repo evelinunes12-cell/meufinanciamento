@@ -184,7 +184,9 @@ const Cartoes = () => {
     valorFatura: number;
     vencimentoFatura: string;
     tipo: "fechada" | "aberta" | "antecipada";
-  }>({ open: false, cartaoId: "", cartaoNome: "", valorFatura: 0, vencimentoFatura: "", tipo: "fechada" });
+    transacaoIds: string[];
+    mesReferencia: string;
+  }>({ open: false, cartaoId: "", cartaoNome: "", valorFatura: 0, vencimentoFatura: "", tipo: "fechada", transacaoIds: [], mesReferencia: "" });
   const [parcelarModal, setParcelarModal] = useState<{
     open: boolean;
     cartaoId: string;
