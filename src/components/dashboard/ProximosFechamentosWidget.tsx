@@ -24,6 +24,9 @@ interface Transacao {
   tipo: string;
   conta_id: string;
   data: string;
+  data_pagamento?: string | null;
+  parcela_atual?: number | null;
+  mes_fatura_override?: string | null;
   is_pago_executado: boolean | null;
 }
 
@@ -39,7 +42,9 @@ export function ProximosFechamentosWidget({ contas, transacoes }: ProximosFecham
     cartaoNome: string;
     valorFatura: number;
     vencimentoFatura: string;
-  }>({ open: false, cartaoId: "", cartaoNome: "", valorFatura: 0, vencimentoFatura: "" });
+    transacaoIds: string[];
+    mesReferencia: string;
+  }>({ open: false, cartaoId: "", cartaoNome: "", valorFatura: 0, vencimentoFatura: "", transacaoIds: [], mesReferencia: "" });
   const [fechamentosConfirmados, setFechamentosConfirmados] = useState<Record<string, boolean>>({});
 
   const formatCurrency = (value: number) => {
