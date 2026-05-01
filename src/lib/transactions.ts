@@ -723,7 +723,7 @@ export function calcularFaturaAbertaCartao(
   // Get competence date for each transaction
   const getCompetencia = (t: TransacaoFatura) => {
     return getDataCompetenciaTransacao(
-      { data: t.data, data_pagamento: t.data_pagamento, conta_id: t.conta_id, parcela_atual: t.parcela_atual },
+      { data: t.data, data_pagamento: t.data_pagamento, conta_id: t.conta_id, parcela_atual: t.parcela_atual, mes_fatura_override: t.mes_fatura_override },
       contas
     );
   };
