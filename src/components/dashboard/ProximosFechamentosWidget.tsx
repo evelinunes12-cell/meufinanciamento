@@ -7,7 +7,7 @@ import { format, addMonths, setDate, isBefore, differenceInDays } from "date-fns
 import { ptBR } from "date-fns/locale";
 import { useMemo, useState } from "react";
 import PagarFaturaModal from "@/components/PagarFaturaModal";
-import { calcularFaturaAbertaCartao } from "@/lib/transactions";
+import { calcularFaturaAbertaCartao, getDataCompetenciaTransacao } from "@/lib/transactions";
 
 interface Conta {
   id: string;
