@@ -40,6 +40,20 @@ interface PagarFaturaModalProps {
   valorFatura: number;
   vencimentoFatura: string;
   contasDisponiveis: Conta[];
+  /**
+   * IDs of credit-card transactions that should be marked as paid when this
+   * invoice is fully settled. When provided, this list takes precedence over
+   * any date-based filter — guaranteeing fechada / aberta / antecipada flows
+   * mark the right rows.
+   */
+  transacaoIds?: string[];
+  /**
+   * Invoice reference month in 'YYYY-MM' format. When provided, the payment
+   * income transaction created on the credit-card account is anchored to this
+   * cycle via mes_fatura_override, so it shows up in the paid invoice's
+   * history instead of today's open cycle.
+   */
+  mesReferencia?: string;
 }
 
 const PagarFaturaModal = ({
@@ -50,6 +64,8 @@ const PagarFaturaModal = ({
   valorFatura,
   vencimentoFatura,
   contasDisponiveis = [],
+  transacaoIds,
+  mesReferencia,
 }: PagarFaturaModalProps) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
