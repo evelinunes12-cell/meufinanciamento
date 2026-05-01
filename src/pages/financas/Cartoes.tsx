@@ -119,7 +119,7 @@ function getHistoricoCiclos(cartao: Conta, meses: number = 12) {
     vencimento: Date;
   }> = [];
 
-  for (let i = 1; i <= meses; i++) {
+  for (let i = -1; i <= meses - 2; i++) {
     const refDate = subMonths(hoje, i);
     const mes = refDate.getMonth();
     const ano = refDate.getFullYear();
@@ -455,7 +455,7 @@ const Cartoes = () => {
       vencimentoFatura: format(fechada.vencimento, "yyyy-MM-dd"),
       tipo: "fechada",
       transacaoIds: [...idsCiclo, ...idsAnteriores],
-      mesReferencia: format(fechada.vencimento, "yyyy-MM"),
+      mesReferencia: format(parseISO(fechada.fim), "yyyy-MM"),
     });
   };
 
@@ -487,7 +487,7 @@ const Cartoes = () => {
       vencimentoFatura: format(fechada.vencimento, "yyyy-MM-dd"),
       tipo: "fechada",
       transacaoIds: [...pendentesCiclo.map((t) => t.id), ...idsAnteriores],
-      mesReferencia: format(fechada.vencimento, "yyyy-MM"),
+      mesReferencia: format(parseISO(fechada.fim), "yyyy-MM"),
     });
   };
 
@@ -517,7 +517,7 @@ const Cartoes = () => {
       vencimentoFatura: format(vencimentoAberta, "yyyy-MM-dd"),
       tipo: "antecipada",
       transacaoIds: idsCiclo,
-      mesReferencia: format(vencimentoAberta, "yyyy-MM"),
+      mesReferencia: format(parseISO(aberta.fim), "yyyy-MM"),
     });
   };
 
