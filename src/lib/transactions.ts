@@ -438,8 +438,16 @@ export function getDataCompetenciaTransacao(
 
   // Manual override (move between invoices) takes priority
   if (transacao.mes_fatura_override) {
-    // Format: 'YYYY-MM' -> use day 15 as a stable mid-month anchor
-    return `${transacao.mes_fatura_override}-15`;
+    // Format: 'YYYY-MM' -> anchor on the card closing day, so the row
+    // belongs to the invoice cycle that closes in that reference month.
+    const match = /^(\d{4})-(\d{2})$/.exec(transacao.mes_fatura_override);
+    if (match) {
+      const [, year, month] = match;
+      const monthStart = parseISO(`${year}-${month}-01`);
+      const lastDay = endOfMonth(monthStart).getDate();
+      const closingDay = Math.min(Math.max(conta.dia_fechamento ?? 15, 1), lastDay);
+      return `${year}-${month}-${String(closingDay).padStart(2, "0")}`;
+    }
   }
 
   const indiceParcela = Math.max(0, (transacao.parcela_atual ?? 1) - 1);
@@ -643,6 +651,8 @@ interface TransacaoFatura {
   data_pagamento?: string | null;
   is_pago_executado: boolean | null;
   parcela_atual?: number | null;
+  mes_fatura_override?: string | null;
+  forma_pagamento?: string | null;
 }
 
 interface ContaCartaoFatura {
@@ -702,12 +712,18 @@ export function calcularFaturaAbertaCartao(
   const fechadaInicioStr = format(fechadaInicio, "yyyy-MM-dd");
   const abertaFimStr = format(abertaFim, "yyyy-MM-dd");
 
-  const transacoesCartao = transacoes.filter(t => t.conta_id === cartao.id && t.tipo === "despesa");
+  const transacoesCartao = transacoes.filter(t => t.conta_id === cartao.id && (t.tipo === "despesa" || t.tipo === "receita"));
+  const signedValue = (t: TransacaoFatura) => t.tipo === "receita" ? -Number(t.valor) : Number(t.valor);
+  const shouldAffectOpenBalance = (t: TransacaoFatura) => {
+    if (t.tipo === "despesa") return t.is_pago_executado !== true;
+    // Credit adjustments and invoice payments reduce the remaining invoice balance.
+    return t.tipo === "receita";
+  };
 
   // Get competence date for each transaction
   const getCompetencia = (t: TransacaoFatura) => {
     return getDataCompetenciaTransacao(
-      { data: t.data, data_pagamento: t.data_pagamento, conta_id: t.conta_id, parcela_atual: t.parcela_atual },
+      { data: t.data, data_pagamento: t.data_pagamento, conta_id: t.conta_id, parcela_atual: t.parcela_atual, mes_fatura_override: t.mes_fatura_override },
       contas
     );
   };
@@ -715,11 +731,11 @@ export function calcularFaturaAbertaCartao(
   // Closed invoice: unpaid transactions in closed cycle + any older unpaid
   const faturaFechada = transacoesCartao
     .filter(t => {
-      if (t.is_pago_executado === true) return false;
       const comp = getCompetencia(t);
       return comp <= format(fechadaFim, "yyyy-MM-dd");
     })
-    .reduce((acc, t) => acc + Number(t.valor), 0);
+    .filter(shouldAffectOpenBalance)
+    .reduce((acc, t) => acc + signedValue(t), 0);
 
   // Open invoice: all transactions in open cycle (regardless of payment status)
   const faturaAberta = transacoesCartao
@@ -727,7 +743,8 @@ export function calcularFaturaAbertaCartao(
       const comp = getCompetencia(t);
       return comp >= format(abertaInicio, "yyyy-MM-dd") && comp <= abertaFimStr;
     })
-    .reduce((acc, t) => acc + Number(t.valor), 0);
+    .filter(shouldAffectOpenBalance)
+    .reduce((acc, t) => acc + signedValue(t), 0);
 
-  return faturaFechada + faturaAberta;
+  return Math.max(0, faturaFechada) + Math.max(0, faturaAberta);
 }

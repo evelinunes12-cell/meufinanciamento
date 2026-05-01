@@ -201,7 +201,7 @@ export function ProximosFechamentosWidget({ contas, transacoes }: ProximosFecham
                           valorFatura: Math.max(0, cartao.gastosFatura),
                           vencimentoFatura: cartao.vencimentoFaturaISO,
                           transacaoIds: ids,
-                          mesReferencia: format(cartao.proximoVencimento, "yyyy-MM"),
+                          mesReferencia: format(cartao.proximoFechamento, "yyyy-MM"),
                         });
                       }}
                     >

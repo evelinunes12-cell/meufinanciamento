@@ -119,7 +119,7 @@ function getHistoricoCiclos(cartao: Conta, meses: number = 12) {
     vencimento: Date;
   }> = [];
 
-  for (let i = 1; i <= meses; i++) {
+  for (let i = -1; i <= meses - 2; i++) {
     const refDate = subMonths(hoje, i);
     const mes = refDate.getMonth();
     const ano = refDate.getFullYear();
@@ -292,7 +292,10 @@ const Cartoes = () => {
     const isForced = forceClose[cartao.id] || false;
     const { aberta } = getFaturasInfo(cartao, new Date(), isForced);
     const transacoesCiclo = getTransacoesCiclo(cartao.id, aberta.inicio, aberta.fim);
-    return transacoesCiclo.reduce((acc, t) => acc + signedValue(t), 0);
+    const total = transacoesCiclo
+      .filter(t => t.tipo === "receita" || t.is_pago_executado !== true)
+      .reduce((acc, t) => acc + signedValue(t), 0);
+    return Math.max(0, total);
   };
 
   const getSaldoDevedor = (cartaoId: string) => {
@@ -452,7 +455,7 @@ const Cartoes = () => {
       vencimentoFatura: format(fechada.vencimento, "yyyy-MM-dd"),
       tipo: "fechada",
       transacaoIds: [...idsCiclo, ...idsAnteriores],
-      mesReferencia: format(fechada.vencimento, "yyyy-MM"),
+      mesReferencia: format(parseISO(fechada.fim), "yyyy-MM"),
     });
   };
 
@@ -484,7 +487,7 @@ const Cartoes = () => {
       vencimentoFatura: format(fechada.vencimento, "yyyy-MM-dd"),
       tipo: "fechada",
       transacaoIds: [...pendentesCiclo.map((t) => t.id), ...idsAnteriores],
-      mesReferencia: format(fechada.vencimento, "yyyy-MM"),
+      mesReferencia: format(parseISO(fechada.fim), "yyyy-MM"),
     });
   };
 
@@ -514,7 +517,7 @@ const Cartoes = () => {
       vencimentoFatura: format(vencimentoAberta, "yyyy-MM-dd"),
       tipo: "antecipada",
       transacaoIds: idsCiclo,
-      mesReferencia: format(vencimentoAberta, "yyyy-MM"),
+      mesReferencia: format(parseISO(aberta.fim), "yyyy-MM"),
     });
   };
 
@@ -523,13 +526,17 @@ const Cartoes = () => {
     const ciclos = getHistoricoCiclos(cartao, 12);
     return ciclos.map(ciclo => {
       const transacoesCiclo = getTransacoesCiclo(cartao.id, ciclo.inicio, ciclo.fim);
-      const valorFechado = transacoesCiclo.reduce((acc, t) => acc + signedValue(t), 0);
-      const valorPago = transacoesCiclo
-        .filter(t => t.is_pago_executado === true)
-        .reduce((acc, t) => acc + signedValue(t), 0);
-      const valorPendente = transacoesCiclo
-        .filter(t => t.is_pago_executado !== true)
-        .reduce((acc, t) => acc + signedValue(t), 0);
+      const valorFechado = transacoesCiclo
+        .filter(t => t.tipo === "despesa")
+        .reduce((acc, t) => acc + Number(t.valor), 0);
+      const pagamentosFatura = transacoesCiclo
+        .filter(t => t.tipo === "receita")
+        .reduce((acc, t) => acc + Number(t.valor), 0);
+      const valorPago = Math.max(0, Math.min(valorFechado, pagamentosFatura));
+      const despesasPendentes = transacoesCiclo
+        .filter(t => t.tipo === "despesa" && t.is_pago_executado !== true)
+        .reduce((acc, t) => acc + Number(t.valor), 0);
+      const valorPendente = Math.max(0, despesasPendentes - pagamentosFatura);
 
       return {
         mesReferencia: ciclo.mesReferencia,
