@@ -132,7 +132,9 @@ const PagarFaturaModal = ({
       };
 
       // Create incoming transaction (to credit card account)
-      const transacaoEntrada = {
+      // Anchor it to the paid invoice's reference month so it shows up
+      // in that invoice's history (and not in today's open cycle).
+      const transacaoEntrada: Record<string, unknown> = {
         user_id: user?.id as string,
         conta_id: cartaoId,
         categoria_id: null,
@@ -145,6 +147,11 @@ const PagarFaturaModal = ({
         is_pago_executado: true,
         conta_destino_id: null,
       };
+      if (mesReferencia) {
+        transacaoEntrada.mes_fatura_override = mesReferencia;
+        // data_pagamento helps date-based queries place this credit in the right cycle
+        transacaoEntrada.data_pagamento = vencimentoFatura || dataHoje;
+      }
 
       const { error: errorSaida } = await supabase.from("transacoes").insert(transacaoSaida);
       if (errorSaida) throw errorSaida;
@@ -152,29 +159,49 @@ const PagarFaturaModal = ({
       const { error: errorEntrada } = await supabase.from("transacoes").insert(transacaoEntrada);
       if (errorEntrada) throw errorEntrada;
 
-      // Se pagamento total, marcar apenas as compras do cartão que já venceram
-      // ou que pertencem à fatura fechada/anteriores.
+      // Se pagamento total, quitar as compras da fatura.
       if (isTotal) {
-        const cutoffDate = vencimentoFatura || dataHoje;
-        
-        const { error: updateError, data: updatedTransactions } = await supabase
-          .from("transacoes")
-          .update({
-            is_pago_executado: true,
-            data_execucao_pagamento: dataHoje,
-          })
-          .eq("conta_id", cartaoId)
-          .eq("tipo", "despesa")
-          .eq("forma_pagamento", "credito")
-          .lte("data_pagamento", cutoffDate)
-          .or("is_pago_executado.is.false,is_pago_executado.is.null")
-          .select("id");
+        let updatedTransactions: { id: string }[] | null = null;
+        let updateError: unknown = null;
+
+        if (transacaoIds && transacaoIds.length > 0) {
+          // Preferred path: the caller knows exactly which rows belong to
+          // this invoice (handles fechada, anteriores e antecipada).
+          const res = await supabase
+            .from("transacoes")
+            .update({
+              is_pago_executado: true,
+              data_execucao_pagamento: dataHoje,
+            })
+            .in("id", transacaoIds)
+            .select("id");
+          updatedTransactions = res.data;
+          updateError = res.error;
+        } else {
+          // Fallback (legacy): filter by data_pagamento cutoff.
+          const cutoffDate = vencimentoFatura || dataHoje;
+          const res = await supabase
+            .from("transacoes")
+            .update({
+              is_pago_executado: true,
+              data_execucao_pagamento: dataHoje,
+            })
+            .eq("conta_id", cartaoId)
+            .eq("tipo", "despesa")
+            .eq("forma_pagamento", "credito")
+            .lte("data_pagamento", cutoffDate)
+            .or("is_pago_executado.is.false,is_pago_executado.is.null")
+            .select("id");
+          updatedTransactions = res.data;
+          updateError = res.error;
+        }
 
         if (updateError) {
           console.warn("Warning: Could not update transaction status:", updateError);
         }
 
         const transacoesQuitadas = updatedTransactions?.length || 0;
+
         
         toast({
           title: "Fatura paga!",
