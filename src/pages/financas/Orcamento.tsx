@@ -52,11 +52,11 @@ interface Conta {
   dia_fechamento: number | null;
 }
 
-async function fetchOrcamentoData(userId: string | undefined, mesAtual: string) {
+async function fetchOrcamentoData(userId: string | undefined) {
   if (!userId) return null;
 
   const [orcamentosRes, categoriasRes, transacoesRes, contasRes] = await Promise.all([
-    supabase.from("orcamentos").select("*").eq("mes_referencia", mesAtual),
+    supabase.from("orcamentos").select("*").order("mes_referencia", { ascending: false }),
     supabase.from("categorias").select("*").eq("tipo", "despesa"),
     supabase.from("transacoes").select("*").eq("tipo", "despesa"),
     supabase.from("contas").select("id, tipo, dia_fechamento"),
@@ -77,28 +77,42 @@ const Orcamento = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [incluirPendentes, setIncluirPendentes] = useState(true);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+  const [mesSelecionado, setMesSelecionado] = useState<Date>(startOfMonth(new Date()));
   const [formData, setFormData] = useState({
     categoria_id: "",
     valor_limite: "",
   });
 
-  const mesAtual = format(startOfMonth(new Date()), "yyyy-MM-dd");
+  const mesAtual = format(mesSelecionado, "yyyy-MM-dd");
+  const hojeMesInicio = startOfMonth(new Date());
+  const isMesFuturo = isAfter(mesSelecionado, hojeMesInicio);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["orcamentos", user?.id, mesAtual],
-    queryFn: () => fetchOrcamentoData(user?.id, mesAtual),
+    queryKey: ["orcamentos", user?.id],
+    queryFn: () => fetchOrcamentoData(user?.id),
     enabled: !!user?.id,
     staleTime: 5 * 60 * 1000,
   });
 
-  const orcamentos = data?.orcamentos || [];
+  const allOrcamentos = data?.orcamentos || [];
   const categorias = data?.categorias || [];
   const transacoes = data?.transacoes || [];
   const contas = data?.contas || [];
 
-  const mesAtualDate = new Date();
-  const startMes = startOfMonth(mesAtualDate);
-  const endMes = endOfMonth(mesAtualDate);
+  // Active budgets for the selected month: latest definition per category up to selected month
+  const orcamentos: OrcamentoType[] = (() => {
+    const map = new Map<string, OrcamentoType>();
+    const sorted = [...allOrcamentos].sort((a, b) => a.mes_referencia.localeCompare(b.mes_referencia));
+    sorted.forEach(o => {
+      if (o.mes_referencia <= mesAtual) {
+        map.set(o.categoria_id, o);
+      }
+    });
+    return Array.from(map.values());
+  })();
+
+  const startMes = startOfMonth(mesSelecionado);
+  const endMes = endOfMonth(mesSelecionado);
 
   const transacoesMesAtual = transacoes.filter(t => {
     const dataEfetiva = getDataEfetiva(t, contas);
