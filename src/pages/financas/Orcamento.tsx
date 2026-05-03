@@ -13,8 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, Edit, AlertTriangle, CheckCircle, ChevronDown, ChevronRight } from "lucide-react";
-import { format, startOfMonth, endOfMonth, parseISO, isBefore, isAfter } from "date-fns";
+import { Plus, Trash2, Edit, AlertTriangle, CheckCircle, ChevronDown, ChevronRight, ChevronLeft } from "lucide-react";
+import { format, startOfMonth, endOfMonth, parseISO, isBefore, isAfter, addMonths, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
 import { isExecutado, getDataEfetiva } from "@/lib/transactions";
@@ -52,11 +52,11 @@ interface Conta {
   dia_fechamento: number | null;
 }
 
-async function fetchOrcamentoData(userId: string | undefined, mesAtual: string) {
+async function fetchOrcamentoData(userId: string | undefined) {
   if (!userId) return null;
 
   const [orcamentosRes, categoriasRes, transacoesRes, contasRes] = await Promise.all([
-    supabase.from("orcamentos").select("*").eq("mes_referencia", mesAtual),
+    supabase.from("orcamentos").select("*").order("mes_referencia", { ascending: false }),
     supabase.from("categorias").select("*").eq("tipo", "despesa"),
     supabase.from("transacoes").select("*").eq("tipo", "despesa"),
     supabase.from("contas").select("id, tipo, dia_fechamento"),
@@ -77,28 +77,42 @@ const Orcamento = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [incluirPendentes, setIncluirPendentes] = useState(true);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+  const [mesSelecionado, setMesSelecionado] = useState<Date>(startOfMonth(new Date()));
   const [formData, setFormData] = useState({
     categoria_id: "",
     valor_limite: "",
   });
 
-  const mesAtual = format(startOfMonth(new Date()), "yyyy-MM-dd");
+  const mesAtual = format(mesSelecionado, "yyyy-MM-dd");
+  const hojeMesInicio = startOfMonth(new Date());
+  const isMesFuturo = isAfter(mesSelecionado, hojeMesInicio);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["orcamentos", user?.id, mesAtual],
-    queryFn: () => fetchOrcamentoData(user?.id, mesAtual),
+    queryKey: ["orcamentos", user?.id],
+    queryFn: () => fetchOrcamentoData(user?.id),
     enabled: !!user?.id,
     staleTime: 5 * 60 * 1000,
   });
 
-  const orcamentos = data?.orcamentos || [];
+  const allOrcamentos = data?.orcamentos || [];
   const categorias = data?.categorias || [];
   const transacoes = data?.transacoes || [];
   const contas = data?.contas || [];
 
-  const mesAtualDate = new Date();
-  const startMes = startOfMonth(mesAtualDate);
-  const endMes = endOfMonth(mesAtualDate);
+  // Active budgets for the selected month: latest definition per category up to selected month
+  const orcamentos: OrcamentoType[] = (() => {
+    const map = new Map<string, OrcamentoType>();
+    const sorted = [...allOrcamentos].sort((a, b) => a.mes_referencia.localeCompare(b.mes_referencia));
+    sorted.forEach(o => {
+      if (o.mes_referencia <= mesAtual) {
+        map.set(o.categoria_id, o);
+      }
+    });
+    return Array.from(map.values());
+  })();
+
+  const startMes = startOfMonth(mesSelecionado);
+  const endMes = endOfMonth(mesSelecionado);
 
   const transacoesMesAtual = transacoes.filter(t => {
     const dataEfetiva = getDataEfetiva(t, contas);
@@ -125,7 +139,10 @@ const Orcamento = () => {
       mes_referencia: mesAtual,
     };
 
-    if (editingId) {
+    const editingOrc = editingId ? allOrcamentos.find(o => o.id === editingId) : null;
+    const shouldCreateOverride = editingOrc && editingOrc.mes_referencia !== mesAtual;
+
+    if (editingId && !shouldCreateOverride) {
       const { error } = await supabase.from("orcamentos").update(dataToSave).eq("id", editingId);
       if (error) {
         toast({ title: "Erro", description: "Erro ao atualizar orçamento", variant: "destructive" });
@@ -142,7 +159,7 @@ const Orcamento = () => {
         }
         return;
       }
-      toast({ title: "Sucesso", description: "Orçamento criado" });
+      toast({ title: "Sucesso", description: shouldCreateOverride ? "Limite ajustado para este mês" : "Orçamento criado" });
     }
 
     setDialogOpen(false);
@@ -313,11 +330,24 @@ const Orcamento = () => {
     <AppLayout>
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Orçamento Mensal</h1>
-            <p className="text-muted-foreground">
-              {format(new Date(), "MMMM 'de' yyyy", { locale: ptBR })}
-            </p>
+          <div className="flex items-center gap-3">
+            <Button variant="outline" size="icon" onClick={() => setMesSelecionado(m => startOfMonth(subMonths(m, 1)))} aria-label="Mês anterior">
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <div className="min-w-[180px] text-center">
+              <h1 className="text-2xl font-bold text-foreground">Orçamento</h1>
+              <p className="text-muted-foreground capitalize">
+                {format(mesSelecionado, "MMMM 'de' yyyy", { locale: ptBR })}
+              </p>
+            </div>
+            <Button variant="outline" size="icon" onClick={() => setMesSelecionado(m => startOfMonth(addMonths(m, 1)))} aria-label="Próximo mês">
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            {format(mesSelecionado, "yyyy-MM") !== format(new Date(), "yyyy-MM") && (
+              <Button variant="ghost" size="sm" onClick={() => setMesSelecionado(startOfMonth(new Date()))}>
+                Hoje
+              </Button>
+            )}
           </div>
           <div className="flex flex-wrap items-center gap-4">
             <label className="flex items-center gap-2 text-sm text-muted-foreground">
