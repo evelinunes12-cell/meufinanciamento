@@ -139,7 +139,10 @@ const Orcamento = () => {
       mes_referencia: mesAtual,
     };
 
-    if (editingId) {
+    const editingOrc = editingId ? allOrcamentos.find(o => o.id === editingId) : null;
+    const shouldCreateOverride = editingOrc && editingOrc.mes_referencia !== mesAtual;
+
+    if (editingId && !shouldCreateOverride) {
       const { error } = await supabase.from("orcamentos").update(dataToSave).eq("id", editingId);
       if (error) {
         toast({ title: "Erro", description: "Erro ao atualizar orçamento", variant: "destructive" });
@@ -156,7 +159,7 @@ const Orcamento = () => {
         }
         return;
       }
-      toast({ title: "Sucesso", description: "Orçamento criado" });
+      toast({ title: "Sucesso", description: shouldCreateOverride ? "Limite ajustado para este mês" : "Orçamento criado" });
     }
 
     setDialogOpen(false);
