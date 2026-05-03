@@ -330,11 +330,24 @@ const Orcamento = () => {
     <AppLayout>
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Orçamento Mensal</h1>
-            <p className="text-muted-foreground">
-              {format(new Date(), "MMMM 'de' yyyy", { locale: ptBR })}
-            </p>
+          <div className="flex items-center gap-3">
+            <Button variant="outline" size="icon" onClick={() => setMesSelecionado(m => startOfMonth(subMonths(m, 1)))} aria-label="Mês anterior">
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <div className="min-w-[180px] text-center">
+              <h1 className="text-2xl font-bold text-foreground">Orçamento</h1>
+              <p className="text-muted-foreground capitalize">
+                {format(mesSelecionado, "MMMM 'de' yyyy", { locale: ptBR })}
+              </p>
+            </div>
+            <Button variant="outline" size="icon" onClick={() => setMesSelecionado(m => startOfMonth(addMonths(m, 1)))} aria-label="Próximo mês">
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            {format(mesSelecionado, "yyyy-MM") !== format(new Date(), "yyyy-MM") && (
+              <Button variant="ghost" size="sm" onClick={() => setMesSelecionado(startOfMonth(new Date()))}>
+                Hoje
+              </Button>
+            )}
           </div>
           <div className="flex flex-wrap items-center gap-4">
             <label className="flex items-center gap-2 text-sm text-muted-foreground">
