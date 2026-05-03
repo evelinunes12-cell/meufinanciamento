@@ -13,8 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, Edit, AlertTriangle, CheckCircle, ChevronDown, ChevronRight } from "lucide-react";
-import { format, startOfMonth, endOfMonth, parseISO, isBefore, isAfter } from "date-fns";
+import { Plus, Trash2, Edit, AlertTriangle, CheckCircle, ChevronDown, ChevronRight, ChevronLeft } from "lucide-react";
+import { format, startOfMonth, endOfMonth, parseISO, isBefore, isAfter, addMonths, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
 import { isExecutado, getDataEfetiva } from "@/lib/transactions";
