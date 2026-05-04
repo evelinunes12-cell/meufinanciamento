@@ -264,7 +264,15 @@ const Notifications = () => {
     const startMes = startOfMonth(new Date());
     const endMes = endOfMonth(new Date());
 
-    const orcamentosMesAtual = orcamentos.filter((o) => o.mes_referencia === mesAtualStr);
+    // Latest budget per category up to current month (matches Orcamento page logic)
+    const orcamentosMesAtual = (() => {
+      const map = new Map<string, Orcamento>();
+      const sorted = [...orcamentos].sort((a, b) => a.mes_referencia.localeCompare(b.mes_referencia));
+      sorted.forEach((o) => {
+        if (o.mes_referencia <= mesAtualStr) map.set(o.categoria_id, o);
+      });
+      return Array.from(map.values());
+    })();
 
     const getAllSubcategoriaIds = (catId: string): string[] => {
       const children = categorias.filter((c) => c.categoria_pai_id === catId);
