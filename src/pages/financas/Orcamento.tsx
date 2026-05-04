@@ -588,10 +588,16 @@ const Orcamento = () => {
                     {/* Footer with remaining and actions */}
                     <div className="flex justify-between items-center mt-4 pt-4 border-t border-border">
                       <div>
-                        <p className="text-xs text-muted-foreground">Restante</p>
-                        <p className={`font-bold ${restante >= 0 ? "text-success" : "text-destructive"}`}>
-                          {formatCurrency(restante)}
-                        </p>
+                        {hasMainOrcamento ? (
+                          <>
+                            <p className="text-xs text-muted-foreground">Restante</p>
+                            <p className={`font-bold ${restante >= 0 ? "text-success" : "text-destructive"}`}>
+                              {formatCurrency(restante)}
+                            </p>
+                          </>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">Limites definidos por subcategoria</p>
+                        )}
                       </div>
                       <div className="flex gap-1">
                         {/* Only show edit/delete on main card if no subcategory expansion or if main has its own budget */}
