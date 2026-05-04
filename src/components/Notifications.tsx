@@ -75,7 +75,7 @@ interface Notificacao {
   route: string;
 }
 
-const ALERTA_ORCAMENTO_PCT = 90;
+const ALERTA_ORCAMENTO_PCT = 80;
 const LEMBRETE_QUINZENAL_KEY = "lembrete_quinzenal_dismissed_at";
 const DIAS_INTERVALO_LEMBRETE = 15;
 const DISMISSED_KEY_PREFIX = "notificacoes_dispensadas_";
