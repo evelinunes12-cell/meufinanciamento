@@ -455,20 +455,17 @@ const Orcamento = () => {
               const mainCor = mainCat?.cor || "#888";
               const mainNome = mainCat?.nome || "-";
               const hasSubOrcamentos = group.subOrcamentos.length > 0;
-              const isExpanded = expandedCards.has(group.mainCatId);
+              const hasMainOrcamento = !!group.mainOrcamento;
+              const isExpanded = expandedCards.has(group.mainCatId) || (!hasMainOrcamento && hasSubOrcamentos);
 
-              // Total spending for the main category (including all subs)
+              // Total spending for the main category (including all subs) — informational
               const gastosTotalMain = getGastosCategoria(group.mainCatId);
 
-              // Main budget values
-              const mainLimite = group.mainOrcamento ? Number(group.mainOrcamento.valor_limite) : 0;
-
-              // Sum of sub-budget limits
-              const subLimitesTotal = group.subOrcamentos.reduce((acc, so) => acc + Number(so.valor_limite), 0);
-              const limiteTotal = mainLimite + subLimitesTotal;
-
-              // If there's no main budget but has sub-budgets, use combined sub limits
-              const limiteExibido = limiteTotal > 0 ? limiteTotal : mainLimite;
+              // Only the parent's own budget defines the parent-level limit/status.
+              // Sub-budgets are evaluated independently below, so spending in sibling
+              // subcategories never marks the parent as exceeded.
+              const mainLimite = hasMainOrcamento ? Number(group.mainOrcamento!.valor_limite) : 0;
+              const limiteExibido = mainLimite;
               const percentual = limiteExibido > 0 ? (gastosTotalMain / limiteExibido) * 100 : 0;
               const restante = limiteExibido - gastosTotalMain;
 
@@ -491,12 +488,12 @@ const Orcamento = () => {
                         <h3 className="font-semibold text-foreground">{mainNome}</h3>
                       </div>
                       <div className="flex items-center gap-1">
-                        {limiteExibido > 0 && renderStatusIcon(percentual)}
+                        {hasMainOrcamento && limiteExibido > 0 && renderStatusIcon(percentual)}
                       </div>
                     </div>
 
-                    {/* Main category progress */}
-                    {limiteExibido > 0 && (
+                    {/* Main category progress (only when parent has its own budget) */}
+                    {hasMainOrcamento && limiteExibido > 0 ? (
                       <div className="space-y-2">
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">Gasto total</span>
@@ -509,6 +506,11 @@ const Orcamento = () => {
                           <span>{percentual.toFixed(1)}%</span>
                           <span>Limite: {formatCurrency(limiteExibido)}</span>
                         </div>
+                      </div>
+                    ) : (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Gasto total da categoria</span>
+                        <span className="font-medium text-foreground">{formatCurrency(gastosTotalMain)}</span>
                       </div>
                     )}
 
