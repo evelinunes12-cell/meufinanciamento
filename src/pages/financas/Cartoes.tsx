@@ -1015,6 +1015,7 @@ const Cartoes = () => {
         vencimentoFatura={faturaModal.vencimentoFatura}
         contasDisponiveis={todasContas.filter(c => c.tipo !== "credito")}
         transacaoIds={faturaModal.transacaoIds}
+        valorQuitacao={faturaModal.valorFatura}
         mesReferencia={faturaModal.mesReferencia}
       />
 
