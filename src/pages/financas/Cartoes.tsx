@@ -542,6 +542,8 @@ const Cartoes = () => {
         .filter(t => t.tipo === "despesa" && t.is_pago_executado !== true)
         .reduce((acc, t) => acc + Number(t.valor), 0);
       const valorPendente = Math.max(0, despesasPendentes - pagamentosFatura);
+      const estaPaga = cents(valorPendente) <= 0;
+      const pagamentoParcial = !estaPaga && cents(valorPago) > 0;
 
       return {
         mesReferencia: ciclo.mesReferencia,
@@ -549,6 +551,8 @@ const Cartoes = () => {
         valorFechado,
         valorPago,
         valorPendente,
+        estaPaga,
+        pagamentoParcial,
         qtdTransacoes: transacoesCiclo.length,
       };
     }).filter(h => h.qtdTransacoes > 0 || h.valorFechado > 0);
