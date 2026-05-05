@@ -976,11 +976,11 @@ const Cartoes = () => {
                                       {formatCurrency(item.valorPendente)}
                                     </TableCell>
                                     <TableCell className="text-center">
-                                      {item.valorPendente <= 0 ? (
+                                      {item.estaPaga ? (
                                         <Badge className="bg-success/20 text-success border-success/30 hover:bg-success/30">
                                           Paga
                                         </Badge>
-                                      ) : item.valorPago > 0 ? (
+                                      ) : item.pagamentoParcial ? (
                                         <Badge variant="outline" className="border-warning text-warning">
                                           Parcial
                                         </Badge>
