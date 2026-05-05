@@ -109,7 +109,7 @@ const PagarFaturaModal = ({
       return;
     }
 
-    if (valorPago > valorFatura) {
+    if (valorPagoCents > valorFaturaCents) {
       toast({ title: "Erro", description: "O valor não pode ser maior que a fatura", variant: "destructive" });
       return;
     }
