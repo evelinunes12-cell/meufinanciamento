@@ -247,7 +247,7 @@ const PagarFaturaModal = ({
   };
 
   const handleValorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value.replace(/[^\d,]/g, "");
+    const value = e.target.value.replace(/[^\d,]/g, "");
     setValorPagamento(value);
   };
 
