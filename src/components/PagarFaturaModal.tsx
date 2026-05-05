@@ -48,6 +48,11 @@ interface PagarFaturaModalProps {
    */
   transacaoIds?: string[];
   /**
+   * Amount that represents the invoice being settled. This can differ from
+   * broader card balances when the next invoice already has open charges.
+   */
+  valorQuitacao?: number;
+  /**
    * Invoice reference month in 'YYYY-MM' format. When provided, the payment
    * income transaction created on the credit-card account is anchored to this
    * cycle via mes_fatura_override, so it shows up in the paid invoice's
@@ -65,6 +70,7 @@ const PagarFaturaModal = ({
   vencimentoFatura,
   contasDisponiveis = [],
   transacaoIds,
+  valorQuitacao,
   mesReferencia,
 }: PagarFaturaModalProps) => {
   const { user } = useAuth();
@@ -73,12 +79,14 @@ const PagarFaturaModal = ({
   const [valorPagamento, setValorPagamento] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const valorBaseFatura = Math.max(0, valorQuitacao ?? valorFatura);
+
   // Reset valor when modal opens
   useEffect(() => {
     if (open) {
-      setValorPagamento(valorFatura.toFixed(2).replace(".", ","));
+      setValorPagamento(valorBaseFatura.toFixed(2).replace(".", ","));
     }
-  }, [open, valorFatura]);
+  }, [open, valorBaseFatura]);
 
   // Filter only accounts that can be used as payment origin
   const contasValidas = contasDisponiveis.filter(
@@ -94,7 +102,7 @@ const PagarFaturaModal = ({
   // (e.g. somas de numeric do banco podem gerar 0.30000000004).
   const cents = (n: number) => Math.round(n * 100);
   const valorPagoCents = cents(valorPago);
-  const valorFaturaCents = cents(valorFatura);
+  const valorFaturaCents = cents(valorBaseFatura);
   const isParcial = valorPagoCents > 0 && valorPagoCents < valorFaturaCents;
   const isTotal = valorPagoCents >= valorFaturaCents;
 
@@ -216,7 +224,7 @@ const PagarFaturaModal = ({
         // Pagamento parcial: não quita as transações individuais
         toast({
           title: "Pagamento parcial registrado",
-          description: `${formatCurrency(valorPago)} de ${formatCurrency(valorFatura)} pago. Restam ${formatCurrency(valorFatura - valorPago)}.`,
+          description: `${formatCurrency(valorPago)} de ${formatCurrency(valorBaseFatura)} pago. Restam ${formatCurrency(valorBaseFatura - valorPago)}.`,
         });
       }
 
@@ -239,7 +247,7 @@ const PagarFaturaModal = ({
   };
 
   const handleValorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value.replace(/[^\d,]/g, "");
+    const value = e.target.value.replace(/[^\d,]/g, "");
     setValorPagamento(value);
   };
 
@@ -256,7 +264,7 @@ const PagarFaturaModal = ({
         <div className="space-y-4 py-4">
           <div className="p-4 bg-muted/50 rounded-lg">
             <p className="text-sm text-muted-foreground">Valor Total da Fatura</p>
-            <p className="text-2xl font-bold text-foreground">{formatCurrency(valorFatura)}</p>
+            <p className="text-2xl font-bold text-foreground">{formatCurrency(valorBaseFatura)}</p>
             {vencimentoFatura && (
               <p className="text-xs text-muted-foreground mt-1">
                 Vencimento: {format(new Date(vencimentoFatura + "T12:00:00"), "dd/MM/yyyy")}
@@ -291,7 +299,7 @@ const PagarFaturaModal = ({
                 variant="outline"
                 size="sm"
                 className="text-xs"
-                onClick={() => setValorPagamento(valorFatura.toFixed(2).replace(".", ","))}
+                onClick={() => setValorPagamento(valorBaseFatura.toFixed(2).replace(".", ","))}
               >
                 Valor total
               </Button>
@@ -300,14 +308,14 @@ const PagarFaturaModal = ({
                 variant="outline"
                 size="sm"
                 className="text-xs"
-                onClick={() => setValorPagamento((valorFatura * 0.15).toFixed(2).replace(".", ","))}
+                onClick={() => setValorPagamento((valorBaseFatura * 0.15).toFixed(2).replace(".", ","))}
               >
                 Mínimo (~15%)
               </Button>
             </div>
             {isParcial && (
               <p className="text-xs text-warning">
-                ⚠ Pagamento parcial: as transações da fatura continuarão pendentes. Restarão {formatCurrency(valorFatura - valorPago)}.
+                ⚠ Pagamento parcial: as transações da fatura continuarão pendentes. Restarão {formatCurrency(valorBaseFatura - valorPago)}.
               </p>
             )}
           </div>

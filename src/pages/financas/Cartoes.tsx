@@ -248,6 +248,10 @@ const Cartoes = () => {
   const signedValue = (t: Transacao) =>
     t.tipo === "receita" ? -Number(t.valor) : Number(t.valor);
 
+  const cents = (value: number) => Math.round(value * 100);
+  const hasAmount = (value: number) => cents(value) > 0;
+  const affectsInvoiceBalance = (t: Transacao) => t.tipo === "receita" || t.is_pago_executado !== true;
+
   const getTransacoesCiclo = (cartaoId: string, inicio: string, fim: string) => {
     return transacoes
       .filter(t => {
@@ -271,9 +275,10 @@ const Cartoes = () => {
     const isForced = forceClose[cartao.id] || false;
     const { fechada } = getFaturasInfo(cartao, new Date(), isForced);
     const transacoesCiclo = getTransacoesCiclo(cartao.id, fechada.inicio, fechada.fim);
-    return transacoesCiclo
-      .filter(t => t.is_pago_executado !== true)
+    const total = transacoesCiclo
+      .filter(affectsInvoiceBalance)
       .reduce((acc, t) => acc + signedValue(t), 0);
+    return Math.max(0, total);
   };
 
   const getFaturasAnterioresNaoPagas = (cartao: Conta) => {
@@ -283,7 +288,7 @@ const Cartoes = () => {
       .filter(t => {
         if (t.conta_id !== cartao.id) return false;
         const dataCompetencia = getDataCompetencia(t);
-        return dataCompetencia < fechada.inicio && t.is_pago_executado !== true;
+        return dataCompetencia < fechada.inicio && affectsInvoiceBalance(t);
       })
       .reduce((acc, t) => acc + signedValue(t), 0);
   };
@@ -300,8 +305,8 @@ const Cartoes = () => {
 
   const getSaldoDevedor = (cartaoId: string) => {
     return transacoes
-      .filter(t => t.conta_id === cartaoId && t.is_pago_executado !== true)
-      .reduce((acc, t) => acc + signedValue(t), 0);
+      .filter(t => t.conta_id === cartaoId && affectsInvoiceBalance(t))
+      .reduce((acc, t) => Math.max(0, acc + signedValue(t)), 0);
   };
 
   // Detects whether a closed invoice has a "Crédito de Ajuste" — i.e. it was parceled.
@@ -437,13 +442,13 @@ const Cartoes = () => {
     // Collect every pending row (closed cycle + earlier unpaid) so the
     // modal can mark exactly these as executed.
     const idsCiclo = getTransacoesCiclo(cartao.id, fechada.inicio, fechada.fim)
-      .filter((t) => t.is_pago_executado !== true)
+      .filter((t) => t.tipo === "despesa" && t.is_pago_executado !== true)
       .map((t) => t.id);
     const idsAnteriores = transacoes
       .filter((t) => {
         if (t.conta_id !== cartao.id) return false;
         const dataCompetencia = getDataCompetencia(t);
-        return dataCompetencia < fechada.inicio && t.is_pago_executado !== true;
+        return dataCompetencia < fechada.inicio && t.tipo === "despesa" && t.is_pago_executado !== true;
       })
       .map((t) => t.id);
 
@@ -468,14 +473,14 @@ const Cartoes = () => {
     // So we recalculate with forceClose = true
     const { fechada } = getFaturasInfo(cartao, new Date(), true);
     const transacoesCiclo = getTransacoesCiclo(cartao.id, fechada.inicio, fechada.fim);
-    const pendentesCiclo = transacoesCiclo.filter((t) => t.is_pago_executado !== true);
+    const pendentesCiclo = transacoesCiclo.filter((t) => t.tipo === "despesa" && t.is_pago_executado !== true);
     const valor = pendentesCiclo.reduce((acc, t) => acc + signedValue(t), 0);
     const faturasAnteriores = getFaturasAnterioresNaoPagas(cartao);
     const idsAnteriores = transacoes
       .filter((t) => {
         if (t.conta_id !== cartao.id) return false;
         const dataCompetencia = getDataCompetencia(t);
-        return dataCompetencia < fechada.inicio && t.is_pago_executado !== true;
+        return dataCompetencia < fechada.inicio && t.tipo === "despesa" && t.is_pago_executado !== true;
       })
       .map((t) => t.id);
 
@@ -506,7 +511,7 @@ const Cartoes = () => {
     }
 
     const idsCiclo = getTransacoesCiclo(cartao.id, aberta.inicio, aberta.fim)
-      .filter((t) => t.is_pago_executado !== true)
+      .filter((t) => t.tipo === "despesa" && t.is_pago_executado !== true)
       .map((t) => t.id);
 
     setFaturaModal({
@@ -537,6 +542,8 @@ const Cartoes = () => {
         .filter(t => t.tipo === "despesa" && t.is_pago_executado !== true)
         .reduce((acc, t) => acc + Number(t.valor), 0);
       const valorPendente = Math.max(0, despesasPendentes - pagamentosFatura);
+      const estaPaga = cents(valorPendente) <= 0;
+      const pagamentoParcial = !estaPaga && cents(valorPago) > 0;
 
       return {
         mesReferencia: ciclo.mesReferencia,
@@ -544,6 +551,8 @@ const Cartoes = () => {
         valorFechado,
         valorPago,
         valorPendente,
+        estaPaga,
+        pagamentoParcial,
         qtdTransacoes: transacoesCiclo.length,
       };
     }).filter(h => h.qtdTransacoes > 0 || h.valorFechado > 0);
@@ -678,8 +687,8 @@ const Cartoes = () => {
 
                         {/* Fatura Fechada */}
                         {(() => {
-                          const pendentes = transacoesFechada.filter(t => t.is_pago_executado !== true);
-                          const todasPagas = transacoesFechada.length > 0 && pendentes.length === 0 && faturasAnteriores === 0;
+                          const pendentes = transacoesFechada.filter(t => t.tipo === "despesa" && t.is_pago_executado !== true);
+                          const todasPagas = transacoesFechada.length > 0 && pendentes.length === 0 && !hasAmount(faturasAnteriores) && !hasAmount(totalFechada);
                           const semTransacoes = transacoesFechada.length === 0 && faturasAnteriores === 0;
                           const isPaga = todasPagas || semTransacoes;
                           const foiParcelada = faturaFoiParcelada(cartao);
@@ -719,7 +728,7 @@ const Cartoes = () => {
                                       </TooltipContent>
                                     </Tooltip>
                                   </div>
-                                  <p className={`text-lg font-bold ${isPaga ? "text-success" : totalFechada > 0 ? "text-warning" : "text-success"}`}>
+                                  <p className={`text-lg font-bold ${isPaga ? "text-success" : hasAmount(totalFechada) ? "text-warning" : "text-success"}`}>
                                     {formatCurrency(totalFechada)}
                                   </p>
                                   {faturasAnteriores > 0 && (
@@ -729,7 +738,7 @@ const Cartoes = () => {
                                   )}
                                 </div>
                                 <div className="flex gap-1">
-                                  {totalFechada > 0 && (
+                                  {!isPaga && hasAmount(totalFechada) && (
                                     <>
                                       <Button
                                         size="sm"
@@ -762,7 +771,7 @@ const Cartoes = () => {
                                       </Button>
                                     </>
                                   )}
-                                  {!isPaga && totalFechada === 0 && pendentes.length > 0 && (
+                                  {!isPaga && !hasAmount(totalFechada) && pendentes.length > 0 && (
                                     <Button
                                       size="sm"
                                       variant="outline"
@@ -967,11 +976,11 @@ const Cartoes = () => {
                                       {formatCurrency(item.valorPendente)}
                                     </TableCell>
                                     <TableCell className="text-center">
-                                      {item.valorPendente <= 0 ? (
+                                      {item.estaPaga ? (
                                         <Badge className="bg-success/20 text-success border-success/30 hover:bg-success/30">
                                           Paga
                                         </Badge>
-                                      ) : item.valorPago > 0 ? (
+                                      ) : item.pagamentoParcial ? (
                                         <Badge variant="outline" className="border-warning text-warning">
                                           Parcial
                                         </Badge>
@@ -1006,6 +1015,7 @@ const Cartoes = () => {
         vencimentoFatura={faturaModal.vencimentoFatura}
         contasDisponiveis={todasContas.filter(c => c.tipo !== "credito")}
         transacaoIds={faturaModal.transacaoIds}
+        valorQuitacao={faturaModal.valorFatura}
         mesReferencia={faturaModal.mesReferencia}
       />
 
