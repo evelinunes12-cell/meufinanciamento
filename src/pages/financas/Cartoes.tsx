@@ -442,13 +442,13 @@ const Cartoes = () => {
     // Collect every pending row (closed cycle + earlier unpaid) so the
     // modal can mark exactly these as executed.
     const idsCiclo = getTransacoesCiclo(cartao.id, fechada.inicio, fechada.fim)
-      .filter((t) => t.is_pago_executado !== true)
+      .filter((t) => t.tipo === "despesa" && t.is_pago_executado !== true)
       .map((t) => t.id);
     const idsAnteriores = transacoes
       .filter((t) => {
         if (t.conta_id !== cartao.id) return false;
         const dataCompetencia = getDataCompetencia(t);
-        return dataCompetencia < fechada.inicio && t.is_pago_executado !== true;
+        return dataCompetencia < fechada.inicio && t.tipo === "despesa" && t.is_pago_executado !== true;
       })
       .map((t) => t.id);
 
@@ -473,14 +473,14 @@ const Cartoes = () => {
     // So we recalculate with forceClose = true
     const { fechada } = getFaturasInfo(cartao, new Date(), true);
     const transacoesCiclo = getTransacoesCiclo(cartao.id, fechada.inicio, fechada.fim);
-    const pendentesCiclo = transacoesCiclo.filter((t) => t.is_pago_executado !== true);
+    const pendentesCiclo = transacoesCiclo.filter((t) => t.tipo === "despesa" && t.is_pago_executado !== true);
     const valor = pendentesCiclo.reduce((acc, t) => acc + signedValue(t), 0);
     const faturasAnteriores = getFaturasAnterioresNaoPagas(cartao);
     const idsAnteriores = transacoes
       .filter((t) => {
         if (t.conta_id !== cartao.id) return false;
         const dataCompetencia = getDataCompetencia(t);
-        return dataCompetencia < fechada.inicio && t.is_pago_executado !== true;
+        return dataCompetencia < fechada.inicio && t.tipo === "despesa" && t.is_pago_executado !== true;
       })
       .map((t) => t.id);
 
@@ -511,7 +511,7 @@ const Cartoes = () => {
     }
 
     const idsCiclo = getTransacoesCiclo(cartao.id, aberta.inicio, aberta.fim)
-      .filter((t) => t.is_pago_executado !== true)
+      .filter((t) => t.tipo === "despesa" && t.is_pago_executado !== true)
       .map((t) => t.id);
 
     setFaturaModal({
