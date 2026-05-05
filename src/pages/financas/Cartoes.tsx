@@ -687,8 +687,8 @@ const Cartoes = () => {
 
                         {/* Fatura Fechada */}
                         {(() => {
-                          const pendentes = transacoesFechada.filter(t => t.is_pago_executado !== true);
-                          const todasPagas = transacoesFechada.length > 0 && pendentes.length === 0 && faturasAnteriores === 0;
+                          const pendentes = transacoesFechada.filter(t => t.tipo === "despesa" && t.is_pago_executado !== true);
+                          const todasPagas = transacoesFechada.length > 0 && pendentes.length === 0 && !hasAmount(faturasAnteriores) && !hasAmount(totalFechada);
                           const semTransacoes = transacoesFechada.length === 0 && faturasAnteriores === 0;
                           const isPaga = todasPagas || semTransacoes;
                           const foiParcelada = faturaFoiParcelada(cartao);
@@ -728,7 +728,7 @@ const Cartoes = () => {
                                       </TooltipContent>
                                     </Tooltip>
                                   </div>
-                                  <p className={`text-lg font-bold ${isPaga ? "text-success" : totalFechada > 0 ? "text-warning" : "text-success"}`}>
+                                  <p className={`text-lg font-bold ${isPaga ? "text-success" : hasAmount(totalFechada) ? "text-warning" : "text-success"}`}>
                                     {formatCurrency(totalFechada)}
                                   </p>
                                   {faturasAnteriores > 0 && (
@@ -738,7 +738,7 @@ const Cartoes = () => {
                                   )}
                                 </div>
                                 <div className="flex gap-1">
-                                  {totalFechada > 0 && (
+                                  {!isPaga && hasAmount(totalFechada) && (
                                     <>
                                       <Button
                                         size="sm"
@@ -771,7 +771,7 @@ const Cartoes = () => {
                                       </Button>
                                     </>
                                   )}
-                                  {!isPaga && totalFechada === 0 && pendentes.length > 0 && (
+                                  {!isPaga && !hasAmount(totalFechada) && pendentes.length > 0 && (
                                     <Button
                                       size="sm"
                                       variant="outline"
