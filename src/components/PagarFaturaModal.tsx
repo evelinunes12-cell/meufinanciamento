@@ -48,6 +48,11 @@ interface PagarFaturaModalProps {
    */
   transacaoIds?: string[];
   /**
+   * Amount that represents the invoice being settled. This can differ from
+   * broader card balances when the next invoice already has open charges.
+   */
+  valorQuitacao?: number;
+  /**
    * Invoice reference month in 'YYYY-MM' format. When provided, the payment
    * income transaction created on the credit-card account is anchored to this
    * cycle via mes_fatura_override, so it shows up in the paid invoice's
@@ -65,6 +70,7 @@ const PagarFaturaModal = ({
   vencimentoFatura,
   contasDisponiveis = [],
   transacaoIds,
+  valorQuitacao,
   mesReferencia,
 }: PagarFaturaModalProps) => {
   const { user } = useAuth();
@@ -73,12 +79,14 @@ const PagarFaturaModal = ({
   const [valorPagamento, setValorPagamento] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const valorBaseFatura = Math.max(0, valorQuitacao ?? valorFatura);
+
   // Reset valor when modal opens
   useEffect(() => {
     if (open) {
-      setValorPagamento(valorFatura.toFixed(2).replace(".", ","));
+      setValorPagamento(valorBaseFatura.toFixed(2).replace(".", ","));
     }
-  }, [open, valorFatura]);
+  }, [open, valorBaseFatura]);
 
   // Filter only accounts that can be used as payment origin
   const contasValidas = contasDisponiveis.filter(
@@ -94,7 +102,7 @@ const PagarFaturaModal = ({
   // (e.g. somas de numeric do banco podem gerar 0.30000000004).
   const cents = (n: number) => Math.round(n * 100);
   const valorPagoCents = cents(valorPago);
-  const valorFaturaCents = cents(valorFatura);
+  const valorFaturaCents = cents(valorBaseFatura);
   const isParcial = valorPagoCents > 0 && valorPagoCents < valorFaturaCents;
   const isTotal = valorPagoCents >= valorFaturaCents;
 
