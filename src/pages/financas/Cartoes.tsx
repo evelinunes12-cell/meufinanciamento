@@ -248,6 +248,10 @@ const Cartoes = () => {
   const signedValue = (t: Transacao) =>
     t.tipo === "receita" ? -Number(t.valor) : Number(t.valor);
 
+  const cents = (value: number) => Math.round(value * 100);
+  const hasAmount = (value: number) => cents(value) > 0;
+  const affectsInvoiceBalance = (t: Transacao) => t.tipo === "receita" || t.is_pago_executado !== true;
+
   const getTransacoesCiclo = (cartaoId: string, inicio: string, fim: string) => {
     return transacoes
       .filter(t => {
@@ -271,9 +275,10 @@ const Cartoes = () => {
     const isForced = forceClose[cartao.id] || false;
     const { fechada } = getFaturasInfo(cartao, new Date(), isForced);
     const transacoesCiclo = getTransacoesCiclo(cartao.id, fechada.inicio, fechada.fim);
-    return transacoesCiclo
-      .filter(t => t.is_pago_executado !== true)
+    const total = transacoesCiclo
+      .filter(affectsInvoiceBalance)
       .reduce((acc, t) => acc + signedValue(t), 0);
+    return Math.max(0, total);
   };
 
   const getFaturasAnterioresNaoPagas = (cartao: Conta) => {
@@ -283,7 +288,7 @@ const Cartoes = () => {
       .filter(t => {
         if (t.conta_id !== cartao.id) return false;
         const dataCompetencia = getDataCompetencia(t);
-        return dataCompetencia < fechada.inicio && t.is_pago_executado !== true;
+        return dataCompetencia < fechada.inicio && affectsInvoiceBalance(t);
       })
       .reduce((acc, t) => acc + signedValue(t), 0);
   };
@@ -300,8 +305,8 @@ const Cartoes = () => {
 
   const getSaldoDevedor = (cartaoId: string) => {
     return transacoes
-      .filter(t => t.conta_id === cartaoId && t.is_pago_executado !== true)
-      .reduce((acc, t) => acc + signedValue(t), 0);
+      .filter(t => t.conta_id === cartaoId && affectsInvoiceBalance(t))
+      .reduce((acc, t) => Math.max(0, acc + signedValue(t)), 0);
   };
 
   // Detects whether a closed invoice has a "Crédito de Ajuste" — i.e. it was parceled.
