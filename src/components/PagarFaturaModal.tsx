@@ -224,7 +224,7 @@ const PagarFaturaModal = ({
         // Pagamento parcial: não quita as transações individuais
         toast({
           title: "Pagamento parcial registrado",
-          description: `${formatCurrency(valorPago)} de ${formatCurrency(valorFatura)} pago. Restam ${formatCurrency(valorFatura - valorPago)}.`,
+          description: `${formatCurrency(valorPago)} de ${formatCurrency(valorBaseFatura)} pago. Restam ${formatCurrency(valorBaseFatura - valorPago)}.`,
         });
       }
 
@@ -264,7 +264,7 @@ const PagarFaturaModal = ({
         <div className="space-y-4 py-4">
           <div className="p-4 bg-muted/50 rounded-lg">
             <p className="text-sm text-muted-foreground">Valor Total da Fatura</p>
-            <p className="text-2xl font-bold text-foreground">{formatCurrency(valorFatura)}</p>
+            <p className="text-2xl font-bold text-foreground">{formatCurrency(valorBaseFatura)}</p>
             {vencimentoFatura && (
               <p className="text-xs text-muted-foreground mt-1">
                 Vencimento: {format(new Date(vencimentoFatura + "T12:00:00"), "dd/MM/yyyy")}
@@ -299,7 +299,7 @@ const PagarFaturaModal = ({
                 variant="outline"
                 size="sm"
                 className="text-xs"
-                onClick={() => setValorPagamento(valorFatura.toFixed(2).replace(".", ","))}
+                onClick={() => setValorPagamento(valorBaseFatura.toFixed(2).replace(".", ","))}
               >
                 Valor total
               </Button>
@@ -308,14 +308,14 @@ const PagarFaturaModal = ({
                 variant="outline"
                 size="sm"
                 className="text-xs"
-                onClick={() => setValorPagamento((valorFatura * 0.15).toFixed(2).replace(".", ","))}
+                onClick={() => setValorPagamento((valorBaseFatura * 0.15).toFixed(2).replace(".", ","))}
               >
                 Mínimo (~15%)
               </Button>
             </div>
             {isParcial && (
               <p className="text-xs text-warning">
-                ⚠ Pagamento parcial: as transações da fatura continuarão pendentes. Restarão {formatCurrency(valorFatura - valorPago)}.
+                ⚠ Pagamento parcial: as transações da fatura continuarão pendentes. Restarão {formatCurrency(valorBaseFatura - valorPago)}.
               </p>
             )}
           </div>
