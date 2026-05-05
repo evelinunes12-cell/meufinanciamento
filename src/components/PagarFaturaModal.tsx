@@ -90,8 +90,13 @@ const PagarFaturaModal = ({
   };
 
   const valorPago = parseValor(valorPagamento);
-  const isParcial = valorPago > 0 && valorPago < valorFatura;
-  const isTotal = valorPago >= valorFatura;
+  // Compare in integer cents to avoid floating-point precision issues
+  // (e.g. somas de numeric do banco podem gerar 0.30000000004).
+  const cents = (n: number) => Math.round(n * 100);
+  const valorPagoCents = cents(valorPago);
+  const valorFaturaCents = cents(valorFatura);
+  const isParcial = valorPagoCents > 0 && valorPagoCents < valorFaturaCents;
+  const isTotal = valorPagoCents >= valorFaturaCents;
 
   const handlePagarFatura = async () => {
     if (!contaOrigem) {
