@@ -715,9 +715,7 @@ const DashboardFinancas = () => {
                     </ResponsiveContainer>
                     {renderLegendList(
                       receitasPorCategoria,
-                      categoryViewMode === "main"
-                        ? (item) => item.categoriaId && setDrilldown({ tipo: "receita", categoriaId: item.categoriaId })
-                        : undefined,
+                      (item) => item.categoriaId && setDrilldown({ tipo: "receita", categoriaId: item.categoriaId }),
                     )}
                   </div>
                 ) : (
