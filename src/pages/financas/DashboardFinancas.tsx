@@ -621,18 +621,7 @@ const DashboardFinancas = () => {
           {visibility.graficoCategoria && (
             <Card className="shadow-card">
               <CardHeader className="pb-2">
-                <div className="flex items-center justify-between gap-4">
-                  <CardTitle className="text-base">Despesas por Categoria</CardTitle>
-                  <Select value={categoryViewMode} onValueChange={(v) => setCategoryViewMode(v as "main" | "sub")}>
-                    <SelectTrigger className="w-[180px] h-8 text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="main">Categorias Principais</SelectItem>
-                      <SelectItem value="sub">Subcategorias</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                <CardTitle className="text-base">Despesas por Categoria</CardTitle>
               </CardHeader>
               <CardContent>
                 {despesasPorCategoria.length > 0 ? (
