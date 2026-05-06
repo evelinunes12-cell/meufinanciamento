@@ -1118,6 +1118,10 @@ const Transacoes = () => {
             setFilters(newFilters);
             setCurrentPage(1);
           }}
+          onResetToDefault={() => {
+            setFilters(getInitialFilterState());
+            setCurrentPage(1);
+          }}
           categorias={categorias}
           contas={contas}
           showTipo
