@@ -94,7 +94,7 @@ const DashboardFinancas = () => {
   const { visibility, setVisibility } = useWidgetVisibility();
   const storageKey = useMemo(() => `dashboard-financas-filters-${user?.id || "anon"}`, [user?.id]);
   const [filters, setFilters] = useState<FilterState>(getInitialFilterState);
-  const [categoryViewMode, setCategoryViewMode] = useState<"main" | "sub">("main");
+  
   const [saldoContasMode, setSaldoContasMode] = useState<"total" | "mes">("total");
   const [drilldown, setDrilldown] = useState<{ tipo: "despesa" | "receita"; categoriaId: string } | null>(null);
 
