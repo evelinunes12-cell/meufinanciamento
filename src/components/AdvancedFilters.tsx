@@ -224,17 +224,24 @@ export const AdvancedFilters = ({
             </Popover>
           </>
         )}
-        {onResetToDefault && (
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={onResetToDefault}
-            aria-label="Restaurar filtro padrão"
-            title="Restaurar filtro padrão"
-          >
-            <RotateCcw className="h-4 w-4" />
-          </Button>
-        )}
+        {onResetToDefault && (() => {
+          const isModified = !isFilterAtDefault(filters);
+          return (
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={onResetToDefault}
+              aria-label="Restaurar filtro padrão"
+              title={isModified ? "Filtros alterados — clique para restaurar o padrão" : "Restaurar filtro padrão"}
+              className="relative"
+            >
+              <RotateCcw className="h-4 w-4" />
+              {isModified && (
+                <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-primary" />
+              )}
+            </Button>
+          );
+        })()}
       </div>
 
       {/* Advanced Filters Collapsible */}
