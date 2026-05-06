@@ -636,9 +636,9 @@ const DashboardFinancas = () => {
                         outerRadius={100}
                         paddingAngle={2}
                         dataKey="value"
-                        cursor={categoryViewMode === "main" ? "pointer" : "default"}
+                        cursor={"pointer"}
                         onClick={(d: any) => {
-                          if (categoryViewMode === "main" && d?.categoriaId) {
+                          if (d?.categoriaId) {
                             setDrilldown({ tipo: "despesa", categoriaId: d.categoriaId });
                           }
                         }}
@@ -701,9 +701,9 @@ const DashboardFinancas = () => {
                           outerRadius={100}
                           paddingAngle={2}
                           dataKey="value"
-                          cursor={categoryViewMode === "main" ? "pointer" : "default"}
+                          cursor={"pointer"}
                           onClick={(d: any) => {
-                            if (categoryViewMode === "main" && d?.categoriaId) {
+                            if (d?.categoriaId) {
                               setDrilldown({ tipo: "receita", categoriaId: d.categoriaId });
                             }
                           }}
