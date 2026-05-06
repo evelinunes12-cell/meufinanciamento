@@ -437,6 +437,23 @@ export const getInitialFilterState = (): FilterState => {
   };
 };
 
+export const isFilterAtDefault = (filters: FilterState): boolean => {
+  const def = getInitialFilterState();
+  return (
+    filters.filterMode === def.filterMode &&
+    filters.filterMes === def.filterMes &&
+    filters.filterAno === def.filterAno &&
+    !filters.dataInicial &&
+    !filters.dataFinal &&
+    !filters.tipo &&
+    !filters.categoriaId &&
+    !filters.subcategoriaId &&
+    !filters.contaId &&
+    !filters.formaPagamento &&
+    !filters.statusPagamento
+  );
+};
+
 // Helper function to get all category IDs (parent + children) for filtering
 export const getCategoryIdsForFilter = (
   categoriaId: string | undefined, 
