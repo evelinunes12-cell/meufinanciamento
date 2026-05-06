@@ -245,6 +245,7 @@ const Relatorios = () => {
         <AdvancedFilters
           filters={filters}
           onFiltersChange={setFilters}
+          onResetToDefault={() => setFilters(getInitialFilterState())}
           categorias={categorias}
           contas={contas}
           showTipo
