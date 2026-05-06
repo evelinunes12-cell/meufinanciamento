@@ -669,9 +669,7 @@ const DashboardFinancas = () => {
                     </ResponsiveContainer>
                     {renderLegendList(
                       despesasPorCategoria,
-                      categoryViewMode === "main"
-                        ? (item) => item.categoriaId && setDrilldown({ tipo: "despesa", categoriaId: item.categoriaId })
-                        : undefined,
+                      (item) => item.categoriaId && setDrilldown({ tipo: "despesa", categoriaId: item.categoriaId }),
                     )}
                   </div>
                 ) : (
