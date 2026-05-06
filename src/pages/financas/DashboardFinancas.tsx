@@ -252,57 +252,31 @@ const DashboardFinancas = () => {
   const mainCategoriasDesp = categorias.filter(c => c.tipo === "despesa" && !c.categoria_pai_id);
   const getSubcategoriaIds = (mainId: string) => categorias.filter(c => c.categoria_pai_id === mainId).map(c => c.id);
 
-  // Pie chart data based on view mode
-  const despesasPorCategoria = (categoryViewMode === "main"
-    ? mainCategoriasDesp
-        .map(cat => {
-          const subcatIds = getSubcategoriaIds(cat.id);
-          const allCategoryIds = [cat.id, ...subcatIds];
-          const total = transacoesValidas
-            .filter(t => t.categoria_id && allCategoryIds.includes(t.categoria_id) && t.tipo === "despesa")
-            .reduce((acc, t) => acc + Number(t.valor), 0);
-          return { name: cat.nome, value: total, color: cat.cor, categoriaId: cat.id };
-        })
-        .filter(item => item.value > 0)
-    : categorias
-        .filter(c => c.tipo === "despesa" && !!c.categoria_pai_id)
-        .map(cat => {
-          const total = transacoesValidas
-            .filter(t => t.categoria_id === cat.id && t.tipo === "despesa")
-            .reduce((acc, t) => acc + Number(t.valor), 0);
-          const parentCat = cat.categoria_pai_id 
-            ? categorias.find(c => c.id === cat.categoria_pai_id) 
-            : null;
-          const displayName = parentCat ? `${parentCat.nome} > ${cat.nome}` : cat.nome;
-          return { name: displayName, value: total, color: cat.cor, categoriaId: cat.id };
-        })
-        .filter(item => item.value > 0)
-  ).sort((a, b) => b.value - a.value);
+  // Pie chart data: only main categories (subcategories aggregated into parent)
+  const despesasPorCategoria = mainCategoriasDesp
+    .map(cat => {
+      const subcatIds = getSubcategoriaIds(cat.id);
+      const allCategoryIds = [cat.id, ...subcatIds];
+      const total = transacoesValidas
+        .filter(t => t.categoria_id && allCategoryIds.includes(t.categoria_id) && t.tipo === "despesa")
+        .reduce((acc, t) => acc + Number(t.valor), 0);
+      return { name: cat.nome, value: total, color: cat.cor, categoriaId: cat.id };
+    })
+    .filter(item => item.value > 0)
+    .sort((a, b) => b.value - a.value);
 
-  const receitasPorCategoria = (categoryViewMode === "main"
-    ? categorias
-        .filter(c => c.tipo === "receita" && !c.categoria_pai_id)
-        .map(cat => {
-          const subcatIds = getSubcategoriaIds(cat.id);
-          const allCategoryIds = [cat.id, ...subcatIds];
-          const total = transacoesValidas
-            .filter(t => t.categoria_id && allCategoryIds.includes(t.categoria_id) && t.tipo === "receita")
-            .reduce((acc, t) => acc + Number(t.valor), 0);
-          return { name: cat.nome, value: total, color: cat.cor, categoriaId: cat.id };
-        })
-        .filter(item => item.value > 0)
-    : categorias
-        .filter(c => c.tipo === "receita" && !!c.categoria_pai_id)
-        .map(cat => {
-          const total = transacoesValidas
-            .filter(t => t.categoria_id === cat.id && t.tipo === "receita")
-            .reduce((acc, t) => acc + Number(t.valor), 0);
-          const parentCat = cat.categoria_pai_id ? categorias.find(c => c.id === cat.categoria_pai_id) : null;
-          const displayName = parentCat ? `${parentCat.nome} > ${cat.nome}` : cat.nome;
-          return { name: displayName, value: total, color: cat.cor, categoriaId: cat.id };
-        })
-        .filter(item => item.value > 0)
-  ).sort((a, b) => b.value - a.value);
+  const receitasPorCategoria = categorias
+    .filter(c => c.tipo === "receita" && !c.categoria_pai_id)
+    .map(cat => {
+      const subcatIds = getSubcategoriaIds(cat.id);
+      const allCategoryIds = [cat.id, ...subcatIds];
+      const total = transacoesValidas
+        .filter(t => t.categoria_id && allCategoryIds.includes(t.categoria_id) && t.tipo === "receita")
+        .reduce((acc, t) => acc + Number(t.valor), 0);
+      return { name: cat.nome, value: total, color: cat.cor, categoriaId: cat.id };
+    })
+    .filter(item => item.value > 0)
+    .sort((a, b) => b.value - a.value);
 
   // Drilldown: subcategorias + lançamentos da categoria principal selecionada
   const drilldownData = useMemo(() => {
