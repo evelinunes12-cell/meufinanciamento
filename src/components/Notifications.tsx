@@ -200,6 +200,22 @@ const Notifications = () => {
     refetchOnMount: true,
   });
 
+  // Fetch user profile to detect incomplete data
+  const { data: profile } = useQuery({
+    queryKey: ["profile", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data } = await supabase
+        .from("profiles")
+        .select("nome, celular")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!user?.id,
+    staleTime: 5 * 60 * 1000,
+  });
+
   const allNotifications = useMemo(() => {
     const hoje = startOfDay(new Date());
     const limite = startOfDay(addDays(hoje, 3));
@@ -385,14 +401,30 @@ const Notifications = () => {
       });
     }
 
+    // --- Alerta de perfil incompleto (nome/celular) ---
+    const alertasPerfil: Notificacao[] = [];
+    if (user?.id && profile !== undefined) {
+      const nomeOk = !!profile?.nome?.trim();
+      const celularOk = !!profile?.celular?.trim();
+      if (!nomeOk || !celularOk) {
+        alertasPerfil.push({
+          id: `perfil-incompleto-${user.id}`,
+          message: "👤 Complete seu cadastro: informe seu nome e celular em Configurações.",
+          dateTag: "perfil",
+          route: "/financas/configuracoes#perfil",
+        });
+      }
+    }
+
     return [
+      ...alertasPerfil,
       ...alertasParcelas,
       ...alertasDespesas,
       ...alertasFatura,
       ...alertasOrcamento,
       ...alertasQuinzenal,
     ].sort((a, b) => a.dateTag.localeCompare(b.dateTag));
-  }, [contas, transacoes, categorias, orcamentos, parcelasComContrato, lembreteQuinzenalDismissedAt]);
+  }, [contas, transacoes, categorias, orcamentos, parcelasComContrato, lembreteQuinzenalDismissedAt, profile, user?.id]);
 
   const notifications = useMemo(
     () => allNotifications.filter((n) => !dismissed.has(n.id)),

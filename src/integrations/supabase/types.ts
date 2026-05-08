@@ -309,6 +309,33 @@ export type Database = {
           },
         ]
       }
+      profiles: {
+        Row: {
+          celular: string | null
+          created_at: string
+          id: string
+          nome: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          celular?: string | null
+          created_at?: string
+          id?: string
+          nome?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          celular?: string | null
+          created_at?: string
+          id?: string
+          nome?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       transacoes: {
         Row: {
           categoria_id: string | null

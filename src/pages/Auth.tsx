@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Loader2, Mail, Lock, LogIn, UserPlus, Eye, EyeOff } from "lucide-react";
+import { Loader2, Mail, Lock, LogIn, UserPlus, Eye, EyeOff, User as UserIcon, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -19,14 +19,26 @@ const authSchema = z.object({
   password: z.string().min(6, "A senha deve ter pelo menos 6 caracteres"),
 });
 
+const signupSchema = authSchema.extend({
+  nome: z.string().trim().min(2, "Informe seu nome").max(100, "Nome muito longo"),
+  celular: z
+    .string()
+    .trim()
+    .min(10, "Celular inválido")
+    .max(20, "Celular inválido")
+    .regex(/^[0-9()+\-\s]+$/, "Use apenas números e símbolos válidos"),
+});
+
 const Auth = () => {
   const navigate = useNavigate();
   const { user, isLoading: authLoading, signIn, signUp } = useAuth();
   
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [nome, setNome] = useState("");
+  const [celular, setCelular] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [errors, setErrors] = useState<{ email?: string; password?: string; nome?: string; celular?: string }>({});
   const [showPassword, setShowPassword] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
@@ -87,10 +99,10 @@ const Auth = () => {
     }
   };
 
-  const validateForm = () => {
+  const validateLogin = () => {
     const result = authSchema.safeParse({ email, password });
     if (!result.success) {
-      const fieldErrors: { email?: string; password?: string } = {};
+      const fieldErrors: typeof errors = {};
       result.error.errors.forEach((err) => {
         if (err.path[0] === "email") fieldErrors.email = err.message;
         if (err.path[0] === "password") fieldErrors.password = err.message;
@@ -102,9 +114,24 @@ const Auth = () => {
     return true;
   };
 
+  const validateSignup = () => {
+    const result = signupSchema.safeParse({ email, password, nome, celular });
+    if (!result.success) {
+      const fieldErrors: typeof errors = {};
+      result.error.errors.forEach((err) => {
+        const k = err.path[0] as keyof typeof errors;
+        if (k) fieldErrors[k] = err.message;
+      });
+      setErrors(fieldErrors);
+      return false;
+    }
+    setErrors({});
+    return true;
+  };
+
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateForm()) return;
+    if (!validateLogin()) return;
 
     setIsLoading(true);
     const { error } = await signIn(email, password);
@@ -129,10 +156,10 @@ const Auth = () => {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateForm()) return;
+    if (!validateSignup()) return;
 
     setIsLoading(true);
-    const { error } = await signUp(email, password);
+    const { error } = await signUp(email, password, { nome: nome.trim(), celular: celular.trim() });
     setIsLoading(false);
 
     if (error) {
@@ -259,6 +286,42 @@ const Auth = () => {
             
             <TabsContent value="signup">
               <form onSubmit={handleSignUp} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="signup-nome">Nome completo</Label>
+                  <div className="relative">
+                    <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="signup-nome"
+                      type="text"
+                      placeholder="Seu nome"
+                      value={nome}
+                      onChange={(e) => setNome(e.target.value)}
+                      className="pl-10"
+                      required
+                    />
+                  </div>
+                  {errors.nome && (
+                    <p className="text-sm text-destructive">{errors.nome}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="signup-celular">Celular</Label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="signup-celular"
+                      type="tel"
+                      placeholder="(11) 99999-9999"
+                      value={celular}
+                      onChange={(e) => setCelular(e.target.value)}
+                      className="pl-10"
+                      required
+                    />
+                  </div>
+                  {errors.celular && (
+                    <p className="text-sm text-destructive">{errors.celular}</p>
+                  )}
+                </div>
                 <div className="space-y-2">
                   <Label htmlFor="signup-email">Email</Label>
                   <div className="relative">
