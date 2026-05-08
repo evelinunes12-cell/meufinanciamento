@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Loader2, Mail, Lock, LogIn, UserPlus, Eye, EyeOff } from "lucide-react";
+import { Loader2, Mail, Lock, LogIn, UserPlus, Eye, EyeOff, User as UserIcon, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -17,6 +17,16 @@ import { supabase } from "@/integrations/supabase/client";
 const authSchema = z.object({
   email: z.string().email("Email inválido"),
   password: z.string().min(6, "A senha deve ter pelo menos 6 caracteres"),
+});
+
+const signupSchema = authSchema.extend({
+  nome: z.string().trim().min(2, "Informe seu nome").max(100, "Nome muito longo"),
+  celular: z
+    .string()
+    .trim()
+    .min(10, "Celular inválido")
+    .max(20, "Celular inválido")
+    .regex(/^[0-9()+\-\s]+$/, "Use apenas números e símbolos válidos"),
 });
 
 const Auth = () => {
