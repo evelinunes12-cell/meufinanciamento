@@ -287,6 +287,42 @@ const Auth = () => {
             <TabsContent value="signup">
               <form onSubmit={handleSignUp} className="space-y-4">
                 <div className="space-y-2">
+                  <Label htmlFor="signup-nome">Nome completo</Label>
+                  <div className="relative">
+                    <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="signup-nome"
+                      type="text"
+                      placeholder="Seu nome"
+                      value={nome}
+                      onChange={(e) => setNome(e.target.value)}
+                      className="pl-10"
+                      required
+                    />
+                  </div>
+                  {errors.nome && (
+                    <p className="text-sm text-destructive">{errors.nome}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="signup-celular">Celular</Label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="signup-celular"
+                      type="tel"
+                      placeholder="(11) 99999-9999"
+                      value={celular}
+                      onChange={(e) => setCelular(e.target.value)}
+                      className="pl-10"
+                      required
+                    />
+                  </div>
+                  {errors.celular && (
+                    <p className="text-sm text-destructive">{errors.celular}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
                   <Label htmlFor="signup-email">Email</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
