@@ -812,9 +812,19 @@ const Transacoes = () => {
         return filters.statusPagamento === "pago" ? isPago : !isPago;
       });
     }
+
+    // Search filter by description and category
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      result = result.filter(t => {
+        const desc = (t.descricao || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const catName = (getCategoriaNome(t.categoria_id) || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        return desc.includes(term) || catName.includes(term);
+      });
+    }
     
     return result;
-  }, [data?.transacoes, data?.contas, data?.categorias, startDate, endDate, filters.tipo, filters.categoriaId, filters.subcategoriaId, filters.contaId, filters.formaPagamento, filters.statusPagamento]);
+  }, [data?.transacoes, data?.contas, data?.categorias, startDate, endDate, filters.tipo, filters.categoriaId, filters.subcategoriaId, filters.contaId, filters.formaPagamento, filters.statusPagamento, searchTerm]);
 
   // Pagination
   const totalPages = Math.ceil(filteredTransacoes.length / ITEMS_PER_PAGE);
