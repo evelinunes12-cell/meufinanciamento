@@ -99,10 +99,10 @@ const Auth = () => {
     }
   };
 
-  const validateForm = () => {
+  const validateLogin = () => {
     const result = authSchema.safeParse({ email, password });
     if (!result.success) {
-      const fieldErrors: { email?: string; password?: string } = {};
+      const fieldErrors: typeof errors = {};
       result.error.errors.forEach((err) => {
         if (err.path[0] === "email") fieldErrors.email = err.message;
         if (err.path[0] === "password") fieldErrors.password = err.message;
@@ -114,9 +114,24 @@ const Auth = () => {
     return true;
   };
 
+  const validateSignup = () => {
+    const result = signupSchema.safeParse({ email, password, nome, celular });
+    if (!result.success) {
+      const fieldErrors: typeof errors = {};
+      result.error.errors.forEach((err) => {
+        const k = err.path[0] as keyof typeof errors;
+        if (k) fieldErrors[k] = err.message;
+      });
+      setErrors(fieldErrors);
+      return false;
+    }
+    setErrors({});
+    return true;
+  };
+
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateForm()) return;
+    if (!validateLogin()) return;
 
     setIsLoading(true);
     const { error } = await signIn(email, password);
@@ -141,10 +156,10 @@ const Auth = () => {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateForm()) return;
+    if (!validateSignup()) return;
 
     setIsLoading(true);
-    const { error } = await signUp(email, password);
+    const { error } = await signUp(email, password, { nome: nome.trim(), celular: celular.trim() });
     setIsLoading(false);
 
     if (error) {
