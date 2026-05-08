@@ -162,21 +162,71 @@ const Configuracoes = () => {
 
         <div className="grid gap-6 md:grid-cols-2">
           {/* Meu Perfil */}
-          <Card className="shadow-card">
+          <Card id="perfil" className={`shadow-card md:col-span-2 ${profileIncomplete ? "border-warning/50" : ""}`}>
             <CardHeader className="pb-3">
               <div className="flex items-center gap-2">
                 <User className="h-5 w-5 text-primary" />
                 <CardTitle className="text-lg">Meu Perfil</CardTitle>
               </div>
-              <CardDescription>Informações da sua conta</CardDescription>
+              <CardDescription>
+                Informações da sua conta
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">E-mail</Label>
-                <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50">
-                  <Mail className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">{user?.email || "—"}</span>
+              {profileIncomplete && (
+                <div className="flex items-start gap-2 p-3 rounded-lg bg-warning/10 border border-warning/30 text-sm">
+                  <AlertCircle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
+                  <p className="text-foreground">
+                    Complete seus dados pessoais (nome e celular) para uma melhor experiência no sistema.
+                  </p>
                 </div>
+              )}
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">E-mail</Label>
+                  <div className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/50 h-10">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium truncate">{user?.email || "—"}</span>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="perfil-nome" className="text-xs text-muted-foreground">Nome completo *</Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="perfil-nome"
+                      value={nome}
+                      onChange={(e) => setNome(e.target.value)}
+                      placeholder="Seu nome"
+                      className="pl-10"
+                    />
+                  </div>
+                  {profileErrors.nome && (
+                    <p className="text-xs text-destructive">{profileErrors.nome}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="perfil-celular" className="text-xs text-muted-foreground">Celular *</Label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="perfil-celular"
+                      value={celular}
+                      onChange={(e) => setCelular(e.target.value)}
+                      placeholder="(11) 99999-9999"
+                      className="pl-10"
+                    />
+                  </div>
+                  {profileErrors.celular && (
+                    <p className="text-xs text-destructive">{profileErrors.celular}</p>
+                  )}
+                </div>
+              </div>
+              <div className="flex justify-end">
+                <Button onClick={handleSaveProfile} disabled={isSavingProfile}>
+                  {isSavingProfile && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  Salvar perfil
+                </Button>
               </div>
             </CardContent>
           </Card>
