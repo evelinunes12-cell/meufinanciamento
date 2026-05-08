@@ -1,22 +1,99 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { useTheme } from "next-themes";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import LimparDadosModal from "@/components/LimparDadosModal";
-import { User, Shield, Palette, LogOut, Mail, Sun, Moon, Monitor, Trash2 } from "lucide-react";
+import { User, Shield, Palette, LogOut, Mail, Sun, Moon, Monitor, Trash2, AlertCircle, Phone, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { z } from "zod";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+
+const profileSchema = z.object({
+  nome: z.string().trim().min(2, "Informe seu nome").max(100, "Nome muito longo"),
+  celular: z
+    .string()
+    .trim()
+    .min(10, "Celular inválido")
+    .max(20, "Celular inválido")
+    .regex(/^[0-9()+\-\s]+$/, "Use apenas números e símbolos válidos"),
+});
 
 const Configuracoes = () => {
   const { user, signOut } = useAuth();
+  const queryClient = useQueryClient();
   const { theme, setTheme } = useTheme();
   const [isResettingPassword, setIsResettingPassword] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [showLimparDados, setShowLimparDados] = useState(false);
+  const [nome, setNome] = useState("");
+  const [celular, setCelular] = useState("");
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [profileErrors, setProfileErrors] = useState<{ nome?: string; celular?: string }>({});
+
+  const { data: profile } = useQuery({
+    queryKey: ["profile", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+    staleTime: 60_000,
+  });
+
+  useEffect(() => {
+    if (profile) {
+      setNome(profile.nome ?? "");
+      setCelular(profile.celular ?? "");
+    }
+  }, [profile]);
+
+  const profileIncomplete = !profile?.nome?.trim() || !profile?.celular?.trim();
+
+  const handleSaveProfile = async () => {
+    const parsed = profileSchema.safeParse({ nome, celular });
+    if (!parsed.success) {
+      const errs: { nome?: string; celular?: string } = {};
+      parsed.error.errors.forEach((e) => {
+        const k = e.path[0] as "nome" | "celular";
+        if (k) errs[k] = e.message;
+      });
+      setProfileErrors(errs);
+      return;
+    }
+    setProfileErrors({});
+    setIsSavingProfile(true);
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .upsert(
+          { user_id: user!.id, nome: parsed.data.nome, celular: parsed.data.celular },
+          { onConflict: "user_id" }
+        );
+      if (error) throw error;
+      toast({ title: "Perfil atualizado", description: "Seus dados foram salvos com sucesso." });
+      queryClient.invalidateQueries({ queryKey: ["profile", user?.id] });
+    } catch (error: unknown) {
+      toast({
+        title: "Erro",
+        description: error instanceof Error ? error.message : "Erro ao salvar perfil",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
 
   const handleResetPassword = async () => {
     if (!user?.email) {
