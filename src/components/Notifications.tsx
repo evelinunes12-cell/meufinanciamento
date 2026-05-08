@@ -200,6 +200,22 @@ const Notifications = () => {
     refetchOnMount: true,
   });
 
+  // Fetch user profile to detect incomplete data
+  const { data: profile } = useQuery({
+    queryKey: ["profile", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data } = await supabase
+        .from("profiles")
+        .select("nome, celular")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!user?.id,
+    staleTime: 5 * 60 * 1000,
+  });
+
   const allNotifications = useMemo(() => {
     const hoje = startOfDay(new Date());
     const limite = startOfDay(addDays(hoje, 3));
