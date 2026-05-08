@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, Edit, TrendingUp, TrendingDown, ChevronLeft, ChevronRight, Check, ArrowRightLeft, Search } from "lucide-react";
+import { Plus, Trash2, Edit, TrendingUp, TrendingDown, ChevronLeft, ChevronRight, Check, ArrowRightLeft, Search, X } from "lucide-react";
 import { format, parseISO, addWeeks, addMonths, addYears } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
