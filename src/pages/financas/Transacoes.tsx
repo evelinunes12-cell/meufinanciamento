@@ -164,6 +164,7 @@ const Transacoes = () => {
   const [editSeriesLoading, setEditSeriesLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [visibleColumns, setVisibleColumns] = useState<Record<string, boolean>>(getInitialColumnVisibility);
+  const [searchTerm, setSearchTerm] = useState("");
 
   // Persist column visibility
   useEffect(() => {
