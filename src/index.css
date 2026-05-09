@@ -136,12 +136,33 @@
     background: var(--gradient-hero);
   }
 
+  .gradient-success { background: var(--gradient-success); }
+  .gradient-danger { background: var(--gradient-danger); }
+  .gradient-warning { background: var(--gradient-warning); }
+  .gradient-info { background: var(--gradient-info); }
+  .gradient-card-soft { background: var(--gradient-card-soft); }
+
   .shadow-soft {
     box-shadow: var(--shadow-soft);
   }
 
   .shadow-card {
     box-shadow: var(--shadow-card);
+  }
+
+  .shadow-hover { box-shadow: var(--shadow-hover); }
+  .shadow-glow { box-shadow: var(--shadow-glow); }
+
+  .card-hover {
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+  }
+  .card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-hover);
+  }
+
+  .section-label {
+    @apply text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground;
   }
 
   .animate-fade-in {
