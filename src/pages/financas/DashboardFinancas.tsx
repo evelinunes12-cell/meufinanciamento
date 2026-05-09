@@ -745,36 +745,44 @@ const DashboardFinancas = () => {
               </CardContent>
             </Card>
           )}
-        </div>
-
-        {/* Monthly Evolution Widget */}
-        {visibility.evolucaoMensal && (
-          <EvolucaoMensalWidget transacoes={todasTransacoes} />
-        )}
-
-        {/* New Widgets Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-          {visibility.ultimasTransacoes && (
-            <UltimasTransacoesWidget 
-              transacoes={transacoesFiltradasGerais} 
-              categorias={categorias} 
-              contas={contas}
-            />
-          )}
-
-          {visibility.contasConfirmar && (
-            <ContasConfirmarWidget transacoes={transacoesFiltradasGerais} categorias={categorias} contas={contas} />
-          )}
-        </div>
-
-        {/* Credit Card Widget */}
-        {visibility.proximosFechamentos && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-            <ProximosFechamentosWidget 
-              contas={contas} 
-              transacoes={todasTransacoes} 
-            />
           </div>
+        </section>
+
+        {/* SEÇÃO ATIVIDADE */}
+        {(visibility.evolucaoMensal || visibility.ultimasTransacoes || visibility.contasConfirmar || visibility.proximosFechamentos) && (
+          <section className="space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="section-label">Atividade</p>
+              <div className="flex-1 ml-3 h-px bg-border/60" />
+            </div>
+
+            {visibility.evolucaoMensal && (
+              <EvolucaoMensalWidget transacoes={todasTransacoes} />
+            )}
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+              {visibility.ultimasTransacoes && (
+                <UltimasTransacoesWidget
+                  transacoes={transacoesFiltradasGerais}
+                  categorias={categorias}
+                  contas={contas}
+                />
+              )}
+
+              {visibility.contasConfirmar && (
+                <ContasConfirmarWidget transacoes={transacoesFiltradasGerais} categorias={categorias} contas={contas} />
+              )}
+            </div>
+
+            {visibility.proximosFechamentos && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+                <ProximosFechamentosWidget
+                  contas={contas}
+                  transacoes={todasTransacoes}
+                />
+              </div>
+            )}
+          </section>
         )}
       </div>
 
