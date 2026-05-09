@@ -552,7 +552,7 @@ const DashboardFinancas = () => {
         {/* Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           {visibility.graficoCategoria && (
-            <Card className="shadow-card">
+            <Card className="shadow-card card-hover border-border/50 overflow-hidden">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base">Despesas por Categoria</CardTitle>
               </CardHeader>
@@ -615,7 +615,7 @@ const DashboardFinancas = () => {
           )}
 
           {visibility.graficoCategoria && (
-            <Card className="shadow-card">
+            <Card className="shadow-card card-hover border-border/50 overflow-hidden">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base">Receitas por Categoria</CardTitle>
               </CardHeader>
@@ -661,7 +661,7 @@ const DashboardFinancas = () => {
           )}
 
         {visibility.saldoContas && (
-            <Card className="shadow-card">
+            <Card className="shadow-card card-hover border-border/50 overflow-hidden">
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between gap-4">
                   <CardTitle className="text-base">Saldo por Conta</CardTitle>
