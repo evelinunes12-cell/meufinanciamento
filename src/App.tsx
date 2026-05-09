@@ -34,8 +34,12 @@ const FinanciamentoDashboard = lazy(() => import("./pages/financiamento/Financia
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 0,
-      refetchOnMount: "always",
+      // Mantém os dados "frescos" por 5 minutos para evitar refetch
+      // ao apenas trocar de guia/janela e voltar.
+      staleTime: 5 * 60 * 1000,
+      refetchOnMount: false,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
     },
   },
 });
