@@ -92,8 +92,8 @@ export function SaldoProvider({ children }: { children: ReactNode }) {
     queryKey: ["saldo-contas", user?.id],
     queryFn: () => fetchSaldoData(user?.id),
     enabled: !!user?.id,
-    staleTime: 0,
-    refetchOnMount: "always",
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   const saldoContas = data
