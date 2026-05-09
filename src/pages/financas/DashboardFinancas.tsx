@@ -361,260 +361,193 @@ const DashboardFinancas = () => {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-foreground">Dashboard Financeiro</h1>
-              <p className="text-sm text-muted-foreground">Visão geral das suas finanças</p>
+      <div className="space-y-8">
+        {/* HERO HEADER */}
+        <div className="relative overflow-hidden rounded-2xl gradient-hero border border-border/40 shadow-card">
+          <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full gradient-primary opacity-10 blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-32 -left-16 w-64 h-64 rounded-full gradient-info opacity-[0.07] blur-3xl pointer-events-none" />
+          <div className="relative p-5 sm:p-7 flex flex-col gap-5">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div className="flex items-center gap-4">
+                <div className="hidden sm:flex h-12 w-12 items-center justify-center rounded-2xl gradient-primary text-primary-foreground shadow-glow">
+                  <Wallet className="h-6 w-6" />
+                </div>
+                <div>
+                  <p className="section-label mb-1">Visão geral</p>
+                  <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground leading-tight">
+                    Dashboard Financeiro
+                  </h1>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Acompanhe suas finanças em tempo real
+                  </p>
+                </div>
+              </div>
+              <CustomizeDashboardModal visibility={visibility} onVisibilityChange={setVisibility} />
             </div>
-            <CustomizeDashboardModal visibility={visibility} onVisibilityChange={setVisibility} />
+
+            <AdvancedFilters
+              filters={filters}
+              onFiltersChange={setFilters}
+              onResetToDefault={handleRestoreDefaultFilter}
+              categorias={categorias}
+              contas={contas}
+              showTipo
+              showCategoria
+              showConta
+              showFormaPagamento
+              showStatusPagamento
+            />
           </div>
-          
-          <AdvancedFilters
-            filters={filters}
-            onFiltersChange={setFilters}
-            onResetToDefault={handleRestoreDefaultFilter}
-            categorias={categorias}
-            contas={contas}
-            showTipo
-            showCategoria
-            showConta
-            showFormaPagamento
-            showStatusPagamento
-          />
         </div>
 
-        {/* KPIs */}
+        {/* SEÇÃO RESUMO */}
         {visibility.kpis && (
-          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
-            <Card className="shadow-card">
-              <CardContent className="p-3 sm:p-4">
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <div className="p-1.5 sm:p-2 rounded-lg bg-success/10">
-                    <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-success" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1">
-                      <p className="text-[10px] sm:text-xs text-muted-foreground">Receitas</p>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Info className="h-3 w-3 text-muted-foreground cursor-help shrink-0" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p className="max-w-xs text-xs">
-                            Total de receitas executadas no período selecionado, excluindo transferências e transações de cartão de crédito.
-                          </p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </div>
-                    <p className="text-sm sm:text-lg font-bold text-success truncate">{formatCurrency(totalReceitas)}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+          <section className="space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="section-label">Resumo</p>
+              <div className="flex-1 ml-3 h-px bg-border/60" />
+            </div>
 
-            <Card className="shadow-card">
-              <CardContent className="p-3 sm:p-4">
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <div className="p-1.5 sm:p-2 rounded-lg bg-emerald-500/10">
-                    <HandCoins className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1">
-                      <p className="text-[10px] sm:text-xs text-muted-foreground">Rendimentos</p>
+            {/* Hero KPIs — Saldo Total + Saldo do Mês */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Saldo Total — destaque principal */}
+              <Card className="relative overflow-hidden border-0 shadow-card card-hover gradient-primary text-primary-foreground">
+                <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/10 blur-2xl" />
+                <CardContent className="relative p-6">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-2">
+                      <Wallet className="h-5 w-5 opacity-90" />
+                      <p className="text-xs font-medium uppercase tracking-wider opacity-90">Patrimônio Total</p>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Info className="h-3 w-3 text-muted-foreground cursor-help shrink-0" />
+                          <Info className="h-3.5 w-3.5 opacity-70 cursor-help" />
                         </TooltipTrigger>
                         <TooltipContent>
                           <p className="max-w-xs text-xs">
-                            Total de rendimentos (juros, dividendos, etc.) executados no período selecionado.
+                            Saldo acumulado de todas as contas considerando todo o histórico de transações executadas.
                           </p>
                         </TooltipContent>
                       </Tooltip>
                     </div>
-                    <p className="text-sm sm:text-lg font-bold text-emerald-600 truncate">{formatCurrency(totalRendimentos)}</p>
+                    {variacaoPatrimonial !== null && (
+                      <Badge className={`border-0 backdrop-blur-sm ${variacaoPatrimonial >= 0 ? "bg-white/20" : "bg-destructive/40"} text-white text-xs`}>
+                        {variacaoPatrimonial >= 0 ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
+                        {variacaoPatrimonial >= 0 ? "+" : ""}{variacaoPatrimonial.toFixed(1)}%
+                      </Badge>
+                    )}
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                  <p className="text-3xl sm:text-4xl font-bold tabular-nums mt-3 tracking-tight">
+                    {formatCurrency(saldoContas)}
+                  </p>
+                  <div className="flex items-center gap-4 mt-4 pt-4 border-t border-white/15">
+                    <div className="flex-1">
+                      <p className="text-[10px] uppercase tracking-wider opacity-75">Conta Corrente</p>
+                      <p className="text-sm font-semibold tabular-nums mt-0.5">{formatCurrency(saldoContasCorrentes)}</p>
+                    </div>
+                    <div className="w-px h-8 bg-white/20" />
+                    <div className="flex-1">
+                      <p className="text-[10px] uppercase tracking-wider opacity-75">Poupado</p>
+                      <p className="text-sm font-semibold tabular-nums mt-0.5">{formatCurrency(economiaTotal)}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-            <Card className="shadow-card">
-              <CardContent className="p-3 sm:p-4">
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <div className="p-1.5 sm:p-2 rounded-lg bg-destructive/10">
-                    <TrendingDown className="h-4 w-4 sm:h-5 sm:w-5 text-destructive" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1">
-                      <p className="text-[10px] sm:text-xs text-muted-foreground">Despesas</p>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Info className="h-3 w-3 text-muted-foreground cursor-help shrink-0" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p className="max-w-xs text-xs">
-                            Total de despesas executadas no período selecionado, excluindo transferências e gastos em cartão de crédito.
-                          </p>
-                        </TooltipContent>
-                      </Tooltip>
+              {/* Resultado do Período */}
+              <Card className="relative overflow-hidden border-border/50 shadow-card card-hover bg-card">
+                <div className={`absolute top-0 left-0 right-0 h-1 ${saldoMes >= 0 ? "gradient-success" : "gradient-danger"}`} />
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <ArrowUpDown className="h-5 w-5 text-muted-foreground" />
+                      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Resultado do Período</p>
                     </div>
-                    <p className="text-sm sm:text-lg font-bold text-destructive truncate">{formatCurrency(totalDespesas)}</p>
+                    <Badge variant="outline" className={`text-xs ${saldoMes >= 0 ? "border-success/40 text-success bg-success/10" : "border-destructive/40 text-destructive bg-destructive/10"}`}>
+                      {saldoMes >= 0 ? "Superávit" : "Déficit"}
+                    </Badge>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                  <p className={`text-3xl sm:text-4xl font-bold tabular-nums mt-3 tracking-tight ${saldoMes >= 0 ? "text-success" : "text-destructive"}`}>
+                    {formatCurrency(saldoMes)}
+                  </p>
+                  <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-border/60">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 rounded-md bg-success/10">
+                        <TrendingUp className="h-3.5 w-3.5 text-success" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Receitas</p>
+                        <p className="text-sm font-semibold tabular-nums text-success truncate">{formatCurrency(totalReceitas)}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 rounded-md bg-destructive/10">
+                        <TrendingDown className="h-3.5 w-3.5 text-destructive" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Despesas</p>
+                        <p className="text-sm font-semibold tabular-nums text-destructive truncate">{formatCurrency(totalDespesas)}</p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
 
-            <Card className="shadow-card">
-              <CardContent className="p-3 sm:p-4">
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <div className="p-1.5 sm:p-2 rounded-lg bg-primary/10">
-                    <Wallet className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1">
-                      <p className="text-[10px] sm:text-xs text-muted-foreground truncate">Saldo Conta Corrente</p>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Info className="h-3 w-3 text-muted-foreground cursor-help shrink-0" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p className="max-w-xs text-xs">
-                            Saldo acumulado apenas das contas correntes, considerando todo o histórico de transações executadas.
-                          </p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </div>
-                    <p className={`text-sm sm:text-lg font-bold truncate ${saldoContasCorrentes >= 0 ? "text-success" : "text-destructive"}`}>
-                      {formatCurrency(saldoContasCorrentes)}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-card">
-              <CardContent className="p-3 sm:p-4">
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <div className="p-1.5 sm:p-2 rounded-lg bg-warning/10">
-                    <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-warning" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1">
-                      <p className="text-[10px] sm:text-xs text-muted-foreground">Pendente do Mês</p>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Info className="h-3 w-3 text-muted-foreground cursor-help shrink-0" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p className="max-w-xs text-xs">
-                            Soma líquida das transações pendentes no período (a pagar menos a receber).
-                          </p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </div>
-                    <p className={`text-sm sm:text-lg font-bold truncate ${pendenteMes <= 0 ? "text-success" : "text-warning"}`}>
-                      {formatCurrency(pendenteMes)}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-card">
-              <CardContent className="p-3 sm:p-4">
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <div className="p-1.5 sm:p-2 rounded-lg bg-primary/10">
-                    <PiggyBank className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1">
-                      <p className="text-[10px] sm:text-xs text-muted-foreground">Poupado</p>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Info className="h-3 w-3 text-muted-foreground cursor-help shrink-0" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p className="max-w-xs text-xs">
-                            Soma de receitas e transferências para contas do tipo Poupança.
-                          </p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </div>
-                    <p className={`text-sm sm:text-lg font-bold truncate ${economiaTotal > 0 ? "text-success" : "text-muted-foreground"}`}>
-                      {formatCurrency(economiaTotal)}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-card">
-              <CardContent className="p-3 sm:p-4">
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <div className="p-1.5 sm:p-2 rounded-lg bg-primary/10">
-                    <Wallet className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
-                      <p className="text-[10px] sm:text-xs text-muted-foreground">Saldo Total</p>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Info className="h-3 w-3 text-muted-foreground cursor-help shrink-0" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p className="max-w-xs text-xs">
-                            Saldo acumulado de todas as contas (corrente + poupança), considerando todo o histórico de transações executadas. A variação compara com o mês anterior.
-                          </p>
-                        </TooltipContent>
-                      </Tooltip>
-                      {variacaoPatrimonial !== null && (
-                        <Badge 
-                          variant="outline" 
-                          className={`text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0 h-3.5 sm:h-4 ${
-                            variacaoPatrimonial >= 0 
-                              ? "border-success/50 text-success bg-success/10" 
-                              : "border-destructive/50 text-destructive bg-destructive/10"
-                          }`}
-                        >
-                          {variacaoPatrimonial >= 0 ? "+" : ""}{variacaoPatrimonial.toFixed(1)}%
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="text-sm sm:text-lg font-bold text-foreground truncate">{formatCurrency(saldoContas)}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-card">
-              <CardContent className="p-3 sm:p-4">
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <div className="p-1.5 sm:p-2 rounded-lg bg-warning/10">
-                    <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 text-warning" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1">
-                      <p className="text-[10px] sm:text-xs text-muted-foreground">Cartão</p>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Info className="h-3 w-3 text-muted-foreground cursor-help shrink-0" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p className="max-w-xs text-xs">
-                            Valor total das faturas em aberto dos cartões de crédito (ciclo fechado pendente + ciclo aberto atual).
-                          </p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </div>
-                    <p className="text-sm sm:text-lg font-bold text-warning truncate">{formatCurrency(gastosCartao)}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+            {/* Secondary KPIs — compactos */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+              {[
+                { label: "Rendimentos", value: totalRendimentos, icon: HandCoins, color: "emerald", tip: "Total de rendimentos (juros, dividendos, etc.) executados no período." },
+                { label: "Pendente", value: pendenteMes, icon: Clock, color: "warning", tip: "Soma líquida das transações pendentes (a pagar menos a receber).", neutral: true },
+                { label: "Cartão", value: gastosCartao, icon: CreditCard, color: "destructive", tip: "Faturas em aberto dos cartões de crédito (ciclo fechado pendente + ciclo aberto)." },
+                { label: "Poupado", value: economiaTotal, icon: PiggyBank, color: "primary", tip: "Receitas e transferências para contas do tipo Poupança." },
+                { label: "Conta Corrente", value: saldoContasCorrentes, icon: Wallet, color: "primary", tip: "Saldo apenas das contas correntes." },
+              ].map((kpi) => {
+                const Icon = kpi.icon;
+                const colorMap: Record<string, { bg: string; text: string; bar: string }> = {
+                  emerald: { bg: "bg-emerald-500/10", text: "text-emerald-600", bar: "bg-emerald-500" },
+                  warning: { bg: "bg-warning/10", text: "text-warning", bar: "bg-warning" },
+                  destructive: { bg: "bg-destructive/10", text: "text-destructive", bar: "bg-destructive" },
+                  primary: { bg: "bg-primary/10", text: "text-primary", bar: "bg-primary" },
+                };
+                const c = colorMap[kpi.color];
+                const valueColor = kpi.neutral
+                  ? (kpi.value <= 0 ? "text-success" : "text-warning")
+                  : (kpi.value >= 0 ? c.text : "text-destructive");
+                return (
+                  <Card key={kpi.label} className="relative overflow-hidden border-border/50 shadow-card card-hover group">
+                    <div className={`absolute left-0 top-0 bottom-0 w-1 ${c.bar} opacity-80`} />
+                    <CardContent className="p-3 sm:p-4 pl-4 sm:pl-5">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className={`p-1.5 rounded-lg ${c.bg} group-hover:scale-110 transition-transform`}>
+                          <Icon className={`h-4 w-4 ${c.text}`} />
+                        </div>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Info className="h-3 w-3 text-muted-foreground/60 cursor-help" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="max-w-xs text-xs">{kpi.tip}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider truncate">{kpi.label}</p>
+                      <p className={`text-base sm:text-lg font-bold tabular-nums truncate mt-0.5 ${valueColor}`}>
+                        {formatCurrency(kpi.value)}
+                      </p>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </section>
         )}
+
+        {/* SEÇÃO ANÁLISE */}
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <p className="section-label">Análise</p>
+            <div className="flex-1 ml-3 h-px bg-border/60" />
+          </div>
 
         {/* Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
