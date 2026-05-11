@@ -411,7 +411,7 @@ const DashboardFinancas = () => {
             {/* Hero KPIs — Saldo Total + Saldo do Mês */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {/* Saldo Total — destaque principal */}
-              <Card className="relative overflow-hidden border-0 shadow-card card-hover gradient-primary text-primary-foreground">
+              <Card className="relative overflow-hidden border-0 shadow-card card-hover gradient-primary text-white">
                 <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/10 blur-2xl" />
                 <CardContent className="relative p-6">
                   <div className="flex items-start justify-between">
