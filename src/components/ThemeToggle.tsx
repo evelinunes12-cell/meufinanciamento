@@ -35,9 +35,9 @@ export const ThemeToggle = ({ size = "default" }: { size?: "sm" | "default" }) =
       aria-label={isDark ? "Ativar modo claro" : "Ativar modo escuro"}
     >
       {isDark ? (
-        <Sun className="h-4 w-4 text-muted-foreground" />
+        <Sun className="h-4 w-4 text-foreground" />
       ) : (
-        <Moon className="h-4 w-4 text-muted-foreground" />
+        <Moon className="h-4 w-4 text-foreground" />
       )}
     </Button>
   );
