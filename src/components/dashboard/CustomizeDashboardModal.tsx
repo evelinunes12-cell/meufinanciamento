@@ -153,10 +153,7 @@ export function CustomizeDashboardModal({
               <RotateCcw className="h-3 w-3" />
               Restaurar padrão
             </Button>
-            <div className="flex items-center gap-2">
-              <ExportSettingsButton />
-              <Button onClick={() => setOpen(false)}>Fechar</Button>
-            </div>
+            <Button onClick={() => setOpen(false)}>Fechar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
