@@ -421,7 +421,14 @@ const DashboardFinancas = () => {
                   </p>
                 </div>
               </div>
-              <CustomizeDashboardModal visibility={visibility} onVisibilityChange={setVisibility} />
+              <CustomizeDashboardModal
+                catalog={WIDGET_CATALOG}
+                layout={layout}
+                onLayoutChange={setLayout}
+                onReset={resetLayout}
+                customizing={customizing}
+                onCustomizingChange={setCustomizing}
+              />
             </div>
 
             <AdvancedFilters
