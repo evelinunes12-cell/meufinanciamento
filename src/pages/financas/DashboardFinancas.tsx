@@ -398,6 +398,336 @@ const DashboardFinancas = () => {
     );
   }
 
+  // Conteúdo de cada widget — usado pelo grid customizável
+  const renderWidgetContent = (id: string): JSX.Element | null => {
+    switch (id) {
+      case "kpis":
+        return (
+          <div className="space-y-4">
+            {/* Hero KPIs — Saldo Total + Saldo do Mês */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <Card className="relative overflow-hidden border-0 shadow-card card-hover gradient-primary text-white">
+                <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/10 blur-2xl" />
+                <CardContent className="relative p-6">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-2">
+                      <Wallet className="h-5 w-5 opacity-90" />
+                      <p className="text-xs font-medium uppercase tracking-wider opacity-90">Patrimônio Total</p>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="h-3.5 w-3.5 opacity-70 cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="max-w-xs text-xs">
+                            Saldo acumulado de todas as contas considerando todo o histórico de transações executadas.
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                    {variacaoPatrimonial !== null && (
+                      <Badge className={`border-0 backdrop-blur-sm ${variacaoPatrimonial >= 0 ? "bg-white/20" : "bg-destructive/40"} text-white text-xs`}>
+                        {variacaoPatrimonial >= 0 ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
+                        {variacaoPatrimonial >= 0 ? "+" : ""}{variacaoPatrimonial.toFixed(1)}%
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-3xl sm:text-4xl font-bold tabular-nums mt-3 tracking-tight">
+                    {formatCurrency(saldoContas)}
+                  </p>
+                  <div className="flex items-center gap-4 mt-4 pt-4 border-t border-white/15">
+                    <div className="flex-1">
+                      <p className="text-[10px] uppercase tracking-wider opacity-75">Conta Corrente</p>
+                      <p className="text-sm font-semibold tabular-nums mt-0.5">{formatCurrency(saldoContasCorrentes)}</p>
+                    </div>
+                    <div className="w-px h-8 bg-white/20" />
+                    <div className="flex-1">
+                      <p className="text-[10px] uppercase tracking-wider opacity-75">Poupado</p>
+                      <p className="text-sm font-semibold tabular-nums mt-0.5">{formatCurrency(economiaTotal)}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="relative overflow-hidden border-border/50 shadow-card card-hover bg-card">
+                <div className={`absolute top-0 left-0 right-0 h-1 ${saldoMes >= 0 ? "gradient-success" : "gradient-danger"}`} />
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <ArrowUpDown className="h-5 w-5 text-muted-foreground" />
+                      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Resultado do Período</p>
+                    </div>
+                    <Badge variant="outline" className={`text-xs ${saldoMes >= 0 ? "border-success/40 text-success bg-success/10" : "border-destructive/40 text-destructive bg-destructive/10"}`}>
+                      {saldoMes >= 0 ? "Superávit" : "Déficit"}
+                    </Badge>
+                  </div>
+                  <p className={`text-3xl sm:text-4xl font-bold tabular-nums mt-3 tracking-tight ${saldoMes >= 0 ? "text-success" : "text-destructive"}`}>
+                    {formatCurrency(saldoMes)}
+                  </p>
+                  <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-border/60">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 rounded-md bg-success/10">
+                        <TrendingUp className="h-3.5 w-3.5 text-success" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Receitas</p>
+                        <p className="text-sm font-semibold tabular-nums text-success truncate">{formatCurrency(totalReceitas)}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 rounded-md bg-destructive/10">
+                        <TrendingDown className="h-3.5 w-3.5 text-destructive" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Despesas</p>
+                        <p className="text-sm font-semibold tabular-nums text-destructive truncate">{formatCurrency(totalDespesas)}</p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+              {[
+                { label: "Rendimentos", value: totalRendimentos, icon: HandCoins, color: "emerald", tip: "Total de rendimentos (juros, dividendos, etc.) executados no período." },
+                { label: "Pendente", value: pendenteMes, icon: Clock, color: "warning", tip: "Soma líquida das transações pendentes (a pagar menos a receber).", neutral: true },
+                { label: "Cartão", value: gastosCartao, icon: CreditCard, color: "destructive", tip: "Faturas em aberto dos cartões de crédito (ciclo fechado pendente + ciclo aberto)." },
+                { label: "Poupado", value: economiaTotal, icon: PiggyBank, color: "primary", tip: "Receitas e transferências para contas do tipo Poupança." },
+                { label: "Conta Corrente", value: saldoContasCorrentes, icon: Wallet, color: "primary", tip: "Saldo apenas das contas correntes." },
+              ].map((kpi) => {
+                const Icon = kpi.icon;
+                const colorMap: Record<string, { bg: string; text: string; bar: string }> = {
+                  emerald: { bg: "bg-emerald-500/10", text: "text-emerald-600", bar: "bg-emerald-500" },
+                  warning: { bg: "bg-warning/10", text: "text-warning", bar: "bg-warning" },
+                  destructive: { bg: "bg-destructive/10", text: "text-destructive", bar: "bg-destructive" },
+                  primary: { bg: "bg-primary/10", text: "text-primary", bar: "bg-primary" },
+                };
+                const c = colorMap[kpi.color];
+                const valueColor = kpi.neutral
+                  ? (kpi.value <= 0 ? "text-success" : "text-warning")
+                  : (kpi.value >= 0 ? c.text : "text-destructive");
+                return (
+                  <Card key={kpi.label} className="relative overflow-hidden border-border/50 shadow-card card-hover group">
+                    <div className={`absolute left-0 top-0 bottom-0 w-1 ${c.bar} opacity-80`} />
+                    <CardContent className="p-3 sm:p-4 pl-4 sm:pl-5">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className={`p-1.5 rounded-lg ${c.bg} group-hover:scale-110 transition-transform`}>
+                          <Icon className={`h-4 w-4 ${c.text}`} />
+                        </div>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Info className="h-3 w-3 text-muted-foreground/60 cursor-help" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="max-w-xs text-xs">{kpi.tip}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider truncate">{kpi.label}</p>
+                      <p className={`text-base sm:text-lg font-bold tabular-nums truncate mt-0.5 ${valueColor}`}>
+                        {formatCurrency(kpi.value)}
+                      </p>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        );
+
+      case "graficoDespesas":
+        return (
+          <Card className="shadow-card card-hover border-border/50 overflow-hidden h-full">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Despesas por Categoria</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {despesasPorCategoria.length > 0 ? (
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie
+                        data={despesasPorCategoria}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={100}
+                        paddingAngle={2}
+                        dataKey="value"
+                        cursor={"pointer"}
+                        onClick={(d: any) => {
+                          if (d?.categoriaId) setDrilldown({ tipo: "despesa", categoriaId: d.categoriaId });
+                        }}
+                      >
+                        {despesasPorCategoria.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color || COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <RechartsTooltip
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            const entry = payload[0];
+                            const value = entry.value as number;
+                            const totalDespesas = despesasPorCategoria.reduce((sum, d) => sum + d.value, 0);
+                            const percent = totalDespesas > 0 ? ((value / totalDespesas) * 100).toFixed(1) : '0';
+                            return (
+                              <div className="bg-popover border border-border rounded-lg p-3 shadow-lg">
+                                <p className="font-medium text-foreground text-sm">{entry.name}</p>
+                                <p className="text-sm text-foreground">{formatCurrency(value)}</p>
+                                <p className="text-xs text-muted-foreground">{percent}% do total de despesas</p>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  {renderLegendList(
+                    despesasPorCategoria,
+                    (item) => item.categoriaId && setDrilldown({ tipo: "despesa", categoriaId: item.categoriaId }),
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-[300px] text-muted-foreground">Sem despesas no período</div>
+              )}
+            </CardContent>
+          </Card>
+        );
+
+      case "graficoReceitas":
+        return (
+          <Card className="shadow-card card-hover border-border/50 overflow-hidden h-full">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Receitas por Categoria</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {receitasPorCategoria.length > 0 ? (
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie
+                        data={receitasPorCategoria}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={100}
+                        paddingAngle={2}
+                        dataKey="value"
+                        cursor={"pointer"}
+                        onClick={(d: any) => {
+                          if (d?.categoriaId) setDrilldown({ tipo: "receita", categoriaId: d.categoriaId });
+                        }}
+                      >
+                        {receitasPorCategoria.map((entry, index) => (
+                          <Cell key={`cell-rec-${index}`} fill={entry.color || COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <RechartsTooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  {renderLegendList(
+                    receitasPorCategoria,
+                    (item) => item.categoriaId && setDrilldown({ tipo: "receita", categoriaId: item.categoriaId }),
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-[300px] text-muted-foreground">Sem receitas no período</div>
+              )}
+            </CardContent>
+          </Card>
+        );
+
+      case "saldoContas":
+        return (
+          <Card className="shadow-card card-hover border-border/50 overflow-hidden h-full">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between gap-4">
+                <CardTitle className="text-base">Saldo por Conta</CardTitle>
+                <Select value={saldoContasMode} onValueChange={(v) => setSaldoContasMode(v as "total" | "mes")}>
+                  <SelectTrigger className="w-[160px] h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="total">Saldo Total</SelectItem>
+                    <SelectItem value="mes">Saldo do Período</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {contas.map((conta) => {
+                  let saldo = 0;
+                  if (saldoContasMode === "total") {
+                    if (conta.tipo === "credito") {
+                      saldo = calcularFaturaAbertaCartao(conta, todasTransacoes, contas);
+                    } else {
+                      saldo = calcularSaldoRealConta(conta, todasTransacoes);
+                    }
+                  } else {
+                    if (conta.tipo === "credito") {
+                      saldo = calcularFaturaAbertaCartao(conta, todasTransacoes, contas);
+                    } else {
+                      const transacoesParaCalculo = transacoesExecutadasPeriodo.filter(
+                        t => t.conta_id === conta.id || t.conta_destino_id === conta.id
+                      );
+                      saldo = transacoesParaCalculo.reduce((acc, t) => {
+                        const valor = Number(t.valor);
+                        const isTransferencia = t.forma_pagamento === "transferencia" || t.tipo === "transferencia";
+                        if (isTransferencia) {
+                          if (t.conta_destino_id) {
+                            if (t.conta_id === conta.id) return acc - valor;
+                            if (t.conta_destino_id === conta.id) return acc + valor;
+                          }
+                          return acc;
+                        }
+                        if (t.tipo === "receita" && t.conta_id === conta.id) return acc + valor;
+                        if (t.tipo === "despesa" && t.conta_id === conta.id) return acc - valor;
+                        return acc;
+                      }, 0);
+                    }
+                  }
+                  return (
+                    <div key={conta.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                      <div className="flex items-center gap-3">
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: conta.cor }} />
+                        <div>
+                          <p className="font-medium text-foreground">{conta.nome_conta}</p>
+                          <p className="text-xs text-muted-foreground capitalize">{conta.tipo}</p>
+                        </div>
+                      </div>
+                      <p className={`font-bold ${saldo >= 0 ? "text-success" : "text-destructive"}`}>
+                        {formatCurrency(saldo)}
+                      </p>
+                    </div>
+                  );
+                })}
+                {contas.length === 0 && (
+                  <p className="text-center text-muted-foreground py-8">Nenhuma conta cadastrada</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        );
+
+      case "evolucaoMensal":
+        return <EvolucaoMensalWidget transacoes={todasTransacoes} />;
+
+      case "ultimasTransacoes":
+        return <UltimasTransacoesWidget transacoes={transacoesFiltradasGerais} categorias={categorias} contas={contas} />;
+
+      case "contasConfirmar":
+        return <ContasConfirmarWidget transacoes={transacoesFiltradasGerais} categorias={categorias} contas={contas} />;
+
+      case "proximosFechamentos":
+        return <ProximosFechamentosWidget contas={contas} transacoes={todasTransacoes} />;
+
+      default:
+        return null;
+    }
+  };
+
   return (
     <AppLayout>
       <div className="space-y-8">
