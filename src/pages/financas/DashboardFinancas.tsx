@@ -106,12 +106,31 @@ async function fetchDashboardData(userId: string | undefined, startDate: string,
 
 const DashboardFinancas = () => {
   const { user } = useAuth();
-  const { visibility, setVisibility } = useWidgetVisibility();
-  const storageKey = useMemo(() => `dashboard-financas-filters-${user?.id || "anon"}`, [user?.id]);
-  const [filters, setFilters] = useState<FilterState>(getInitialFilterState);
-  
-  const [saldoContasMode, setSaldoContasMode] = useState<"total" | "mes">("total");
-  const [drilldown, setDrilldown] = useState<{ tipo: "despesa" | "receita"; categoriaId: string } | null>(null);
+  const WIDGET_CATALOG: WidgetCatalog = useMemo(() => ({
+    kpis: { label: "Resumo Financeiro (KPIs)", defaultSize: "full" },
+    graficoDespesas: { label: "Despesas por Categoria", defaultSize: "md" },
+    graficoReceitas: { label: "Receitas por Categoria", defaultSize: "md" },
+    saldoContas: { label: "Saldos por Conta", defaultSize: "md" },
+    evolucaoMensal: { label: "Evolução Mensal", defaultSize: "full" },
+    ultimasTransacoes: { label: "Últimas Transações", defaultSize: "md" },
+    contasConfirmar: { label: "Contas a Confirmar", defaultSize: "md" },
+    proximosFechamentos: { label: "Próximos Fechamentos", defaultSize: "md" },
+  }), []);
+  const { layout, setLayout, setSize, toggleVisible, reset: resetLayout } = useDashboardLayout(WIDGET_CATALOG);
+  const visibility = useMemo(() => Object.fromEntries(layout.map((w) => [w.id, w.visible])) as Record<string, boolean>, [layout]);
+  const sizeOf = (id: string) => layout.find((w) => w.id === id)?.size ?? "md";
+  const [customizing, setCustomizing] = useState(false);
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = layout.findIndex((w) => w.id === active.id);
+    const newIndex = layout.findIndex((w) => w.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    setLayout(arrayMove(layout, oldIndex, newIndex));
+  };
+
 
   useEffect(() => {
     const saved = localStorage.getItem(storageKey);
