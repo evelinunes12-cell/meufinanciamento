@@ -123,7 +123,7 @@ const DashboardFinancas = () => {
   }), []);
   const { layout, setLayout, setSize, toggleVisible, reset: resetLayout } = useDashboardLayout(WIDGET_CATALOG);
   const visibility = useMemo(() => Object.fromEntries(layout.map((w) => [w.id, w.visible])) as Record<string, boolean>, [layout]);
-  const sizeOf = (id: string) => layout.find((w) => w.id === id)?.size ?? "md";
+  
   const [customizing, setCustomizing] = useState(false);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
