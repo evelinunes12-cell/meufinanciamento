@@ -4,12 +4,27 @@ import { useQuery } from "@tanstack/react-query";
 import AppLayout from "@/components/AppLayout";
 import PageLoadingSkeleton from "@/components/PageLoadingSkeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { TrendingUp, TrendingDown, Wallet, PiggyBank, CreditCard, ArrowUpDown, Info, Clock, HandCoins } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, PiggyBank, CreditCard, ArrowUpDown, Info, Clock, HandCoins, Pencil } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from "recharts";
 import { useState, useMemo, useEffect } from "react";
 import { AdvancedFilters, FilterState, getInitialFilterState, getDateRangeFromFilters, getCategoryIdsForFilter } from "@/components/AdvancedFilters";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CustomizeDashboardModal, useWidgetVisibility } from "@/components/dashboard/DashboardWidgets";
+import { CustomizeDashboardModal } from "@/components/dashboard/CustomizeDashboardModal";
+import { useDashboardLayout, WidgetCatalog } from "@/hooks/useDashboardLayout";
+import WidgetFrame from "@/components/dashboard/WidgetFrame";
+import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  rectSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
 import { UltimasTransacoesWidget } from "@/components/dashboard/UltimasTransacoesWidget";
 import { ContasConfirmarWidget } from "@/components/dashboard/ContasConfirmarWidget";
 import { EvolucaoMensalWidget } from "@/components/dashboard/EvolucaoMensalWidget";
@@ -91,12 +106,36 @@ async function fetchDashboardData(userId: string | undefined, startDate: string,
 
 const DashboardFinancas = () => {
   const { user } = useAuth();
-  const { visibility, setVisibility } = useWidgetVisibility();
   const storageKey = useMemo(() => `dashboard-financas-filters-${user?.id || "anon"}`, [user?.id]);
   const [filters, setFilters] = useState<FilterState>(getInitialFilterState);
-  
   const [saldoContasMode, setSaldoContasMode] = useState<"total" | "mes">("total");
   const [drilldown, setDrilldown] = useState<{ tipo: "despesa" | "receita"; categoriaId: string } | null>(null);
+
+  const WIDGET_CATALOG: WidgetCatalog = useMemo(() => ({
+    kpis: { label: "Resumo Financeiro (KPIs)", defaultSize: "full" },
+    graficoDespesas: { label: "Despesas por Categoria", defaultSize: "md" },
+    graficoReceitas: { label: "Receitas por Categoria", defaultSize: "md" },
+    saldoContas: { label: "Saldos por Conta", defaultSize: "md" },
+    evolucaoMensal: { label: "Evolução Mensal", defaultSize: "full" },
+    ultimasTransacoes: { label: "Últimas Transações", defaultSize: "md" },
+    contasConfirmar: { label: "Contas a Confirmar", defaultSize: "md" },
+    proximosFechamentos: { label: "Próximos Fechamentos", defaultSize: "md" },
+  }), []);
+  const { layout, setLayout, setSize, toggleVisible, reset: resetLayout } = useDashboardLayout(WIDGET_CATALOG);
+  const visibility = useMemo(() => Object.fromEntries(layout.map((w) => [w.id, w.visible])) as Record<string, boolean>, [layout]);
+  
+  const [customizing, setCustomizing] = useState(false);
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = layout.findIndex((w) => w.id === active.id);
+    const newIndex = layout.findIndex((w) => w.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    setLayout(arrayMove(layout, oldIndex, newIndex));
+  };
+
 
   useEffect(() => {
     const saved = localStorage.getItem(storageKey);
@@ -359,58 +398,14 @@ const DashboardFinancas = () => {
     );
   }
 
-  return (
-    <AppLayout>
-      <div className="space-y-8">
-        {/* HERO HEADER */}
-        <div className="relative overflow-hidden rounded-2xl gradient-hero border border-border/40 shadow-card">
-          <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full gradient-primary opacity-10 blur-3xl pointer-events-none" />
-          <div className="absolute -bottom-32 -left-16 w-64 h-64 rounded-full gradient-info opacity-[0.07] blur-3xl pointer-events-none" />
-          <div className="relative p-5 sm:p-7 flex flex-col gap-5">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <div className="flex items-center gap-4">
-                <div className="hidden sm:flex h-12 w-12 items-center justify-center rounded-2xl gradient-primary text-primary-foreground shadow-glow">
-                  <Wallet className="h-6 w-6" />
-                </div>
-                <div>
-                  <p className="section-label mb-1">Visão geral</p>
-                  <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground leading-tight">
-                    Dashboard Financeiro
-                  </h1>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Acompanhe suas finanças em tempo real
-                  </p>
-                </div>
-              </div>
-              <CustomizeDashboardModal visibility={visibility} onVisibilityChange={setVisibility} />
-            </div>
-
-            <AdvancedFilters
-              filters={filters}
-              onFiltersChange={setFilters}
-              onResetToDefault={handleRestoreDefaultFilter}
-              categorias={categorias}
-              contas={contas}
-              showTipo
-              showCategoria
-              showConta
-              showFormaPagamento
-              showStatusPagamento
-            />
-          </div>
-        </div>
-
-        {/* SEÇÃO RESUMO */}
-        {visibility.kpis && (
-          <section className="space-y-4">
-            <div className="flex items-center justify-between">
-              <p className="section-label">Resumo</p>
-              <div className="flex-1 ml-3 h-px bg-border/60" />
-            </div>
-
+  // Conteúdo de cada widget — usado pelo grid customizável
+  const renderWidgetContent = (id: string): JSX.Element | null => {
+    switch (id) {
+      case "kpis":
+        return (
+          <div className="space-y-4">
             {/* Hero KPIs — Saldo Total + Saldo do Mês */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {/* Saldo Total — destaque principal */}
               <Card className="relative overflow-hidden border-0 shadow-card card-hover gradient-primary text-white">
                 <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/10 blur-2xl" />
                 <CardContent className="relative p-6">
@@ -453,7 +448,6 @@ const DashboardFinancas = () => {
                 </CardContent>
               </Card>
 
-              {/* Resultado do Período */}
               <Card className="relative overflow-hidden border-border/50 shadow-card card-hover bg-card">
                 <div className={`absolute top-0 left-0 right-0 h-1 ${saldoMes >= 0 ? "gradient-success" : "gradient-danger"}`} />
                 <CardContent className="p-6">
@@ -493,7 +487,6 @@ const DashboardFinancas = () => {
               </Card>
             </div>
 
-            {/* Secondary KPIs — compactos */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
               {[
                 { label: "Rendimentos", value: totalRendimentos, icon: HandCoins, color: "emerald", tip: "Total de rendimentos (juros, dividendos, etc.) executados no período." },
@@ -539,28 +532,20 @@ const DashboardFinancas = () => {
                 );
               })}
             </div>
-          </section>
-        )}
-
-        {/* SEÇÃO ANÁLISE */}
-        <section className="space-y-4">
-          <div className="flex items-center justify-between">
-            <p className="section-label">Análise</p>
-            <div className="flex-1 ml-3 h-px bg-border/60" />
           </div>
+        );
 
-        {/* Charts Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-          {visibility.graficoCategoria && (
-            <Card className="shadow-card card-hover border-border/50 overflow-hidden">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Despesas por Categoria</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {despesasPorCategoria.length > 0 ? (
-                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
-                    <ResponsiveContainer width="100%" height={300}>
-                      <PieChart>
+      case "graficoDespesas":
+        return (
+          <Card className="shadow-card card-hover border-border/50 overflow-hidden h-full">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Despesas por Categoria</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {despesasPorCategoria.length > 0 ? (
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
                       <Pie
                         data={despesasPorCategoria}
                         cx="50%"
@@ -571,16 +556,14 @@ const DashboardFinancas = () => {
                         dataKey="value"
                         cursor={"pointer"}
                         onClick={(d: any) => {
-                          if (d?.categoriaId) {
-                            setDrilldown({ tipo: "despesa", categoriaId: d.categoriaId });
-                          }
+                          if (d?.categoriaId) setDrilldown({ tipo: "despesa", categoriaId: d.categoriaId });
                         }}
                       >
                         {despesasPorCategoria.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color || COLORS[index % COLORS.length]} />
                         ))}
                       </Pie>
-                      <RechartsTooltip 
+                      <RechartsTooltip
                         content={({ active, payload }) => {
                           if (active && payload && payload.length) {
                             const entry = payload[0];
@@ -598,191 +581,247 @@ const DashboardFinancas = () => {
                           return null;
                         }}
                       />
-                      </PieChart>
-                    </ResponsiveContainer>
-                    {renderLegendList(
-                      despesasPorCategoria,
-                      (item) => item.categoriaId && setDrilldown({ tipo: "despesa", categoriaId: item.categoriaId }),
-                    )}
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center h-[300px] text-muted-foreground">
-                    Sem despesas no período
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {visibility.graficoCategoria && (
-            <Card className="shadow-card card-hover border-border/50 overflow-hidden">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Receitas por Categoria</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {receitasPorCategoria.length > 0 ? (
-                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
-                    <ResponsiveContainer width="100%" height={300}>
-                      <PieChart>
-                        <Pie
-                          data={receitasPorCategoria}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={60}
-                          outerRadius={100}
-                          paddingAngle={2}
-                          dataKey="value"
-                          cursor={"pointer"}
-                          onClick={(d: any) => {
-                            if (d?.categoriaId) {
-                              setDrilldown({ tipo: "receita", categoriaId: d.categoriaId });
-                            }
-                          }}
-                        >
-                          {receitasPorCategoria.map((entry, index) => (
-                            <Cell key={`cell-rec-${index}`} fill={entry.color || COLORS[index % COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <RechartsTooltip />
-                      </PieChart>
-                    </ResponsiveContainer>
-                    {renderLegendList(
-                      receitasPorCategoria,
-                      (item) => item.categoriaId && setDrilldown({ tipo: "receita", categoriaId: item.categoriaId }),
-                    )}
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center h-[300px] text-muted-foreground">
-                    Sem receitas no período
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-        {visibility.saldoContas && (
-            <Card className="shadow-card card-hover border-border/50 overflow-hidden">
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between gap-4">
-                  <CardTitle className="text-base">Saldo por Conta</CardTitle>
-                  <Select value={saldoContasMode} onValueChange={(v) => setSaldoContasMode(v as "total" | "mes")}>
-                    <SelectTrigger className="w-[160px] h-8 text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="total">Saldo Total</SelectItem>
-                      <SelectItem value="mes">Saldo do Período</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {contas.map((conta) => {
-                    const transacoesContaComData = todasTransacoes.filter((t) => t.conta_id === conta.id || t.conta_destino_id === conta.id);
-
-                    // Choose which transactions to use based on mode
-                    let saldo = 0;
-
-                    if (saldoContasMode === "total") {
-                      if (conta.tipo === "credito") {
-                        saldo = calcularFaturaAbertaCartao(conta, todasTransacoes, contas);
-                      } else {
-                        saldo = calcularSaldoRealConta(conta, todasTransacoes);
-                      }
-                    } else {
-                      if (conta.tipo === "credito") {
-                        saldo = calcularFaturaAbertaCartao(conta, todasTransacoes, contas);
-                      } else {
-                        const transacoesParaCalculo = transacoesExecutadasPeriodo.filter(
-                          t => t.conta_id === conta.id || t.conta_destino_id === conta.id
-                        );
-
-                        saldo = transacoesParaCalculo.reduce((acc, t) => {
-                          const valor = Number(t.valor);
-                          const isTransferencia = t.forma_pagamento === "transferencia" || t.tipo === "transferencia";
-
-                          if (isTransferencia) {
-                            if (t.conta_destino_id) {
-                              if (t.conta_id === conta.id) return acc - valor;
-                              if (t.conta_destino_id === conta.id) return acc + valor;
-                            }
-                            return acc;
-                          }
-
-                          if (t.tipo === "receita" && t.conta_id === conta.id) return acc + valor;
-                          if (t.tipo === "despesa" && t.conta_id === conta.id) return acc - valor;
-
-                          return acc;
-                        }, 0);
-                      }
-                    }
-
-                    return (
-                      <div key={conta.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                        <div className="flex items-center gap-3">
-                          <div 
-                            className="w-3 h-3 rounded-full" 
-                            style={{ backgroundColor: conta.cor }}
-                          />
-                          <div>
-                            <p className="font-medium text-foreground">{conta.nome_conta}</p>
-                            <p className="text-xs text-muted-foreground capitalize">{conta.tipo}</p>
-                          </div>
-                        </div>
-                        <p className={`font-bold ${saldo >= 0 ? "text-success" : "text-destructive"}`}>
-                          {formatCurrency(saldo)}
-                        </p>
-                      </div>
-                    );
-                  })}
-                  {contas.length === 0 && (
-                    <p className="text-center text-muted-foreground py-8">
-                      Nenhuma conta cadastrada
-                    </p>
+                    </PieChart>
+                  </ResponsiveContainer>
+                  {renderLegendList(
+                    despesasPorCategoria,
+                    (item) => item.categoriaId && setDrilldown({ tipo: "despesa", categoriaId: item.categoriaId }),
                   )}
                 </div>
-              </CardContent>
-            </Card>
-          )}
-          </div>
-        </section>
-
-        {/* SEÇÃO ATIVIDADE */}
-        {(visibility.evolucaoMensal || visibility.ultimasTransacoes || visibility.contasConfirmar || visibility.proximosFechamentos) && (
-          <section className="space-y-4">
-            <div className="flex items-center justify-between">
-              <p className="section-label">Atividade</p>
-              <div className="flex-1 ml-3 h-px bg-border/60" />
-            </div>
-
-            {visibility.evolucaoMensal && (
-              <EvolucaoMensalWidget transacoes={todasTransacoes} />
-            )}
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-              {visibility.ultimasTransacoes && (
-                <UltimasTransacoesWidget
-                  transacoes={transacoesFiltradasGerais}
-                  categorias={categorias}
-                  contas={contas}
-                />
+              ) : (
+                <div className="flex items-center justify-center h-[300px] text-muted-foreground">Sem despesas no período</div>
               )}
+            </CardContent>
+          </Card>
+        );
 
-              {visibility.contasConfirmar && (
-                <ContasConfirmarWidget transacoes={transacoesFiltradasGerais} categorias={categorias} contas={contas} />
+      case "graficoReceitas":
+        return (
+          <Card className="shadow-card card-hover border-border/50 overflow-hidden h-full">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Receitas por Categoria</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {receitasPorCategoria.length > 0 ? (
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie
+                        data={receitasPorCategoria}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={100}
+                        paddingAngle={2}
+                        dataKey="value"
+                        cursor={"pointer"}
+                        onClick={(d: any) => {
+                          if (d?.categoriaId) setDrilldown({ tipo: "receita", categoriaId: d.categoriaId });
+                        }}
+                      >
+                        {receitasPorCategoria.map((entry, index) => (
+                          <Cell key={`cell-rec-${index}`} fill={entry.color || COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <RechartsTooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  {renderLegendList(
+                    receitasPorCategoria,
+                    (item) => item.categoriaId && setDrilldown({ tipo: "receita", categoriaId: item.categoriaId }),
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-[300px] text-muted-foreground">Sem receitas no período</div>
               )}
-            </div>
+            </CardContent>
+          </Card>
+        );
 
-            {visibility.proximosFechamentos && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-                <ProximosFechamentosWidget
-                  contas={contas}
-                  transacoes={todasTransacoes}
-                />
+      case "saldoContas":
+        return (
+          <Card className="shadow-card card-hover border-border/50 overflow-hidden h-full">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between gap-4">
+                <CardTitle className="text-base">Saldo por Conta</CardTitle>
+                <Select value={saldoContasMode} onValueChange={(v) => setSaldoContasMode(v as "total" | "mes")}>
+                  <SelectTrigger className="w-[160px] h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="total">Saldo Total</SelectItem>
+                    <SelectItem value="mes">Saldo do Período</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-            )}
-          </section>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {contas.map((conta) => {
+                  let saldo = 0;
+                  if (saldoContasMode === "total") {
+                    if (conta.tipo === "credito") {
+                      saldo = calcularFaturaAbertaCartao(conta, todasTransacoes, contas);
+                    } else {
+                      saldo = calcularSaldoRealConta(conta, todasTransacoes);
+                    }
+                  } else {
+                    if (conta.tipo === "credito") {
+                      saldo = calcularFaturaAbertaCartao(conta, todasTransacoes, contas);
+                    } else {
+                      const transacoesParaCalculo = transacoesExecutadasPeriodo.filter(
+                        t => t.conta_id === conta.id || t.conta_destino_id === conta.id
+                      );
+                      saldo = transacoesParaCalculo.reduce((acc, t) => {
+                        const valor = Number(t.valor);
+                        const isTransferencia = t.forma_pagamento === "transferencia" || t.tipo === "transferencia";
+                        if (isTransferencia) {
+                          if (t.conta_destino_id) {
+                            if (t.conta_id === conta.id) return acc - valor;
+                            if (t.conta_destino_id === conta.id) return acc + valor;
+                          }
+                          return acc;
+                        }
+                        if (t.tipo === "receita" && t.conta_id === conta.id) return acc + valor;
+                        if (t.tipo === "despesa" && t.conta_id === conta.id) return acc - valor;
+                        return acc;
+                      }, 0);
+                    }
+                  }
+                  return (
+                    <div key={conta.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                      <div className="flex items-center gap-3">
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: conta.cor }} />
+                        <div>
+                          <p className="font-medium text-foreground">{conta.nome_conta}</p>
+                          <p className="text-xs text-muted-foreground capitalize">{conta.tipo}</p>
+                        </div>
+                      </div>
+                      <p className={`font-bold ${saldo >= 0 ? "text-success" : "text-destructive"}`}>
+                        {formatCurrency(saldo)}
+                      </p>
+                    </div>
+                  );
+                })}
+                {contas.length === 0 && (
+                  <p className="text-center text-muted-foreground py-8">Nenhuma conta cadastrada</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        );
+
+      case "evolucaoMensal":
+        return <EvolucaoMensalWidget transacoes={todasTransacoes} />;
+
+      case "ultimasTransacoes":
+        return <UltimasTransacoesWidget transacoes={transacoesFiltradasGerais} categorias={categorias} contas={contas} />;
+
+      case "contasConfirmar":
+        return <ContasConfirmarWidget transacoes={transacoesFiltradasGerais} categorias={categorias} contas={contas} />;
+
+      case "proximosFechamentos":
+        return <ProximosFechamentosWidget contas={contas} transacoes={todasTransacoes} />;
+
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <AppLayout>
+      <div className="space-y-8">
+        {/* HERO HEADER */}
+        <div className="relative overflow-hidden rounded-2xl gradient-hero border border-border/40 shadow-card">
+          <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full gradient-primary opacity-10 blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-32 -left-16 w-64 h-64 rounded-full gradient-info opacity-[0.07] blur-3xl pointer-events-none" />
+          <div className="relative p-5 sm:p-7 flex flex-col gap-5">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div className="flex items-center gap-4">
+                <div className="hidden sm:flex h-12 w-12 items-center justify-center rounded-2xl gradient-primary text-primary-foreground shadow-glow">
+                  <Wallet className="h-6 w-6" />
+                </div>
+                <div>
+                  <p className="section-label mb-1">Visão geral</p>
+                  <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground leading-tight">
+                    Dashboard Financeiro
+                  </h1>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Acompanhe suas finanças em tempo real
+                  </p>
+                </div>
+              </div>
+              <CustomizeDashboardModal
+                catalog={WIDGET_CATALOG}
+                layout={layout}
+                onLayoutChange={setLayout}
+                onReset={resetLayout}
+                customizing={customizing}
+                onCustomizingChange={setCustomizing}
+              />
+            </div>
+
+            <AdvancedFilters
+              filters={filters}
+              onFiltersChange={setFilters}
+              onResetToDefault={handleRestoreDefaultFilter}
+              categorias={categorias}
+              contas={contas}
+              showTipo
+              showCategoria
+              showConta
+              showFormaPagamento
+              showStatusPagamento
+            />
+          </div>
+        </div>
+
+        {/* GRID DE WIDGETS PERSONALIZÁVEL */}
+        {customizing && (
+          <div className="rounded-lg border border-dashed border-primary/40 bg-primary/5 px-3 py-2 text-xs text-foreground flex flex-wrap items-center gap-2">
+            <Pencil className="h-3.5 w-3.5 text-primary" />
+            <span className="font-medium">Modo edição:</span>
+            <span className="text-muted-foreground">arraste pelo ícone, ajuste o tamanho ou oculte cada widget.</span>
+          </div>
+        )}
+
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={layout.filter(w => w.visible).map(w => w.id)} strategy={rectSortingStrategy}>
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6">
+              {layout.filter(w => w.visible).map(w => {
+                const node = renderWidgetContent(w.id);
+                if (!node) return null;
+                return (
+                  <WidgetFrame
+                    key={w.id}
+                    id={w.id}
+                    size={w.size}
+                    onSizeChange={(s) => setSize(w.id, s)}
+                    onHide={() => toggleVisible(w.id)}
+                    customizing={customizing}
+                    label={WIDGET_CATALOG[w.id]?.label}
+                  >
+                    {node}
+                  </WidgetFrame>
+                );
+              })}
+            </div>
+          </SortableContext>
+        </DndContext>
+
+        {customizing && layout.some(w => !w.visible) && (
+          <div className="rounded-lg border border-dashed border-border/60 p-3 flex flex-wrap items-center gap-2">
+            <span className="text-xs font-medium text-muted-foreground mr-1">Widgets ocultos:</span>
+            {layout.filter(w => !w.visible).map(w => (
+              <button
+                key={w.id}
+                onClick={() => toggleVisible(w.id)}
+                className="text-[11px] inline-flex items-center gap-1 rounded-full border border-border bg-card hover:bg-accent px-2.5 py-1 transition-colors"
+              >
+                + {WIDGET_CATALOG[w.id]?.label || w.id}
+              </button>
+            ))}
+          </div>
         )}
       </div>
 
