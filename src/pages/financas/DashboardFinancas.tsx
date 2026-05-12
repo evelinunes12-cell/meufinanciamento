@@ -9,7 +9,22 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, L
 import { useState, useMemo, useEffect } from "react";
 import { AdvancedFilters, FilterState, getInitialFilterState, getDateRangeFromFilters, getCategoryIdsForFilter } from "@/components/AdvancedFilters";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CustomizeDashboardModal, useWidgetVisibility } from "@/components/dashboard/DashboardWidgets";
+import { CustomizeDashboardModal } from "@/components/dashboard/CustomizeDashboardModal";
+import { useDashboardLayout, WidgetCatalog, SIZE_TO_COLSPAN } from "@/hooks/useDashboardLayout";
+import WidgetFrame from "@/components/dashboard/WidgetFrame";
+import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  rectSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
 import { UltimasTransacoesWidget } from "@/components/dashboard/UltimasTransacoesWidget";
 import { ContasConfirmarWidget } from "@/components/dashboard/ContasConfirmarWidget";
 import { EvolucaoMensalWidget } from "@/components/dashboard/EvolucaoMensalWidget";
