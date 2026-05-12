@@ -10,7 +10,7 @@ import { useState, useMemo, useEffect } from "react";
 import { AdvancedFilters, FilterState, getInitialFilterState, getDateRangeFromFilters, getCategoryIdsForFilter } from "@/components/AdvancedFilters";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CustomizeDashboardModal } from "@/components/dashboard/CustomizeDashboardModal";
-import { useDashboardLayout, WidgetCatalog, SIZE_TO_COLSPAN } from "@/hooks/useDashboardLayout";
+import { useDashboardLayout, WidgetCatalog } from "@/hooks/useDashboardLayout";
 import WidgetFrame from "@/components/dashboard/WidgetFrame";
 import {
   DndContext,
