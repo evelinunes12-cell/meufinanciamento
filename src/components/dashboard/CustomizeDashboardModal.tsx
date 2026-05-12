@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Settings2, RotateCcw, ArrowUp, ArrowDown, Pencil, Check } from "lucide-react";
-import { ExportSettingsButton } from "./ExportSettingsButton";
+
 import {
   WidgetCatalog,
   WidgetConfig,
