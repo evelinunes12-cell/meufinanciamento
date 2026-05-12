@@ -106,6 +106,11 @@ async function fetchDashboardData(userId: string | undefined, startDate: string,
 
 const DashboardFinancas = () => {
   const { user } = useAuth();
+  const storageKey = useMemo(() => `dashboard-financas-filters-${user?.id || "anon"}`, [user?.id]);
+  const [filters, setFilters] = useState<FilterState>(getInitialFilterState);
+  const [saldoContasMode, setSaldoContasMode] = useState<"total" | "mes">("total");
+  const [drilldown, setDrilldown] = useState<{ tipo: "despesa" | "receita"; categoriaId: string } | null>(null);
+
   const WIDGET_CATALOG: WidgetCatalog = useMemo(() => ({
     kpis: { label: "Resumo Financeiro (KPIs)", defaultSize: "full" },
     graficoDespesas: { label: "Despesas por Categoria", defaultSize: "md" },
