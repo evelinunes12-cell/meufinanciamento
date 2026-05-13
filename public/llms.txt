@@ -1,0 +1,19 @@
+# Soma | Assistente Financeiro
+
+> Soma é um assistente financeiro pessoal: controle de gastos, gestão de faturas de cartão, projeções de fluxo de caixa, orçamentos e acompanhamento de financiamentos em um só lugar.
+
+A maior parte do aplicativo é privada e exige login. Apenas as páginas listadas abaixo são públicas.
+
+## Pages
+
+- [Início](/): redireciona para o painel de finanças após login.
+- [Login / Cadastro](/auth): autenticação por e-mail/senha ou Google.
+
+## Optional
+
+- [Dashboard de Finanças](/financas): painel com saldo, receitas, despesas, faturas e projeções (requer login).
+- [Transações](/financas/transacoes): lançamentos de receitas, despesas e transferências (requer login).
+- [Cartões de Crédito](/financas/cartoes): faturas, fechamento e pagamento de cartões (requer login).
+- [Orçamento](/financas/orcamento): limites por categoria com alertas (requer login).
+- [Projeção de Caixa](/financas/projecao): previsão de saldo para 3, 6 e 12 meses (requer login).
+- [Financiamento](/financiamento): simulação e gestão de parcelas de financiamento (requer login).
