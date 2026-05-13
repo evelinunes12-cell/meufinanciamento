@@ -427,7 +427,7 @@ const Categorias = () => {
         {totalPages > 1 && (
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
-              Mostrando {startIndex + 1} - {Math.min(startIndex + ITEMS_PER_PAGE, flatItems.length)} de {flatItems.length} categorias
+              Mostrando {startIndex + 1} - {Math.min(startIndex + ITEMS_PER_PAGE, mainCategorias.length)} de {mainCategorias.length} categorias principais
             </p>
             <div className="flex items-center gap-2">
               <Button
