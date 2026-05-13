@@ -51,6 +51,16 @@ const Categorias = () => {
   const { tab: activeTab, setTab: setActiveTab, isTransitioning: isTabSwitching } = useTabTransition<"despesa" | "receita">("despesa");
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+
+  const toggleExpand = (id: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   const [formData, setFormData] = useState({
     nome: "",
