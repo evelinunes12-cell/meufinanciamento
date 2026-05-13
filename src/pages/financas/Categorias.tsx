@@ -404,23 +404,10 @@ const Categorias = () => {
             {isTabSwitching ? (
               <TabContentSkeleton variant="list" />
             ) : (
-              <Card className="shadow-card">
-                <CardContent className="p-4 space-y-2">
-                  {paginatedItems.map((item, index) => (
-                    <CategoriaCard
-                      key={item.categoria.id}
-                      categoria={item.categoria}
-                      index={item.isSubcategory ? 0 : item.mainIndex - (currentPage - 1) * ITEMS_PER_PAGE}
-                      isSubcategory={item.isSubcategory}
-                    />
-                  ))}
-                  {categoriasDespesa.length === 0 && (
-                    <p className="text-center py-8 text-muted-foreground">
-                      {searchTerm ? "Nenhuma categoria encontrada" : "Nenhuma categoria de despesa cadastrada"}
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
+              renderGrid(
+                paginatedParents,
+                searchTerm ? "Nenhuma categoria encontrada" : "Nenhuma categoria de despesa cadastrada",
+              )
             )}
           </TabsContent>
 
@@ -428,23 +415,10 @@ const Categorias = () => {
             {isTabSwitching ? (
               <TabContentSkeleton variant="list" />
             ) : (
-              <Card className="shadow-card">
-                <CardContent className="p-4 space-y-2">
-                  {paginatedItems.map((item, index) => (
-                    <CategoriaCard
-                      key={item.categoria.id}
-                      categoria={item.categoria}
-                      index={item.isSubcategory ? 0 : item.mainIndex - (currentPage - 1) * ITEMS_PER_PAGE}
-                      isSubcategory={item.isSubcategory}
-                    />
-                  ))}
-                  {categoriasReceita.length === 0 && (
-                    <p className="text-center py-8 text-muted-foreground">
-                      {searchTerm ? "Nenhuma categoria encontrada" : "Nenhuma categoria de receita cadastrada"}
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
+              renderGrid(
+                paginatedParents,
+                searchTerm ? "Nenhuma categoria encontrada" : "Nenhuma categoria de receita cadastrada",
+              )
             )}
           </TabsContent>
         </Tabs>
