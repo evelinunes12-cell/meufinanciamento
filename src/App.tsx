@@ -8,6 +8,7 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { SaldoProvider } from "@/contexts/SaldoContext";
 import { ThemeProvider } from "next-themes";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import RouteSEO from "@/components/RouteSEO";
 
 // Lazy-loaded pages for code-splitting
 const DashboardFinancas = lazy(() => import("./pages/financas/DashboardFinancas"));
@@ -51,6 +52,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <RouteSEO />
           <SaldoProvider>
             <SidebarProvider>
               <Suspense fallback={<div className="flex items-center justify-center min-h-screen bg-background"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}>
