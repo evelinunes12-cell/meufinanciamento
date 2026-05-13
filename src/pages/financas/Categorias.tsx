@@ -178,66 +178,107 @@ const Categorias = () => {
   const availableParentCategorias = categorias
     .filter(c => c.tipo === formData.tipo && !c.categoria_pai_id && c.id !== editingId);
 
-  // Build flat ordered list: each main category followed by its subcategories
-  type FlatItem = { categoria: Categoria; isSubcategory: boolean; mainIndex: number };
-  const flatItems: FlatItem[] = [];
-  mainCategorias.forEach((main, idx) => {
-    flatItems.push({ categoria: main, isSubcategory: false, mainIndex: idx });
-    getSubcategorias(main.id).forEach((sub) => {
-      flatItems.push({ categoria: sub, isSubcategory: true, mainIndex: idx });
-    });
-  });
-
-  const totalPages = Math.ceil(flatItems.length / ITEMS_PER_PAGE);
+  // Paginate parents only; their children are rendered nested
+  const totalPages = Math.ceil(mainCategorias.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const paginatedItems = flatItems.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  const paginatedParents = mainCategorias.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
-  const getParentName = (parentId: string | null) => {
-    if (!parentId) return null;
-    return categorias.find(c => c.id === parentId)?.nome || null;
-  };
-  const CategoriaCard = ({ categoria, index, isSubcategory = false }: { categoria: Categoria; index: number; isSubcategory?: boolean }) => (
-    <div className={`flex items-center justify-between p-3 rounded-lg bg-muted/50 ${isSubcategory ? "ml-6 border-l-2 border-primary/30" : ""}`}>
-      <div className="flex items-center gap-3">
-        {!isSubcategory && (
-          <span className="text-muted-foreground font-mono text-sm w-6">{startIndex + index + 1}</span>
-        )}
-        {isSubcategory && (
-          <span className="text-muted-foreground text-sm w-6">↳</span>
-        )}
-        <div 
-          className="w-4 h-4 rounded-full"
-          style={{ backgroundColor: categoria.cor }}
-        />
-        <div className="flex flex-col">
-          <span className={`font-medium text-foreground ${!isSubcategory ? "font-semibold" : ""}`}>{categoria.nome}</span>
-          {isSubcategory && categoria.categoria_pai_id && (
-            <span className="text-xs text-muted-foreground">Subcategoria</span>
-          )}
-        </div>
-      </div>
-      <div className="flex gap-2 sm:gap-1">
-        <Button variant="ghost" size="icon" onClick={() => handleEdit(categoria)}>
-          <Edit className="h-5 w-5 sm:h-4 sm:w-4" />
-        </Button>
-        <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(categoria.id)}>
-          <Trash2 className="h-5 w-5 sm:h-4 sm:w-4" />
-        </Button>
-      </div>
-    </div>
-  );
+  const searchActive = searchTerm.trim().length > 0;
 
-  const renderCategoriaWithSubcategorias = (mainCat: Categoria, index: number) => {
-    const subcats = getSubcategorias(mainCat.id);
+  const ParentCard = ({ categoria, index }: { categoria: Categoria; index: number }) => {
+    const subs = getSubcategorias(categoria.id);
+    const isExpanded = expandedIds.has(categoria.id) || searchActive;
+    const hasSubs = subs.length > 0;
+
     return (
-      <div key={mainCat.id} className="space-y-1">
-        <CategoriaCard categoria={mainCat} index={index} />
-        {subcats.map((sub) => (
-          <CategoriaCard key={sub.id} categoria={sub} index={0} isSubcategory />
-        ))}
+      <div className="rounded-xl border bg-card shadow-sm transition-all hover:shadow-md overflow-hidden">
+        <div
+          className={`flex items-center justify-between gap-2 p-3 ${hasSubs ? "cursor-pointer hover:bg-muted/40" : ""}`}
+          onClick={() => hasSubs && toggleExpand(categoria.id)}
+          role={hasSubs ? "button" : undefined}
+          aria-expanded={hasSubs ? isExpanded : undefined}
+        >
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <span className="text-muted-foreground font-mono text-xs w-5 shrink-0">{startIndex + index + 1}</span>
+            <div
+              className="w-4 h-4 rounded-full shrink-0"
+              style={{ backgroundColor: categoria.cor, boxShadow: `0 0 0 3px ${categoria.cor}25` }}
+            />
+            <div className="flex flex-col min-w-0">
+              <span className="font-semibold text-foreground truncate">{categoria.nome}</span>
+              {hasSubs && (
+                <span className="text-xs text-muted-foreground">
+                  {subs.length} subcategoria{subs.length > 1 ? "s" : ""}
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+            {hasSubs && (
+              <Badge variant="secondary" className="hidden sm:inline-flex font-mono text-xs">
+                {subs.length}
+              </Badge>
+            )}
+            <Button variant="ghost" size="icon" onClick={() => handleEdit(categoria)} aria-label="Editar">
+              <Edit className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(categoria.id)} aria-label="Excluir">
+              <Trash2 className="h-4 w-4" />
+            </Button>
+            {hasSubs && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => toggleExpand(categoria.id)}
+                aria-label={isExpanded ? "Recolher" : "Expandir"}
+              >
+                <ChevronDown className={`h-4 w-4 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {hasSubs && isExpanded && (
+          <div className="border-t bg-muted/30 px-3 py-2 space-y-1 animate-in fade-in slide-in-from-top-1 duration-200">
+            {subs.map((sub) => (
+              <div
+                key={sub.id}
+                className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 hover:bg-muted/60 transition-colors"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-muted-foreground text-xs">↳</span>
+                  <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: sub.cor }} />
+                  <span className="text-sm text-foreground truncate">{sub.nome}</span>
+                </div>
+                <div className="flex gap-0.5 shrink-0">
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(sub)} aria-label="Editar">
+                    <Edit className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(sub.id)} aria-label="Excluir">
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   };
+
+  const renderGrid = (parents: Categoria[], emptyMessage: string) => (
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+      {parents.map((cat, idx) => (
+        <ParentCard key={cat.id} categoria={cat} index={idx} />
+      ))}
+      {parents.length === 0 && (
+        <div className="col-span-full flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
+          <FolderTree className="h-10 w-10 mb-3 opacity-50" />
+          <p>{emptyMessage}</p>
+        </div>
+      )}
+    </div>
+  );
 
   if (isLoading) {
     return (
