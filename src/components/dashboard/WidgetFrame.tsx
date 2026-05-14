@@ -84,7 +84,7 @@ const WidgetFrame = ({ id, size, onSizeChange, onHide, customizing, children, la
                   <EyeOff className="h-3 w-3" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>
+              <TooltipContent side="bottom" sideOffset={6}>
                 <p className="text-xs">Ocultar widget</p>
               </TooltipContent>
             </Tooltip>
