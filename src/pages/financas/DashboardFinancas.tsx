@@ -623,7 +623,22 @@ const DashboardFinancas = () => {
                           <Cell key={`cell-rec-${index}`} fill={entry.color || COLORS[index % COLORS.length]} />
                         ))}
                       </Pie>
-                      <RechartsTooltip />
+                      <RechartsTooltip
+                        content={({ active, payload }) => {
+                          if (!active || !payload || !payload.length) return null;
+                          const entry = payload[0];
+                          const value = entry.value as number;
+                          const totalReceitas = receitasPorCategoria.reduce((sum, r) => sum + r.value, 0);
+                          const percent = totalReceitas > 0 ? ((value / totalReceitas) * 100).toFixed(1) : '0';
+                          return (
+                            <div className="bg-popover border border-border rounded-lg p-3 shadow-lg">
+                              <p className="font-medium text-foreground text-sm">{entry.name}</p>
+                              <p className="text-sm text-foreground">{formatCurrency(value)}</p>
+                              <p className="text-xs text-muted-foreground">{percent}% do total de receitas</p>
+                            </div>
+                          );
+                        }}
+                      />
                     </PieChart>
                   </ResponsiveContainer>
                   {renderLegendList(
