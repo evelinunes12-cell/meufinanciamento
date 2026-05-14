@@ -81,13 +81,20 @@ export function EvolucaoMensalWidget({ transacoes }: EvolucaoMensalWidgetProps) 
                 tick={{ fontSize: 12 }}
                 className="text-muted-foreground"
               />
-              <Tooltip 
-                formatter={(value: number) => formatCurrency(value)}
-                labelFormatter={(label) => `Mês: ${label}`}
-                contentStyle={{ 
-                  backgroundColor: 'hsl(var(--background))', 
-                  border: '1px solid hsl(var(--border))',
-                  borderRadius: '8px'
+              <Tooltip
+                cursor={{ fill: 'hsl(var(--muted))', opacity: 0.3 }}
+                content={({ active, payload, label }) => {
+                  if (!active || !payload || !payload.length) return null;
+                  return (
+                    <div className="rounded-lg border border-border bg-popover px-3 py-2 shadow-lg">
+                      <p className="text-xs font-medium text-foreground mb-1">Mês: {label}</p>
+                      {payload.map((entry) => (
+                        <p key={entry.dataKey as string} className="text-xs" style={{ color: entry.color as string }}>
+                          {entry.name}: <span className="font-medium">{formatCurrency(entry.value as number)}</span>
+                        </p>
+                      ))}
+                    </div>
+                  );
                 }}
               />
               <Legend />
