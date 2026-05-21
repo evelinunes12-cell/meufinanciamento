@@ -79,8 +79,9 @@ const adminGroup: NavGroup = {
 
 const AppSidebar = () => {
   const location = useLocation();
-  const { signOut } = useAuth();
-  const [expandedGroups, setExpandedGroups] = useState<string[]>(["Finanças Pessoais", "Empréstimos"]);
+  const { signOut, isAdmin } = useAuth();
+  const visibleGroups = isAdmin ? [...navGroups, adminGroup] : navGroups;
+  const [expandedGroups, setExpandedGroups] = useState<string[]>(["Finanças Pessoais", "Empréstimos", "Administração"]);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   const handleSignOut = async () => {
