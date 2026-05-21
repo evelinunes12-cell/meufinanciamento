@@ -119,7 +119,7 @@ const AppSidebar = () => {
       </div>
 
       <nav className="flex-1 overflow-y-auto p-4 space-y-2">
-        {navGroups.map((group) => (
+        {visibleGroups.map((group) => (
           <div key={group.title}>
             <button
               onClick={() => toggleGroup(group.title)}
