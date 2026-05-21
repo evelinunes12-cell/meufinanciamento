@@ -19,8 +19,11 @@ import {
   Menu,
   X,
   Settings,
-  CirclePlus
+  CirclePlus,
+  Shield,
+  Users as UsersIcon
 } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
