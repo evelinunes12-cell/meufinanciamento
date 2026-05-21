@@ -23,7 +23,6 @@ import {
   Shield,
   Users as UsersIcon
 } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -69,6 +68,14 @@ const navGroups: NavGroup[] = [
     ],
   },
 ];
+
+const adminGroup: NavGroup = {
+  title: "Administração",
+  icon: Shield,
+  items: [
+    { path: "/admin/usuarios", label: "Usuários", icon: UsersIcon },
+  ],
+};
 
 const AppSidebar = () => {
   const location = useLocation();
