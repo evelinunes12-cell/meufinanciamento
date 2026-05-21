@@ -8,7 +8,10 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { SaldoProvider } from "@/contexts/SaldoContext";
 import { ThemeProvider } from "next-themes";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import AdminRoute from "@/components/AdminRoute";
 import RouteSEO from "@/components/RouteSEO";
+
+const AdminUsuarios = lazy(() => import("./pages/admin/Usuarios"));
 
 // Lazy-loaded pages for code-splitting
 const DashboardFinancas = lazy(() => import("./pages/financas/DashboardFinancas"));
@@ -175,6 +178,17 @@ const App = () => (
                 element={
                   <ProtectedRoute>
                     <FinanciamentoDashboard />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/admin/usuarios"
+                element={
+                  <ProtectedRoute>
+                    <AdminRoute>
+                      <AdminUsuarios />
+                    </AdminRoute>
                   </ProtectedRoute>
                 }
               />

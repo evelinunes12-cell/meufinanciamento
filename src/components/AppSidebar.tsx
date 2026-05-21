@@ -19,7 +19,9 @@ import {
   Menu,
   X,
   Settings,
-  CirclePlus
+  CirclePlus,
+  Shield,
+  Users as UsersIcon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -67,10 +69,19 @@ const navGroups: NavGroup[] = [
   },
 ];
 
+const adminGroup: NavGroup = {
+  title: "Administração",
+  icon: Shield,
+  items: [
+    { path: "/admin/usuarios", label: "Usuários", icon: UsersIcon },
+  ],
+};
+
 const AppSidebar = () => {
   const location = useLocation();
-  const { signOut } = useAuth();
-  const [expandedGroups, setExpandedGroups] = useState<string[]>(["Finanças Pessoais", "Empréstimos"]);
+  const { signOut, isAdmin } = useAuth();
+  const visibleGroups = isAdmin ? [...navGroups, adminGroup] : navGroups;
+  const [expandedGroups, setExpandedGroups] = useState<string[]>(["Finanças Pessoais", "Empréstimos", "Administração"]);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   const handleSignOut = async () => {
@@ -108,7 +119,7 @@ const AppSidebar = () => {
       </div>
 
       <nav className="flex-1 overflow-y-auto p-4 space-y-2">
-        {navGroups.map((group) => (
+        {visibleGroups.map((group) => (
           <div key={group.title}>
             <button
               onClick={() => toggleGroup(group.title)}
