@@ -171,6 +171,7 @@ const Usuarios = () => {
                   <TableHead>Usuário</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Papel</TableHead>
+                  <TableHead>Último acesso</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -178,7 +179,7 @@ const Usuarios = () => {
                 {loadingProfiles ? (
                   Array.from({ length: 4 }).map((_, i) => (
                     <TableRow key={i}>
-                      <TableCell colSpan={4}>
+                      <TableCell colSpan={5}>
                         <Skeleton className="h-8 w-full" />
                       </TableCell>
                     </TableRow>
