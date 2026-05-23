@@ -14,7 +14,8 @@ export function useAuth() {
   const [isLoading, setIsLoading] = useState(true);
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [isProfileLoading, setIsProfileLoading] = useState(false);
+  // Start as true so guards (AdminRoute) don't redirect before role/profile load
+  const [isProfileLoading, setIsProfileLoading] = useState(true);
 
   const loadProfileAndRole = async (uid: string) => {
     setIsProfileLoading(true);
