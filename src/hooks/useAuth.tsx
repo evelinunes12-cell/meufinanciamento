@@ -61,6 +61,8 @@ export function useAuth() {
       setIsLoading(false);
       if (session?.user) {
         loadProfileAndRole(session.user.id);
+      } else {
+        setIsProfileLoading(false);
       }
     });
 
