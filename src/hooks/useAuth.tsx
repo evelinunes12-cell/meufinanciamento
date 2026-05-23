@@ -50,6 +50,7 @@ export function useAuth() {
         } else {
           setProfile(null);
           setIsAdmin(false);
+          setIsProfileLoading(false);
         }
       }
     );
