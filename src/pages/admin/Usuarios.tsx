@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Shield, Users as UsersIcon, UserCheck, Search } from "lucide-react";
+import { formatDistanceToNow, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/AppLayout";
 import PageHeader from "@/components/PageHeader";
@@ -25,6 +27,7 @@ interface ProfileRow {
   email: string | null;
   nome: string | null;
   is_active: boolean;
+  ultimo_acesso: string | null;
 }
 
 interface RoleRow {
