@@ -1,14 +1,13 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Shield, Users as UsersIcon, UserCheck } from "lucide-react";
+import { Shield, Users as UsersIcon, UserCheck, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import AppSidebar from "@/components/AppSidebar";
-import BottomNav from "@/components/BottomNav";
-import PageContainer from "@/components/PageContainer";
+import AppLayout from "@/components/AppLayout";
 import PageHeader from "@/components/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -35,6 +34,7 @@ interface RoleRow {
 
 const Usuarios = () => {
   const queryClient = useQueryClient();
+  const [search, setSearch] = useState("");
 
   const { data: profiles, isLoading: loadingProfiles } = useQuery({
     queryKey: ["admin", "profiles"],
@@ -94,10 +94,20 @@ const Usuarios = () => {
   const ativos = profiles?.filter((p) => p.is_active).length ?? 0;
   const admins = adminSet.size;
 
+  const filtered = useMemo(() => {
+    if (!profiles) return [];
+    const q = search.trim().toLowerCase();
+    if (!q) return profiles;
+    return profiles.filter(
+      (p) =>
+        (p.nome ?? "").toLowerCase().includes(q) ||
+        (p.email ?? "").toLowerCase().includes(q)
+    );
+  }, [profiles, search]);
+
   return (
-    <div className="min-h-screen bg-background">
-      <AppSidebar />
-      <PageContainer>
+    <AppLayout>
+      <div className="space-y-6">
         <PageHeader
           title="Gestão de Usuários"
           description="Controle quem tem acesso e administre permissões"
@@ -140,8 +150,18 @@ const Usuarios = () => {
           </Card>
         </div>
 
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por nome ou e-mail..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+
         <Card>
-          <CardContent className="p-0">
+          <CardContent className="p-0 overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -160,8 +180,8 @@ const Usuarios = () => {
                       </TableCell>
                     </TableRow>
                   ))
-                ) : profiles && profiles.length > 0 ? (
-                  profiles.map((p) => {
+                ) : filtered.length > 0 ? (
+                  filtered.map((p) => {
                     const isUserAdmin = adminSet.has(p.user_id);
                     return (
                       <TableRow key={p.id}>
@@ -222,9 +242,8 @@ const Usuarios = () => {
             </Table>
           </CardContent>
         </Card>
-      </PageContainer>
-      <BottomNav />
-    </div>
+      </div>
+    </AppLayout>
   );
 };
 
