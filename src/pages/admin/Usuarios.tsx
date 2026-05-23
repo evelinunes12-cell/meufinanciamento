@@ -218,6 +218,13 @@ const Usuarios = () => {
                             <Badge variant="outline">Usuário</Badge>
                           )}
                         </TableCell>
+                        <TableCell>
+                          <span className="text-sm text-muted-foreground" title={p.ultimo_acesso ?? ""}>
+                            {p.ultimo_acesso
+                              ? formatDistanceToNow(parseISO(p.ultimo_acesso), { addSuffix: true, locale: ptBR })
+                              : "Nunca acessou"}
+                          </span>
+                        </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
                             <span className="text-xs text-muted-foreground">
@@ -237,7 +244,7 @@ const Usuarios = () => {
                   })
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
                       Nenhum usuário encontrado.
                     </TableCell>
                   </TableRow>
