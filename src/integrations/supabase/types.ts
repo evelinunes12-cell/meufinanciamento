@@ -317,6 +317,7 @@ export type Database = {
           id: string
           is_active: boolean
           nome: string | null
+          ultimo_acesso: string | null
           updated_at: string
           user_id: string
         }
@@ -327,6 +328,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           nome?: string | null
+          ultimo_acesso?: string | null
           updated_at?: string
           user_id: string
         }
@@ -337,6 +339,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           nome?: string | null
+          ultimo_acesso?: string | null
           updated_at?: string
           user_id?: string
         }

@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Shield, Users as UsersIcon, UserCheck, Search } from "lucide-react";
+import { formatDistanceToNow, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/AppLayout";
 import PageHeader from "@/components/PageHeader";
@@ -25,6 +27,7 @@ interface ProfileRow {
   email: string | null;
   nome: string | null;
   is_active: boolean;
+  ultimo_acesso: string | null;
 }
 
 interface RoleRow {
@@ -41,10 +44,10 @@ const Usuarios = () => {
     queryFn: async (): Promise<ProfileRow[]> => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, user_id, email, nome, is_active")
+        .select("id, user_id, email, nome, is_active, ultimo_acesso")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []) as ProfileRow[];
     },
   });
 
@@ -168,6 +171,7 @@ const Usuarios = () => {
                   <TableHead>Usuário</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Papel</TableHead>
+                  <TableHead>Último acesso</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -175,7 +179,7 @@ const Usuarios = () => {
                 {loadingProfiles ? (
                   Array.from({ length: 4 }).map((_, i) => (
                     <TableRow key={i}>
-                      <TableCell colSpan={4}>
+                      <TableCell colSpan={5}>
                         <Skeleton className="h-8 w-full" />
                       </TableCell>
                     </TableRow>
@@ -214,6 +218,13 @@ const Usuarios = () => {
                             <Badge variant="outline">Usuário</Badge>
                           )}
                         </TableCell>
+                        <TableCell>
+                          <span className="text-sm text-muted-foreground" title={p.ultimo_acesso ?? ""}>
+                            {p.ultimo_acesso
+                              ? formatDistanceToNow(parseISO(p.ultimo_acesso), { addSuffix: true, locale: ptBR })
+                              : "Nunca acessou"}
+                          </span>
+                        </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
                             <span className="text-xs text-muted-foreground">
@@ -233,7 +244,7 @@ const Usuarios = () => {
                   })
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
                       Nenhum usuário encontrado.
                     </TableCell>
                   </TableRow>
