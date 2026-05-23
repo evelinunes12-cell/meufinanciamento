@@ -44,10 +44,10 @@ const Usuarios = () => {
     queryFn: async (): Promise<ProfileRow[]> => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, user_id, email, nome, is_active")
+        .select("id, user_id, email, nome, is_active, ultimo_acesso")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []) as ProfileRow[];
     },
   });
 
