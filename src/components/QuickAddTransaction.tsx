@@ -549,14 +549,14 @@ const QuickAddTransaction = ({ open, onOpenChange }: QuickAddTransactionProps) =
             </div>
           </div>
 
-          {predictions.length > 0 && !showTransferFields && (
+          {visiblePredictions.length > 0 && !showTransferFields && (
             <div className="space-y-2 rounded-lg border border-primary/20 bg-primary/5 p-3">
               <div className="flex items-center gap-1.5 text-xs font-medium text-primary">
                 <Sparkles className="h-3.5 w-3.5" />
                 Transações Frequentes
               </div>
               <div className="flex flex-wrap gap-2">
-                {predictions.map((p) => (
+                {visiblePredictions.map((p) => (
                   <Badge
                     key={p.key}
                     variant="secondary"
