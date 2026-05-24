@@ -536,6 +536,27 @@ const QuickAddTransaction = ({ open, onOpenChange }: QuickAddTransactionProps) =
             </div>
           </div>
 
+          {predictions.length > 0 && !showTransferFields && (
+            <div className="space-y-2 rounded-lg border border-primary/20 bg-primary/5 p-3">
+              <div className="flex items-center gap-1.5 text-xs font-medium text-primary">
+                <Sparkles className="h-3.5 w-3.5" />
+                Transações Frequentes
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {predictions.map((p) => (
+                  <Badge
+                    key={p.key}
+                    variant="secondary"
+                    onClick={() => applyPrediction(p)}
+                    className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors py-1 px-2.5"
+                  >
+                    {p.descricao} · R$ {formatCurrencyFromNumber(p.valor)}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label>Conta Origem *</Label>
             <Select value={formData.conta_id} onValueChange={(v) => {
@@ -712,7 +733,7 @@ const QuickAddTransaction = ({ open, onOpenChange }: QuickAddTransactionProps) =
             <Label>Descrição</Label>
             <Input
               value={formData.descricao}
-              onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
+              onChange={handleDescricaoChange}
               placeholder="Descrição opcional"
             />
           </div>
