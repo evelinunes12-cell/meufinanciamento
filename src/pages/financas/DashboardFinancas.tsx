@@ -29,6 +29,7 @@ import { UltimasTransacoesWidget } from "@/components/dashboard/UltimasTransacoe
 import { ContasConfirmarWidget } from "@/components/dashboard/ContasConfirmarWidget";
 import { EvolucaoMensalWidget } from "@/components/dashboard/EvolucaoMensalWidget";
 import { ProximosFechamentosWidget } from "@/components/dashboard/ProximosFechamentosWidget";
+import RadarEmocional from "@/components/dashboard/RadarEmocional";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -790,6 +791,9 @@ const DashboardFinancas = () => {
             />
           </div>
         </div>
+
+        {/* RADAR EMOCIONAL */}
+        <RadarEmocional />
 
         {/* GRID DE WIDGETS PERSONALIZÁVEL */}
         {customizing && (
