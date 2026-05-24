@@ -113,6 +113,19 @@ const QuickAddTransaction = ({ open, onOpenChange }: QuickAddTransactionProps) =
   const [formData, setFormData] = useState(getInitialFormData);
   const { data: predictions = [] } = usePredictiveTransactions();
 
+  // Sugestões visíveis: se houver valor digitado, filtra pelo valor exato (top 3
+  // mais frequentes nesse valor). Caso contrário, mostra as top 3 globais do tipo atual.
+  const visiblePredictions = useMemo(() => {
+    const parsedValor = parseCurrencyInput(formData.valor || "");
+    const byTipo = predictions.filter((p) => p.tipo === formData.tipo);
+    if (parsedValor > 0) {
+      return byTipo
+        .filter((p) => Math.abs(p.valor - parsedValor) < 0.005)
+        .slice(0, 3);
+    }
+    return byTipo.slice(0, 3);
+  }, [predictions, formData.valor, formData.tipo]);
+
   const formatCurrencyFromNumber = (n: number) =>
     n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -536,14 +549,14 @@ const QuickAddTransaction = ({ open, onOpenChange }: QuickAddTransactionProps) =
             </div>
           </div>
 
-          {predictions.length > 0 && !showTransferFields && (
+          {visiblePredictions.length > 0 && !showTransferFields && (
             <div className="space-y-2 rounded-lg border border-primary/20 bg-primary/5 p-3">
               <div className="flex items-center gap-1.5 text-xs font-medium text-primary">
                 <Sparkles className="h-3.5 w-3.5" />
                 Transações Frequentes
               </div>
               <div className="flex flex-wrap gap-2">
-                {predictions.map((p) => (
+                {visiblePredictions.map((p) => (
                   <Badge
                     key={p.key}
                     variant="secondary"
