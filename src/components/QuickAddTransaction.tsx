@@ -26,6 +26,9 @@ import { toast } from "@/hooks/use-toast";
 import { formatCurrencyInput, parseCurrencyInput, calculateCardDueDate, calculateInstallmentDueDate } from "@/lib/calculations";
 import { createFixaRecurrenceSeries, FIXA_RECURRENCE_WINDOW_MONTHS } from "@/lib/transactions";
 import ColorPicker from "@/components/ColorPicker";
+import { Badge } from "@/components/ui/badge";
+import { Sparkles } from "lucide-react";
+import { usePredictiveTransactions, PredictiveTransaction } from "@/hooks/usePredictiveTransactions";
 
 interface Conta {
   id: string;
@@ -108,6 +111,50 @@ const QuickAddTransaction = ({ open, onOpenChange }: QuickAddTransactionProps) =
   };
 
   const [formData, setFormData] = useState(getInitialFormData);
+  const { data: predictions = [] } = usePredictiveTransactions();
+
+  const formatCurrencyFromNumber = (n: number) =>
+    n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  const applyPrediction = (p: PredictiveTransaction) => {
+    const conta = contas.find((c) => c.id === p.conta_id);
+    setFormData((prev) => ({
+      ...prev,
+      descricao: p.descricao,
+      valor: formatCurrencyFromNumber(p.valor),
+      categoria_id: p.categoria_id || "",
+      conta_id: p.conta_id,
+      tipo: p.tipo,
+      forma_pagamento: conta?.tipo === "credito" ? "credito" : p.forma_pagamento,
+    }));
+  };
+
+  const handleDescricaoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setFormData((prev) => ({ ...prev, descricao: value }));
+    const v = value.trim().toLowerCase();
+    if (v.length < 3) return;
+    const match = predictions.find((p) => p.descricao.toLowerCase().startsWith(v));
+    if (!match) return;
+    // Only auto-suggest empty fields to avoid overwriting user input
+    setFormData((prev) => {
+      const conta = contas.find((c) => c.id === match.conta_id);
+      return {
+        ...prev,
+        descricao: value,
+        valor: prev.valor || formatCurrencyFromNumber(match.valor),
+        categoria_id: prev.categoria_id || match.categoria_id || "",
+        conta_id: prev.conta_id || match.conta_id,
+        tipo: match.tipo,
+        forma_pagamento:
+          conta?.tipo === "credito"
+            ? "credito"
+            : prev.forma_pagamento === "pix"
+              ? match.forma_pagamento
+              : prev.forma_pagamento,
+      };
+    });
+  };
 
   // Save draft
   useEffect(() => {
@@ -489,6 +536,27 @@ const QuickAddTransaction = ({ open, onOpenChange }: QuickAddTransactionProps) =
             </div>
           </div>
 
+          {predictions.length > 0 && !showTransferFields && (
+            <div className="space-y-2 rounded-lg border border-primary/20 bg-primary/5 p-3">
+              <div className="flex items-center gap-1.5 text-xs font-medium text-primary">
+                <Sparkles className="h-3.5 w-3.5" />
+                Transações Frequentes
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {predictions.map((p) => (
+                  <Badge
+                    key={p.key}
+                    variant="secondary"
+                    onClick={() => applyPrediction(p)}
+                    className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors py-1 px-2.5"
+                  >
+                    {p.descricao} · R$ {formatCurrencyFromNumber(p.valor)}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label>Conta Origem *</Label>
             <Select value={formData.conta_id} onValueChange={(v) => {
@@ -665,7 +733,7 @@ const QuickAddTransaction = ({ open, onOpenChange }: QuickAddTransactionProps) =
             <Label>Descrição</Label>
             <Input
               value={formData.descricao}
-              onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
+              onChange={handleDescricaoChange}
               placeholder="Descrição opcional"
             />
           </div>
