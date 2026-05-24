@@ -111,6 +111,50 @@ const QuickAddTransaction = ({ open, onOpenChange }: QuickAddTransactionProps) =
   };
 
   const [formData, setFormData] = useState(getInitialFormData);
+  const { data: predictions = [] } = usePredictiveTransactions();
+
+  const formatCurrencyFromNumber = (n: number) =>
+    n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  const applyPrediction = (p: PredictiveTransaction) => {
+    const conta = contas.find((c) => c.id === p.conta_id);
+    setFormData((prev) => ({
+      ...prev,
+      descricao: p.descricao,
+      valor: formatCurrencyFromNumber(p.valor),
+      categoria_id: p.categoria_id || "",
+      conta_id: p.conta_id,
+      tipo: p.tipo,
+      forma_pagamento: conta?.tipo === "credito" ? "credito" : p.forma_pagamento,
+    }));
+  };
+
+  const handleDescricaoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setFormData((prev) => ({ ...prev, descricao: value }));
+    const v = value.trim().toLowerCase();
+    if (v.length < 3) return;
+    const match = predictions.find((p) => p.descricao.toLowerCase().startsWith(v));
+    if (!match) return;
+    // Only auto-suggest empty fields to avoid overwriting user input
+    setFormData((prev) => {
+      const conta = contas.find((c) => c.id === match.conta_id);
+      return {
+        ...prev,
+        descricao: value,
+        valor: prev.valor || formatCurrencyFromNumber(match.valor),
+        categoria_id: prev.categoria_id || match.categoria_id || "",
+        conta_id: prev.conta_id || match.conta_id,
+        tipo: match.tipo,
+        forma_pagamento:
+          conta?.tipo === "credito"
+            ? "credito"
+            : prev.forma_pagamento === "pix"
+              ? match.forma_pagamento
+              : prev.forma_pagamento,
+      };
+    });
+  };
 
   // Save draft
   useEffect(() => {
