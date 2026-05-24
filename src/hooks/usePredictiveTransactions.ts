@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { subDays, format } from "date-fns";
 
 export interface PredictiveTransaction {
   key: string;
@@ -10,7 +9,7 @@ export interface PredictiveTransaction {
   conta_id: string;
   forma_pagamento: string;
   tipo: string;
-  valor: number; // valor modal (mais comum)
+  valor: number; // valor recorrente que dispara a sugestão
   count: number;
 }
 
@@ -23,61 +22,60 @@ interface RawTx {
   valor: number;
 }
 
-function modalValue(values: number[]): number {
-  // Round to 2 decimals for grouping
-  const counts = new Map<number, number>();
-  let best = values[0];
+const MIN_OCCURRENCES = 10;
+
+function mode<T>(items: T[]): T {
+  const counts = new Map<T, number>();
+  let best = items[0];
   let bestCount = 0;
-  for (const v of values) {
-    const r = Math.round(v * 100) / 100;
-    const c = (counts.get(r) || 0) + 1;
-    counts.set(r, c);
+  for (const it of items) {
+    const c = (counts.get(it) || 0) + 1;
+    counts.set(it, c);
     if (c > bestCount) {
       bestCount = c;
-      best = r;
+      best = it;
     }
   }
   return best;
 }
 
 async function fetchPredictive(userId: string): Promise<PredictiveTransaction[]> {
-  const since = format(subDays(new Date(), 60), "yyyy-MM-dd");
+  // Histórico completo do usuário (sem janela de tempo): agrupa por VALOR recorrente
   const { data, error } = await supabase
     .from("transacoes")
     .select("descricao, categoria_id, conta_id, forma_pagamento, tipo, valor")
     .eq("user_id", userId)
     .eq("tipo", "despesa")
-    .neq("forma_pagamento", "transferencia")
-    .gte("data", since);
+    .neq("forma_pagamento", "transferencia");
 
   if (error || !data) return [];
 
-  const groups = new Map<string, { meta: RawTx; values: number[]; count: number }>();
+  // Agrupa por valor (arredondado a 2 casas)
+  const groups = new Map<number, RawTx[]>();
   for (const t of data as RawTx[]) {
-    const desc = (t.descricao || "").trim();
-    if (!desc) continue;
-    const key = `${desc.toLowerCase()}|${t.categoria_id || ""}|${t.conta_id}`;
-    const entry = groups.get(key);
-    if (entry) {
-      entry.values.push(Number(t.valor));
-      entry.count += 1;
-    } else {
-      groups.set(key, { meta: t, values: [Number(t.valor)], count: 1 });
-    }
+    const v = Math.round(Number(t.valor) * 100) / 100;
+    if (!v) continue;
+    const arr = groups.get(v);
+    if (arr) arr.push(t);
+    else groups.set(v, [t]);
   }
 
   return Array.from(groups.entries())
-    .filter(([, v]) => v.count >= 2)
-    .map(([key, v]) => ({
-      key,
-      descricao: v.meta.descricao || "",
-      categoria_id: v.meta.categoria_id,
-      conta_id: v.meta.conta_id,
-      forma_pagamento: v.meta.forma_pagamento,
-      tipo: v.meta.tipo,
-      valor: modalValue(v.values),
-      count: v.count,
-    }))
+    .filter(([, arr]) => arr.length >= MIN_OCCURRENCES)
+    .map(([valor, arr]) => {
+      const descs = arr.map((t) => (t.descricao || "").trim()).filter(Boolean);
+      const descricao = descs.length ? mode(descs) : "";
+      return {
+        key: `v-${valor}`,
+        descricao,
+        categoria_id: mode(arr.map((t) => t.categoria_id)),
+        conta_id: mode(arr.map((t) => t.conta_id)),
+        forma_pagamento: mode(arr.map((t) => t.forma_pagamento)),
+        tipo: mode(arr.map((t) => t.tipo)),
+        valor,
+        count: arr.length,
+      } as PredictiveTransaction;
+    })
     .sort((a, b) => b.count - a.count)
     .slice(0, 3);
 }
