@@ -113,14 +113,24 @@ const QuickAddTransaction = ({ open, onOpenChange }: QuickAddTransactionProps) =
   const [formData, setFormData] = useState(getInitialFormData);
   const { data: predictions = [] } = usePredictiveTransactions();
 
-  // Sugestões visíveis: se houver valor digitado, filtra pelo valor exato (top 3
-  // mais frequentes nesse valor). Caso contrário, mostra as top 3 globais do tipo atual.
+  // Sugestões visíveis: sempre top 3 do tipo atual. Quando o usuário digita um
+  // valor, prioriza correspondências exatas; se não houver, usa valores
+  // aproximados (diferença <= 2%). Sem valor digitado, mostra top 3 globais.
   const visiblePredictions = useMemo(() => {
     const parsedValor = parseCurrencyInput(formData.valor || "");
     const byTipo = predictions.filter((p) => p.tipo === formData.tipo);
     if (parsedValor > 0) {
+      const exact = byTipo.filter((p) => Math.abs(p.valor - parsedValor) < 0.005);
+      if (exact.length > 0) return exact.slice(0, 3);
+      const tolerance = Math.max(parsedValor * 0.02, 0.01);
       return byTipo
-        .filter((p) => Math.abs(p.valor - parsedValor) < 0.005)
+        .filter((p) => Math.abs(p.valor - parsedValor) <= tolerance)
+        .sort((a, b) => {
+          const da = Math.abs(a.valor - parsedValor);
+          const db = Math.abs(b.valor - parsedValor);
+          if (da !== db) return da - db;
+          return b.count - a.count;
+        })
         .slice(0, 3);
     }
     return byTipo.slice(0, 3);
