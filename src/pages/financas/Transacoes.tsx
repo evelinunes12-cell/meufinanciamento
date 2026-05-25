@@ -1196,7 +1196,7 @@ const Transacoes = () => {
                     <Label>Descrição</Label>
                     <Input
                       value={formData.descricao}
-                      onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
+                      onChange={handleDescricaoChange}
                       placeholder="Descrição opcional"
                     />
                   </div>
