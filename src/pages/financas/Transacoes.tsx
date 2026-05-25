@@ -13,7 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, Edit, TrendingUp, TrendingDown, ChevronLeft, ChevronRight, Check, ArrowRightLeft, Search, X } from "lucide-react";
+import { Plus, Trash2, Edit, TrendingUp, TrendingDown, ChevronLeft, ChevronRight, Check, ArrowRightLeft, Search, X, Sparkles } from "lucide-react";
+import { usePredictiveTransactions, PredictiveTransaction } from "@/hooks/usePredictiveTransactions";
 import { format, parseISO, addWeeks, addMonths, addYears } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
@@ -220,6 +221,33 @@ const Transacoes = () => {
   };
 
   const [formData, setFormData] = useState(getInitialFormData);
+  const { data: predictions = [] } = usePredictiveTransactions();
+
+  const formatCurrencyFromNumber = (n: number) =>
+    n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  // Sugestões visíveis: sempre top 3 do tipo atual. Quando há valor digitado,
+  // prioriza correspondência exata; sem exata, usa aproximação de até 2%.
+  const visiblePredictions = useMemo(() => {
+    if (editingId) return [] as PredictiveTransaction[];
+    const parsedValor = parseCurrencyInput(formData.valor || "");
+    const byTipo = predictions.filter((p) => p.tipo === formData.tipo);
+    if (parsedValor > 0) {
+      const exact = byTipo.filter((p) => Math.abs(p.valor - parsedValor) < 0.005);
+      if (exact.length > 0) return exact.slice(0, 3);
+      const tolerance = Math.max(parsedValor * 0.02, 0.01);
+      return byTipo
+        .filter((p) => Math.abs(p.valor - parsedValor) <= tolerance)
+        .sort((a, b) => {
+          const da = Math.abs(a.valor - parsedValor);
+          const db = Math.abs(b.valor - parsedValor);
+          if (da !== db) return da - db;
+          return b.count - a.count;
+        })
+        .slice(0, 3);
+    }
+    return byTipo.slice(0, 3);
+  }, [predictions, formData.valor, formData.tipo, editingId]);
 
   // Save draft to localStorage on form changes (only when dialog is open and not editing)
   useEffect(() => {
@@ -338,6 +366,45 @@ const Transacoes = () => {
   const handleValorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formatted = formatCurrencyInput(e.target.value);
     setFormData({ ...formData, valor: formatted });
+  };
+
+  const applyPrediction = (p: PredictiveTransaction) => {
+    const conta = contas.find((c) => c.id === p.conta_id);
+    setFormData((prev) => ({
+      ...prev,
+      descricao: p.descricao,
+      valor: formatCurrencyFromNumber(p.valor),
+      categoria_id: p.categoria_id || "",
+      conta_id: p.conta_id,
+      tipo: p.tipo,
+      forma_pagamento: conta?.tipo === "credito" ? "credito" : p.forma_pagamento,
+    }));
+  };
+
+  const handleDescricaoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setFormData((prev) => ({ ...prev, descricao: value }));
+    const v = value.trim().toLowerCase();
+    if (v.length < 3 || editingId) return;
+    const match = predictions.find((p) => p.descricao.toLowerCase().startsWith(v));
+    if (!match) return;
+    setFormData((prev) => {
+      const conta = contas.find((c) => c.id === match.conta_id);
+      return {
+        ...prev,
+        descricao: value,
+        valor: prev.valor || formatCurrencyFromNumber(match.valor),
+        categoria_id: prev.categoria_id || match.categoria_id || "",
+        conta_id: prev.conta_id || match.conta_id,
+        tipo: match.tipo,
+        forma_pagamento:
+          conta?.tipo === "credito"
+            ? "credito"
+            : prev.forma_pagamento === "pix"
+              ? match.forma_pagamento
+              : prev.forma_pagamento,
+      };
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -918,6 +985,26 @@ const Transacoes = () => {
                   </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4">
+                  {visiblePredictions.length > 0 && (
+                    <div className="rounded-lg border border-border bg-muted/40 p-3 space-y-2">
+                      <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                        <Sparkles className="h-3.5 w-3.5 text-primary" />
+                        Transações Frequentes
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {visiblePredictions.map((p) => (
+                          <Badge
+                            key={p.key}
+                            variant="secondary"
+                            className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
+                            onClick={() => applyPrediction(p)}
+                          >
+                            {p.descricao} · R$ {formatCurrencyFromNumber(p.valor)}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Tipo</Label>
@@ -1129,7 +1216,7 @@ const Transacoes = () => {
                     <Label>Descrição</Label>
                     <Input
                       value={formData.descricao}
-                      onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
+                      onChange={handleDescricaoChange}
                       placeholder="Descrição opcional"
                     />
                   </div>
