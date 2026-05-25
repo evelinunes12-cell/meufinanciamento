@@ -221,6 +221,33 @@ const Transacoes = () => {
   };
 
   const [formData, setFormData] = useState(getInitialFormData);
+  const { data: predictions = [] } = usePredictiveTransactions();
+
+  const formatCurrencyFromNumber = (n: number) =>
+    n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  // Sugestões visíveis: sempre top 3 do tipo atual. Quando há valor digitado,
+  // prioriza correspondência exata; sem exata, usa aproximação de até 2%.
+  const visiblePredictions = useMemo(() => {
+    if (editingId) return [] as PredictiveTransaction[];
+    const parsedValor = parseCurrencyInput(formData.valor || "");
+    const byTipo = predictions.filter((p) => p.tipo === formData.tipo);
+    if (parsedValor > 0) {
+      const exact = byTipo.filter((p) => Math.abs(p.valor - parsedValor) < 0.005);
+      if (exact.length > 0) return exact.slice(0, 3);
+      const tolerance = Math.max(parsedValor * 0.02, 0.01);
+      return byTipo
+        .filter((p) => Math.abs(p.valor - parsedValor) <= tolerance)
+        .sort((a, b) => {
+          const da = Math.abs(a.valor - parsedValor);
+          const db = Math.abs(b.valor - parsedValor);
+          if (da !== db) return da - db;
+          return b.count - a.count;
+        })
+        .slice(0, 3);
+    }
+    return byTipo.slice(0, 3);
+  }, [predictions, formData.valor, formData.tipo, editingId]);
 
   // Save draft to localStorage on form changes (only when dialog is open and not editing)
   useEffect(() => {
