@@ -985,6 +985,26 @@ const Transacoes = () => {
                   </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4">
+                  {visiblePredictions.length > 0 && (
+                    <div className="rounded-lg border border-border bg-muted/40 p-3 space-y-2">
+                      <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                        <Sparkles className="h-3.5 w-3.5 text-primary" />
+                        Transações Frequentes
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {visiblePredictions.map((p) => (
+                          <Badge
+                            key={p.key}
+                            variant="secondary"
+                            className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
+                            onClick={() => applyPrediction(p)}
+                          >
+                            {p.descricao} · R$ {formatCurrencyFromNumber(p.valor)}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Tipo</Label>
