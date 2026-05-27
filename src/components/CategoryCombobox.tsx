@@ -96,7 +96,16 @@ const CategoryCombobox = ({ categorias, tipo, value, onValueChange, placeholder 
         {selectedCat ? (
           <div className="flex min-w-0 items-center gap-2">
             <div className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: selectedCat.cor }} />
-            <span className="truncate">{selectedCat.nome}</span>
+            <span className="truncate">
+              {selectedParentName ? (
+                <>
+                  <span className="text-muted-foreground">{selectedParentName} › </span>
+                  {selectedCat.nome}
+                </>
+              ) : (
+                selectedCat.nome
+              )}
+            </span>
           </div>
         ) : (
           <span className="text-muted-foreground">{placeholder}</span>
