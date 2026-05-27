@@ -27,6 +27,15 @@ const CategoryCombobox = ({ categorias, tipo, value, onValueChange, placeholder 
 
   const allByType = useMemo(() => categorias.filter((c) => c.tipo === tipo), [categorias, tipo]);
 
+  const parentMap = useMemo(() => {
+    const map = new Map<string, Categoria>();
+    allByType.forEach((c) => map.set(c.id, c));
+    return map;
+  }, [allByType]);
+
+  const getParentName = (paiId: string | null) =>
+    paiId ? parentMap.get(paiId)?.nome ?? null : null;
+
   const hierarchy = useMemo(() => {
     const mainCats = allByType.filter((c) => !c.categoria_pai_id);
     const getSubs = (parentId: string) => allByType.filter((c) => c.categoria_pai_id === parentId);
@@ -49,10 +58,15 @@ const CategoryCombobox = ({ categorias, tipo, value, onValueChange, placeholder 
   const filtered = useMemo(() => {
     if (search.length < 3) return hierarchy;
     const term = search.toLowerCase();
-    return hierarchy.filter((cat) => cat.nome.toLowerCase().includes(term));
-  }, [hierarchy, search]);
+    return hierarchy.filter((cat) => {
+      if (cat.nome.toLowerCase().includes(term)) return true;
+      const parentName = getParentName(cat.categoria_pai_id);
+      return parentName ? parentName.toLowerCase().includes(term) : false;
+    });
+  }, [hierarchy, search, parentMap]);
 
   const selectedCat = allByType.find((c) => c.id === value);
+  const selectedParentName = selectedCat ? getParentName(selectedCat.categoria_pai_id) : null;
 
   const handleToggle = () => {
     const next = !open;
