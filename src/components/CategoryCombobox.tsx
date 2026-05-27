@@ -147,8 +147,16 @@ const CategoryCombobox = ({ categorias, tipo, value, onValueChange, placeholder 
                     <div className="flex min-w-0 items-center gap-2">
                       <div className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: cat.cor }} />
                       <span className={cn("truncate", cat.isMain && "font-semibold")}>
-                        {cat.level === 1 ? "↳ " : ""}
-                        {cat.nome}
+                        {cat.level === 1 && getParentName(cat.categoria_pai_id) ? (
+                          <>
+                            <span className="text-muted-foreground">
+                              {getParentName(cat.categoria_pai_id)} ›{" "}
+                            </span>
+                            {cat.nome}
+                          </>
+                        ) : (
+                          cat.nome
+                        )}
                       </span>
                     </div>
                     {value === cat.id && (
