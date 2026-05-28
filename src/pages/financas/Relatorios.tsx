@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, Fragment } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Download, FileText, TrendingUp, TrendingDown } from "lucide-react";
+import { Download, FileText, TrendingUp, TrendingDown, ChevronRight, ChevronDown } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
@@ -42,6 +42,7 @@ interface Categoria {
   nome: string;
   tipo: string;
   cor: string;
+  categoria_pai_id?: string | null;
 }
 
 // Fix timezone issue by using parseISO
@@ -74,6 +75,12 @@ const Relatorios = () => {
   const { user } = useAuth();
   const [filters, setFilters] = useState<FilterState>(getInitialFilterState());
   const [tipoRelatorio, setTipoRelatorio] = useState("geral");
+  const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
+  const toggleCat = (id: string) => setExpandedCats(prev => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
 
   const { startDate, endDate } = getDateRangeFromFilters(filters);
 
@@ -141,13 +148,36 @@ const Relatorios = () => {
   const totalDespesas = transacoesValidas.filter(t => t.tipo === "despesa").reduce((acc, t) => acc + Number(t.valor), 0);
   const saldo = totalReceitas - totalDespesas;
 
-  // Relatório por categoria
-  const relatorioCategoria = categorias.map(cat => {
-    const total = transacoesValidas
-      .filter(t => t.categoria_id === cat.id)
+  // Relatório por categoria - hierárquico (pai com subcategorias expansíveis)
+  const relatorioCategoria = useMemo(() => {
+    const sumFor = (catId: string) => transacoesValidas
+      .filter(t => t.categoria_id === catId)
       .reduce((acc, t) => acc + Number(t.valor) * (t.tipo === "despesa" ? -1 : 1), 0);
-    return { categoria: cat.nome, tipo: cat.tipo, cor: cat.cor, total };
-  }).filter(r => r.total !== 0).sort((a, b) => Math.abs(b.total) - Math.abs(a.total));
+
+    const mains = categorias.filter(c => !c.categoria_pai_id);
+    const orphans = categorias.filter(c => c.categoria_pai_id && !categorias.some(m => m.id === c.categoria_pai_id));
+
+    const groups = [...mains, ...orphans].map(cat => {
+      const subs = categorias
+        .filter(c => c.categoria_pai_id === cat.id)
+        .map(s => ({ id: s.id, categoria: s.nome, cor: s.cor, total: sumFor(s.id) }))
+        .filter(s => s.total !== 0)
+        .sort((a, b) => Math.abs(b.total) - Math.abs(a.total));
+
+      const direto = sumFor(cat.id);
+      if (direto !== 0) {
+        subs.push({ id: cat.id + "-direto", categoria: "Sem subcategoria", cor: cat.cor, total: direto });
+      }
+
+      const totalSubs = subs.reduce((a, s) => a + s.total, 0);
+      const total = totalSubs;
+
+      return { id: cat.id, categoria: cat.nome, tipo: cat.tipo, cor: cat.cor, total, subs };
+    }).filter(g => g.total !== 0 || g.subs.length > 0).sort((a, b) => Math.abs(b.total) - Math.abs(a.total));
+
+    return groups;
+  }, [categorias, transacoesValidas]);
+
 
   // Relatório por conta
   const relatorioConta = contas.map(conta => {
@@ -182,9 +212,12 @@ const Relatorios = () => {
         csv += `${formatDate(t.data)},${t.tipo},${t.descricao || "-"},${getCategoriaNome(t.categoria_id)},${getContaNome(t.conta_id)},${t.tipo === "receita" ? "" : "-"}${t.valor}\n`;
       });
     } else if (tipoRelatorio === "categoria") {
-      csv = "Categoria,Tipo,Total\n";
+      csv = "Categoria,Subcategoria,Tipo,Total\n";
       relatorioCategoria.forEach(r => {
-        csv += `${r.categoria},${r.tipo},${r.total}\n`;
+        csv += `${r.categoria},,${r.tipo},${r.total}\n`;
+        r.subs.forEach(s => {
+          csv += `${r.categoria},${s.categoria},${r.tipo},${s.total}\n`;
+        });
       });
     } else if (tipoRelatorio === "conta") {
       csv = "Conta,Receitas,Despesas,Saldo\n";
@@ -367,43 +400,108 @@ const Relatorios = () => {
 
             {tipoRelatorio === "categoria" && (
               <>
+                {/* Mobile */}
                 <div className="md:hidden divide-y divide-border">
-                  {relatorioCategoria.map((r, i) => (
-                    <div key={i} className="flex items-center justify-between gap-3 p-4">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: r.cor }} />
-                        <span className="text-sm font-medium text-foreground truncate">{r.categoria}</span>
+                  {relatorioCategoria.map((r) => {
+                    const isOpen = expandedCats.has(r.id);
+                    const hasSubs = r.subs.length > 0;
+                    return (
+                      <div key={r.id}>
+                        <button
+                          type="button"
+                          onClick={() => hasSubs && toggleCat(r.id)}
+                          className={`w-full flex items-center justify-between gap-3 p-4 text-left ${hasSubs ? "hover:bg-accent/40" : ""}`}
+                          aria-expanded={isOpen}
+                          disabled={!hasSubs}
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            {hasSubs ? (
+                              isOpen ? <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                            ) : (
+                              <span className="w-4 shrink-0" />
+                            )}
+                            <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: r.cor }} />
+                            <span className="text-sm font-medium text-foreground truncate">{r.categoria}</span>
+                          </div>
+                          <span className={`text-base font-bold tabular-nums shrink-0 ${r.total >= 0 ? "text-success" : "text-destructive"}`}>
+                            {formatCurrency(Math.abs(r.total))}
+                          </span>
+                        </button>
+                        {isOpen && hasSubs && (
+                          <div className="bg-muted/30 divide-y divide-border">
+                            {r.subs.map((s) => (
+                              <div key={s.id} className="flex items-center justify-between gap-3 py-2.5 pl-12 pr-4">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: s.cor }} />
+                                  <span className="text-sm text-muted-foreground truncate">{s.categoria}</span>
+                                </div>
+                                <span className={`text-sm font-semibold tabular-nums shrink-0 ${s.total >= 0 ? "text-success" : "text-destructive"}`}>
+                                  {formatCurrency(Math.abs(s.total))}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                      <span className={`text-base font-bold tabular-nums shrink-0 ${r.total >= 0 ? "text-success" : "text-destructive"}`}>
-                        {formatCurrency(Math.abs(r.total))}
-                      </span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
+                {/* Desktop */}
                 <div className="hidden md:block">
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead className="w-10"></TableHead>
                         <TableHead>Categoria</TableHead>
                         <TableHead>Tipo</TableHead>
                         <TableHead className="text-right">Total</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {relatorioCategoria.map((r, i) => (
-                        <TableRow key={i}>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: r.cor }} />
-                              {r.categoria}
-                            </div>
-                          </TableCell>
-                          <TableCell className="capitalize">{r.tipo}</TableCell>
-                          <TableCell className={`text-right font-medium ${r.total >= 0 ? "text-success" : "text-destructive"}`}>
-                            {formatCurrency(Math.abs(r.total))}
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {relatorioCategoria.map((r) => {
+                        const isOpen = expandedCats.has(r.id);
+                        const hasSubs = r.subs.length > 0;
+                        return (
+                          <Fragment key={r.id}>
+                            <TableRow
+                              key={r.id}
+                              className={hasSubs ? "cursor-pointer hover:bg-accent/40" : ""}
+                              onClick={() => hasSubs && toggleCat(r.id)}
+                            >
+                              <TableCell className="w-10">
+                                {hasSubs ? (
+                                  isOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                ) : null}
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: r.cor }} />
+                                  <span className="font-medium">{r.categoria}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell className="capitalize">{r.tipo}</TableCell>
+                              <TableCell className={`text-right font-medium ${r.total >= 0 ? "text-success" : "text-destructive"}`}>
+                                {formatCurrency(Math.abs(r.total))}
+                              </TableCell>
+                            </TableRow>
+                            {isOpen && hasSubs && r.subs.map((s) => (
+                              <TableRow key={s.id} className="bg-muted/30">
+                                <TableCell></TableCell>
+                                <TableCell className="pl-10">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: s.cor }} />
+                                    <span className="text-sm text-muted-foreground">{s.categoria}</span>
+                                  </div>
+                                </TableCell>
+                                <TableCell></TableCell>
+                                <TableCell className={`text-right text-sm ${s.total >= 0 ? "text-success" : "text-destructive"}`}>
+                                  {formatCurrency(Math.abs(s.total))}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </Fragment>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>
