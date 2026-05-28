@@ -75,6 +75,12 @@ const Relatorios = () => {
   const { user } = useAuth();
   const [filters, setFilters] = useState<FilterState>(getInitialFilterState());
   const [tipoRelatorio, setTipoRelatorio] = useState("geral");
+  const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
+  const toggleCat = (id: string) => setExpandedCats(prev => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
 
   const { startDate, endDate } = getDateRangeFromFilters(filters);
 
