@@ -462,7 +462,7 @@ const Relatorios = () => {
                         const isOpen = expandedCats.has(r.id);
                         const hasSubs = r.subs.length > 0;
                         return (
-                          <FragmentWithKey key={r.id}>
+                          <Fragment key={r.id}>
                             <TableRow
                               key={r.id}
                               className={hasSubs ? "cursor-pointer hover:bg-accent/40" : ""}
