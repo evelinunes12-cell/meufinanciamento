@@ -499,7 +499,7 @@ const Relatorios = () => {
                                 </TableCell>
                               </TableRow>
                             ))}
-                          </>
+                          </Fragment>
                         );
                       })}
                     </TableBody>
