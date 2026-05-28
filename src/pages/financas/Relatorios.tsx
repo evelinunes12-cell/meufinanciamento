@@ -212,9 +212,12 @@ const Relatorios = () => {
         csv += `${formatDate(t.data)},${t.tipo},${t.descricao || "-"},${getCategoriaNome(t.categoria_id)},${getContaNome(t.conta_id)},${t.tipo === "receita" ? "" : "-"}${t.valor}\n`;
       });
     } else if (tipoRelatorio === "categoria") {
-      csv = "Categoria,Tipo,Total\n";
+      csv = "Categoria,Subcategoria,Tipo,Total\n";
       relatorioCategoria.forEach(r => {
-        csv += `${r.categoria},${r.tipo},${r.total}\n`;
+        csv += `${r.categoria},,${r.tipo},${r.total}\n`;
+        r.subs.forEach(s => {
+          csv += `${r.categoria},${s.categoria},${r.tipo},${s.total}\n`;
+        });
       });
     } else if (tipoRelatorio === "conta") {
       csv = "Conta,Receitas,Despesas,Saldo\n";
