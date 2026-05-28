@@ -142,13 +142,36 @@ const Relatorios = () => {
   const totalDespesas = transacoesValidas.filter(t => t.tipo === "despesa").reduce((acc, t) => acc + Number(t.valor), 0);
   const saldo = totalReceitas - totalDespesas;
 
-  // Relatório por categoria
-  const relatorioCategoria = categorias.map(cat => {
-    const total = transacoesValidas
-      .filter(t => t.categoria_id === cat.id)
+  // Relatório por categoria - hierárquico (pai com subcategorias expansíveis)
+  const relatorioCategoria = useMemo(() => {
+    const sumFor = (catId: string) => transacoesValidas
+      .filter(t => t.categoria_id === catId)
       .reduce((acc, t) => acc + Number(t.valor) * (t.tipo === "despesa" ? -1 : 1), 0);
-    return { categoria: cat.nome, tipo: cat.tipo, cor: cat.cor, total };
-  }).filter(r => r.total !== 0).sort((a, b) => Math.abs(b.total) - Math.abs(a.total));
+
+    const mains = categorias.filter(c => !c.categoria_pai_id);
+    const orphans = categorias.filter(c => c.categoria_pai_id && !categorias.some(m => m.id === c.categoria_pai_id));
+
+    const groups = [...mains, ...orphans].map(cat => {
+      const subs = categorias
+        .filter(c => c.categoria_pai_id === cat.id)
+        .map(s => ({ id: s.id, categoria: s.nome, cor: s.cor, total: sumFor(s.id) }))
+        .filter(s => s.total !== 0)
+        .sort((a, b) => Math.abs(b.total) - Math.abs(a.total));
+
+      const direto = sumFor(cat.id);
+      if (direto !== 0) {
+        subs.push({ id: cat.id + "-direto", categoria: "Sem subcategoria", cor: cat.cor, total: direto });
+      }
+
+      const totalSubs = subs.reduce((a, s) => a + s.total, 0);
+      const total = totalSubs;
+
+      return { id: cat.id, categoria: cat.nome, tipo: cat.tipo, cor: cat.cor, total, subs };
+    }).filter(g => g.total !== 0 || g.subs.length > 0).sort((a, b) => Math.abs(b.total) - Math.abs(a.total));
+
+    return groups;
+  }, [categorias, transacoesValidas]);
+
 
   // Relatório por conta
   const relatorioConta = contas.map(conta => {
