@@ -42,6 +42,7 @@ interface Categoria {
   nome: string;
   tipo: string;
   cor: string;
+  categoria_pai_id?: string | null;
 }
 
 // Fix timezone issue by using parseISO
