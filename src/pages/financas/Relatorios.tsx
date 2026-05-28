@@ -400,43 +400,108 @@ const Relatorios = () => {
 
             {tipoRelatorio === "categoria" && (
               <>
+                {/* Mobile */}
                 <div className="md:hidden divide-y divide-border">
-                  {relatorioCategoria.map((r, i) => (
-                    <div key={i} className="flex items-center justify-between gap-3 p-4">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: r.cor }} />
-                        <span className="text-sm font-medium text-foreground truncate">{r.categoria}</span>
+                  {relatorioCategoria.map((r) => {
+                    const isOpen = expandedCats.has(r.id);
+                    const hasSubs = r.subs.length > 0;
+                    return (
+                      <div key={r.id}>
+                        <button
+                          type="button"
+                          onClick={() => hasSubs && toggleCat(r.id)}
+                          className={`w-full flex items-center justify-between gap-3 p-4 text-left ${hasSubs ? "hover:bg-accent/40" : ""}`}
+                          aria-expanded={isOpen}
+                          disabled={!hasSubs}
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            {hasSubs ? (
+                              isOpen ? <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                            ) : (
+                              <span className="w-4 shrink-0" />
+                            )}
+                            <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: r.cor }} />
+                            <span className="text-sm font-medium text-foreground truncate">{r.categoria}</span>
+                          </div>
+                          <span className={`text-base font-bold tabular-nums shrink-0 ${r.total >= 0 ? "text-success" : "text-destructive"}`}>
+                            {formatCurrency(Math.abs(r.total))}
+                          </span>
+                        </button>
+                        {isOpen && hasSubs && (
+                          <div className="bg-muted/30 divide-y divide-border">
+                            {r.subs.map((s) => (
+                              <div key={s.id} className="flex items-center justify-between gap-3 py-2.5 pl-12 pr-4">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: s.cor }} />
+                                  <span className="text-sm text-muted-foreground truncate">{s.categoria}</span>
+                                </div>
+                                <span className={`text-sm font-semibold tabular-nums shrink-0 ${s.total >= 0 ? "text-success" : "text-destructive"}`}>
+                                  {formatCurrency(Math.abs(s.total))}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                      <span className={`text-base font-bold tabular-nums shrink-0 ${r.total >= 0 ? "text-success" : "text-destructive"}`}>
-                        {formatCurrency(Math.abs(r.total))}
-                      </span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
+                {/* Desktop */}
                 <div className="hidden md:block">
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead className="w-10"></TableHead>
                         <TableHead>Categoria</TableHead>
                         <TableHead>Tipo</TableHead>
                         <TableHead className="text-right">Total</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {relatorioCategoria.map((r, i) => (
-                        <TableRow key={i}>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: r.cor }} />
-                              {r.categoria}
-                            </div>
-                          </TableCell>
-                          <TableCell className="capitalize">{r.tipo}</TableCell>
-                          <TableCell className={`text-right font-medium ${r.total >= 0 ? "text-success" : "text-destructive"}`}>
-                            {formatCurrency(Math.abs(r.total))}
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {relatorioCategoria.map((r) => {
+                        const isOpen = expandedCats.has(r.id);
+                        const hasSubs = r.subs.length > 0;
+                        return (
+                          <>
+                            <TableRow
+                              key={r.id}
+                              className={hasSubs ? "cursor-pointer hover:bg-accent/40" : ""}
+                              onClick={() => hasSubs && toggleCat(r.id)}
+                            >
+                              <TableCell className="w-10">
+                                {hasSubs ? (
+                                  isOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                ) : null}
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: r.cor }} />
+                                  <span className="font-medium">{r.categoria}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell className="capitalize">{r.tipo}</TableCell>
+                              <TableCell className={`text-right font-medium ${r.total >= 0 ? "text-success" : "text-destructive"}`}>
+                                {formatCurrency(Math.abs(r.total))}
+                              </TableCell>
+                            </TableRow>
+                            {isOpen && hasSubs && r.subs.map((s) => (
+                              <TableRow key={s.id} className="bg-muted/30">
+                                <TableCell></TableCell>
+                                <TableCell className="pl-10">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: s.cor }} />
+                                    <span className="text-sm text-muted-foreground">{s.categoria}</span>
+                                  </div>
+                                </TableCell>
+                                <TableCell></TableCell>
+                                <TableCell className={`text-right text-sm ${s.total >= 0 ? "text-success" : "text-destructive"}`}>
+                                  {formatCurrency(Math.abs(s.total))}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>
