@@ -81,6 +81,13 @@ const Relatorios = () => {
     next.has(id) ? next.delete(id) : next.add(id);
     return next;
   });
+  const [expandedContas, setExpandedContas] = useState<Set<string>>(new Set());
+  const toggleConta = (id: string) => setExpandedContas(prev => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
+
 
   const { startDate, endDate } = getDateRangeFromFilters(filters);
 
