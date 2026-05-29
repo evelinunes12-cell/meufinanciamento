@@ -186,13 +186,16 @@ const Relatorios = () => {
   }, [categorias, transacoesValidas]);
 
 
-  // Relatório por conta
+  // Relatório por conta - com transações expansíveis
   const relatorioConta = contas.map(conta => {
-    const transacoesConta = transacoesValidas.filter(t => t.conta_id === conta.id);
+    const transacoesConta = transacoesValidas
+      .filter(t => t.conta_id === conta.id)
+      .sort((a, b) => (b.data > a.data ? 1 : -1));
     const receitas = transacoesConta.filter(t => t.tipo === "receita").reduce((a, t) => a + Number(t.valor), 0);
     const despesas = transacoesConta.filter(t => t.tipo === "despesa").reduce((a, t) => a + Number(t.valor), 0);
-    return { conta: conta.nome_conta, receitas, despesas, saldo: receitas - despesas };
+    return { id: conta.id, conta: conta.nome_conta, receitas, despesas, saldo: receitas - despesas, transacoes: transacoesConta };
   }).filter(r => r.receitas !== 0 || r.despesas !== 0);
+
 
   // Relatório por forma de pagamento (exclui transferências para consistência com demais relatórios)
   const formasPagamento = [
