@@ -87,6 +87,12 @@ const Relatorios = () => {
     next.has(id) ? next.delete(id) : next.add(id);
     return next;
   });
+  const [expandedPagamentos, setExpandedPagamentos] = useState<Set<string>>(new Set());
+  const togglePagamento = (id: string) => setExpandedPagamentos(prev => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
 
 
   const { startDate, endDate } = getDateRangeFromFilters(filters);
@@ -207,11 +213,13 @@ const Relatorios = () => {
     { value: "outro", label: "Outro" },
   ];
   const relatorioFormaPagamento = formasPagamento.map(fp => {
-    const transacoesFp = transacoesValidas.filter(t => t.forma_pagamento === fp.value);
+    const transacoesFp = transacoesValidas
+      .filter(t => t.forma_pagamento === fp.value)
+      .sort((a, b) => (b.data > a.data ? 1 : -1));
     const receitas = transacoesFp.filter(t => t.tipo === "receita").reduce((a, t) => a + Number(t.valor), 0);
     const despesas = transacoesFp.filter(t => t.tipo === "despesa").reduce((a, t) => a + Number(t.valor), 0);
-    return { forma: fp.label, receitas, despesas, total: receitas - despesas };
-  }).filter(r => r.receitas !== 0 || r.despesas !== 0);
+    return { id: fp.value, forma: fp.label, receitas, despesas, total: receitas - despesas, transacoes: transacoesFp };
+  });
 
   const exportToCSV = () => {
     let csv = "";
@@ -636,27 +644,64 @@ const Relatorios = () => {
 
             {tipoRelatorio === "pagamento" && (
               <>
+                {/* Mobile */}
                 <div className="md:hidden divide-y divide-border">
-                  {relatorioFormaPagamento.map((r, i) => (
-                    <div key={i} className="p-4 space-y-2">
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="text-sm font-medium text-foreground truncate">{r.forma}</p>
-                        <span className={`text-base font-bold tabular-nums shrink-0 ${r.total >= 0 ? "text-success" : "text-destructive"}`}>
-                          {formatCurrency(r.total)}
-                        </span>
+                  {relatorioFormaPagamento.map((r) => {
+                    const isOpen = expandedPagamentos.has(r.id);
+                    const hasTx = r.transacoes.length > 0;
+                    return (
+                      <div key={r.id}>
+                        <button
+                          type="button"
+                          onClick={() => hasTx && togglePagamento(r.id)}
+                          className={`w-full p-4 space-y-2 text-left ${hasTx ? "hover:bg-accent/40" : "opacity-60"}`}
+                          aria-expanded={isOpen}
+                          disabled={!hasTx}
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2 min-w-0">
+                              {hasTx ? (
+                                isOpen ? <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                              ) : (
+                                <span className="w-4 shrink-0" />
+                              )}
+                              <p className="text-sm font-medium text-foreground truncate">{r.forma}</p>
+                            </div>
+                            <span className={`text-base font-bold tabular-nums shrink-0 ${r.total >= 0 ? "text-success" : "text-destructive"}`}>
+                              {formatCurrency(r.total)}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3 text-xs text-muted-foreground pl-6">
+                            <span>↑ {formatCurrency(r.receitas)}</span>
+                            <span>·</span>
+                            <span>↓ {formatCurrency(r.despesas)}</span>
+                          </div>
+                        </button>
+                        {isOpen && hasTx && (
+                          <div className="bg-muted/30 divide-y divide-border">
+                            {r.transacoes.map((t) => (
+                              <div key={t.id} className="flex items-center justify-between gap-3 py-2.5 pl-12 pr-4">
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-sm text-foreground truncate">{t.descricao || "-"}</p>
+                                  <p className="text-xs text-muted-foreground">{formatDate(t.data)} · {getCategoriaNome(t.categoria_id)} · {getContaNome(t.conta_id)}</p>
+                                </div>
+                                <span className={`text-sm font-semibold tabular-nums shrink-0 ${t.tipo === "receita" ? "text-success" : "text-destructive"}`}>
+                                  {t.tipo === "receita" ? "" : "-"}{formatCurrency(Number(t.valor))}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                        <span>↑ {formatCurrency(r.receitas)}</span>
-                        <span>·</span>
-                        <span>↓ {formatCurrency(r.despesas)}</span>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
+                {/* Desktop */}
                 <div className="hidden md:block">
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead className="w-10"></TableHead>
                         <TableHead>Forma de Pagamento</TableHead>
                         <TableHead className="text-right">Receitas</TableHead>
                         <TableHead className="text-right">Despesas</TableHead>
@@ -664,16 +709,48 @@ const Relatorios = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {relatorioFormaPagamento.map((r, i) => (
-                        <TableRow key={i}>
-                          <TableCell>{r.forma}</TableCell>
-                          <TableCell className="text-right text-success">{formatCurrency(r.receitas)}</TableCell>
-                          <TableCell className="text-right text-destructive">{formatCurrency(r.despesas)}</TableCell>
-                          <TableCell className={`text-right font-medium ${r.total >= 0 ? "text-success" : "text-destructive"}`}>
-                            {formatCurrency(r.total)}
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {relatorioFormaPagamento.map((r) => {
+                        const isOpen = expandedPagamentos.has(r.id);
+                        const hasTx = r.transacoes.length > 0;
+                        return (
+                          <Fragment key={r.id}>
+                            <TableRow
+                              className={hasTx ? "cursor-pointer hover:bg-accent/40" : "opacity-60"}
+                              onClick={() => hasTx && togglePagamento(r.id)}
+                            >
+                              <TableCell className="w-10">
+                                {hasTx ? (
+                                  isOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                ) : null}
+                              </TableCell>
+                              <TableCell className="font-medium">{r.forma}</TableCell>
+                              <TableCell className="text-right text-success">{formatCurrency(r.receitas)}</TableCell>
+                              <TableCell className="text-right text-destructive">{formatCurrency(r.despesas)}</TableCell>
+                              <TableCell className={`text-right font-medium ${r.total >= 0 ? "text-success" : "text-destructive"}`}>
+                                {formatCurrency(r.total)}
+                              </TableCell>
+                            </TableRow>
+                            {isOpen && hasTx && r.transacoes.map((t) => (
+                              <TableRow key={t.id} className="bg-muted/30">
+                                <TableCell></TableCell>
+                                <TableCell className="pl-10">
+                                  <div className="flex flex-col">
+                                    <span className="text-sm text-foreground">{t.descricao || "-"}</span>
+                                    <span className="text-xs text-muted-foreground">{formatDate(t.data)} · {getCategoriaNome(t.categoria_id)} · {getContaNome(t.conta_id)}</span>
+                                  </div>
+                                </TableCell>
+                                <TableCell className="text-right text-sm text-success">
+                                  {t.tipo === "receita" ? formatCurrency(Number(t.valor)) : ""}
+                                </TableCell>
+                                <TableCell className="text-right text-sm text-destructive">
+                                  {t.tipo === "despesa" ? formatCurrency(Number(t.valor)) : ""}
+                                </TableCell>
+                                <TableCell></TableCell>
+                              </TableRow>
+                            ))}
+                          </Fragment>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>
