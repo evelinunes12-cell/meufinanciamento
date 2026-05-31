@@ -213,11 +213,13 @@ const Relatorios = () => {
     { value: "outro", label: "Outro" },
   ];
   const relatorioFormaPagamento = formasPagamento.map(fp => {
-    const transacoesFp = transacoesValidas.filter(t => t.forma_pagamento === fp.value);
+    const transacoesFp = transacoesValidas
+      .filter(t => t.forma_pagamento === fp.value)
+      .sort((a, b) => (b.data > a.data ? 1 : -1));
     const receitas = transacoesFp.filter(t => t.tipo === "receita").reduce((a, t) => a + Number(t.valor), 0);
     const despesas = transacoesFp.filter(t => t.tipo === "despesa").reduce((a, t) => a + Number(t.valor), 0);
-    return { forma: fp.label, receitas, despesas, total: receitas - despesas };
-  }).filter(r => r.receitas !== 0 || r.despesas !== 0);
+    return { id: fp.value, forma: fp.label, receitas, despesas, total: receitas - despesas, transacoes: transacoesFp };
+  });
 
   const exportToCSV = () => {
     let csv = "";
