@@ -1565,6 +1565,7 @@ const Transacoes = () => {
         transacaoId={confirmPaymentModal.transacaoId}
         valorPrevisto={confirmPaymentModal.valorPrevisto}
         descricao={confirmPaymentModal.descricao}
+        dataVencimento={confirmPaymentModal.dataVencimento}
       />
 
       {/* Delete Series Dialog */}
