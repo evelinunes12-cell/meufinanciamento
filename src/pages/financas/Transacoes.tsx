@@ -768,6 +768,7 @@ const Transacoes = () => {
       transacaoId: transacao.id,
       valorPrevisto: Number(transacao.valor),
       descricao: transacao.descricao,
+      dataVencimento: transacao.data,
     });
   };
 
