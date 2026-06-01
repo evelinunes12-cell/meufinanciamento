@@ -9,6 +9,55 @@ export interface CalculoAntecipacao {
   amortizacao: number;
   isAntecipada: boolean;
   isAtrasada: boolean;
+  multa?: number;
+  jurosMora?: number;
+  diasAtraso?: number;
+}
+
+/**
+ * Padrões legais para juros e multa de mora em transações comuns
+ * - Multa: 2% sobre o valor original (limite usual no Brasil)
+ * - Juros de mora: 1% ao mês ≈ 0,0333% ao dia
+ */
+export const MULTA_PADRAO = 0.02; // 2%
+export const JUROS_MORA_DIARIO_PADRAO = 0.01 / 30; // ~0.0333% ao dia
+
+export interface JurosMultaResultado {
+  diasAtraso: number;
+  multa: number;
+  jurosMora: number;
+  totalEncargos: number;
+  valorSugerido: number;
+}
+
+/**
+ * Calcula multa + juros de mora para um pagamento atrasado (uso geral em transações).
+ * Retorna zeros quando ainda não venceu.
+ */
+export function calcularJurosMulta(
+  valor: number,
+  dataVencimento: string | Date,
+  dataPagamento: Date = new Date(),
+  opts?: { multaPercent?: number; taxaDiariaJuros?: number }
+): JurosMultaResultado {
+  const vencimento = typeof dataVencimento === "string" ? parseISO(dataVencimento) : dataVencimento;
+  const venc = new Date(vencimento.getFullYear(), vencimento.getMonth(), vencimento.getDate());
+  const pag = new Date(dataPagamento.getFullYear(), dataPagamento.getMonth(), dataPagamento.getDate());
+  const diasAtraso = Math.max(0, differenceInDays(pag, venc));
+
+  const multaPercent = opts?.multaPercent ?? MULTA_PADRAO;
+  const taxaDiariaJuros = opts?.taxaDiariaJuros ?? JUROS_MORA_DIARIO_PADRAO;
+
+  if (diasAtraso === 0) {
+    return { diasAtraso: 0, multa: 0, jurosMora: 0, totalEncargos: 0, valorSugerido: valor };
+  }
+
+  const multa = Math.round(valor * multaPercent * 100) / 100;
+  const jurosMora = Math.round(valor * taxaDiariaJuros * diasAtraso * 100) / 100;
+  const totalEncargos = Math.round((multa + jurosMora) * 100) / 100;
+  const valorSugerido = Math.round((valor + totalEncargos) * 100) / 100;
+
+  return { diasAtraso, multa, jurosMora, totalEncargos, valorSugerido };
 }
 
 /**
