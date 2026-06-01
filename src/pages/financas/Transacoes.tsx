@@ -262,7 +262,8 @@ const Transacoes = () => {
     transacaoId: string;
     valorPrevisto: number;
     descricao: string | null;
-  }>({ open: false, transacaoId: "", valorPrevisto: 0, descricao: null });
+    dataVencimento: string | null;
+  }>({ open: false, transacaoId: "", valorPrevisto: 0, descricao: null, dataVencimento: null });
 
   const [deleteSeriesDialog, setDeleteSeriesDialog] = useState<{
     open: boolean;
@@ -767,6 +768,7 @@ const Transacoes = () => {
       transacaoId: transacao.id,
       valorPrevisto: Number(transacao.valor),
       descricao: transacao.descricao,
+      dataVencimento: transacao.data,
     });
   };
 
@@ -1563,6 +1565,7 @@ const Transacoes = () => {
         transacaoId={confirmPaymentModal.transacaoId}
         valorPrevisto={confirmPaymentModal.valorPrevisto}
         descricao={confirmPaymentModal.descricao}
+        dataVencimento={confirmPaymentModal.dataVencimento}
       />
 
       {/* Delete Series Dialog */}

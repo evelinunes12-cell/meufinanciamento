@@ -644,11 +644,21 @@ const InstallmentsTable = ({ parcelas, taxaDiaria, onUpdate, contrato }: Install
             {calculo && calculoRealizado && (
               <div className="space-y-3 animate-fade-in">
                 {calculo.isAtrasada && (
-                  <div className="rounded-md bg-destructive/10 px-3 py-2 flex items-center gap-2 text-destructive">
-                    <AlertTriangle className="h-4 w-4 shrink-0" />
-                    <span className="text-xs font-medium">
-                      Pagamento após o vencimento — sem desconto
-                    </span>
+                  <div className="rounded-md bg-destructive/10 px-3 py-2 space-y-1 text-destructive">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4 shrink-0" />
+                      <span className="text-xs font-semibold">
+                        Pagamento atrasado em {calculo.diasAtraso} dia(s)
+                      </span>
+                    </div>
+                    <div className="text-xs flex justify-between">
+                      <span>Multa (2%)</span>
+                      <span className="font-medium">{formatCurrency(calculo.multa || 0)}</span>
+                    </div>
+                    <div className="text-xs flex justify-between">
+                      <span>Juros de mora (taxa do contrato)</span>
+                      <span className="font-medium">{formatCurrency(calculo.jurosMora || 0)}</span>
+                    </div>
                   </div>
                 )}
 

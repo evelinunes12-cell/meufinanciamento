@@ -123,6 +123,7 @@ export function ContasConfirmarWidget({ transacoes, categorias = [], contas = []
           transacaoId={selectedTransacao.id}
           valorPrevisto={selectedTransacao.valor}
           descricao={selectedTransacao.descricao}
+          dataVencimento={selectedTransacao.data}
         />
       )}
     </>

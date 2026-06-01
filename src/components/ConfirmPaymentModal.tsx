@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -12,10 +12,15 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Check } from "lucide-react";
-import { format } from "date-fns";
+import { AlertTriangle, Check } from "lucide-react";
+import { format, parseISO } from "date-fns";
 import { toast } from "@/hooks/use-toast";
-import { formatCurrencyInput, parseCurrencyInput, formatCurrency } from "@/lib/calculations";
+import {
+  formatCurrencyInput,
+  parseCurrencyInput,
+  formatCurrency,
+  calcularJurosMulta,
+} from "@/lib/calculations";
 
 interface ConfirmPaymentModalProps {
   open: boolean;
@@ -23,6 +28,8 @@ interface ConfirmPaymentModalProps {
   transacaoId: string;
   valorPrevisto: number;
   descricao?: string | null;
+  /** Data de vencimento da transação (yyyy-MM-dd). Usada para calcular multa/juros se atrasada. */
+  dataVencimento?: string | null;
 }
 
 const ConfirmPaymentModal = ({
@@ -31,38 +38,52 @@ const ConfirmPaymentModal = ({
   transacaoId,
   valorPrevisto,
   descricao,
+  dataVencimento,
 }: ConfirmPaymentModalProps) => {
   const queryClient = useQueryClient();
   const [valorPago, setValorPago] = useState("");
   const [dataExecucao, setDataExecucao] = useState(format(new Date(), "yyyy-MM-dd"));
   const [loading, setLoading] = useState(false);
+  const [aplicarEncargos, setAplicarEncargos] = useState(true);
+
+  const encargos = useMemo(() => {
+    if (!dataVencimento) return null;
+    try {
+      return calcularJurosMulta(valorPrevisto, dataVencimento, parseISO(dataExecucao));
+    } catch {
+      return null;
+    }
+  }, [valorPrevisto, dataVencimento, dataExecucao]);
+
+  const isAtrasado = !!encargos && encargos.diasAtraso > 0;
+
+  // Sugere valor automaticamente quando abre / muda data execução / toggle encargos
+  useEffect(() => {
+    if (!open) return;
+    const base = isAtrasado && aplicarEncargos ? encargos!.valorSugerido : valorPrevisto;
+    const formatted = base.toLocaleString("pt-BR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+    setValorPago(formatted);
+  }, [open, valorPrevisto, isAtrasado, aplicarEncargos, encargos?.valorSugerido]);
 
   useEffect(() => {
     if (open) {
-      // Format the expected value for display
-      const formatted = valorPrevisto.toLocaleString("pt-BR", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      });
-      setValorPago(formatted);
       setDataExecucao(format(new Date(), "yyyy-MM-dd"));
+      setAplicarEncargos(true);
     }
-  }, [open, valorPrevisto]);
+  }, [open]);
 
   const handleValorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const formatted = formatCurrencyInput(e.target.value);
-    setValorPago(formatted);
+    setValorPago(formatCurrencyInput(e.target.value));
   };
 
   const handleConfirm = async () => {
     const valor = parseCurrencyInput(valorPago);
 
     if (valor <= 0) {
-      toast({
-        title: "Erro",
-        description: "Informe um valor válido",
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: "Informe um valor válido", variant: "destructive" });
       return;
     }
 
@@ -82,7 +103,9 @@ const ConfirmPaymentModal = ({
 
       toast({
         title: "Sucesso",
-        description: "Pagamento confirmado com sucesso",
+        description: isAtrasado
+          ? `Pagamento confirmado com ${encargos!.diasAtraso} dia(s) de atraso`
+          : "Pagamento confirmado com sucesso",
       });
 
       queryClient.invalidateQueries({ queryKey: ["transacoes"] });
@@ -92,14 +115,8 @@ const ConfirmPaymentModal = ({
 
       onOpenChange(false);
     } catch (error) {
-      if (import.meta.env.DEV) {
-        console.error("Error confirming payment:", error);
-      }
-      toast({
-        title: "Erro",
-        description: "Erro ao confirmar pagamento",
-        variant: "destructive",
-      });
+      if (import.meta.env.DEV) console.error("Error confirming payment:", error);
+      toast({ title: "Erro", description: "Erro ao confirmar pagamento", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -123,6 +140,44 @@ const ConfirmPaymentModal = ({
             <p className="text-xs text-muted-foreground">Valor Previsto</p>
             <p className="text-lg font-medium text-foreground">{formatCurrency(valorPrevisto)}</p>
           </div>
+
+          {isAtrasado && (
+            <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 space-y-2">
+              <div className="flex items-center gap-2 text-destructive">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                <span className="text-xs font-semibold">
+                  Pagamento atrasado em {encargos!.diasAtraso} dia(s)
+                </span>
+              </div>
+              <div className="space-y-1 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Multa (2%)</span>
+                  <span className="font-medium">{formatCurrency(encargos!.multa)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">
+                    Juros de mora (~1%/mês)
+                  </span>
+                  <span className="font-medium">{formatCurrency(encargos!.jurosMora)}</span>
+                </div>
+                <div className="flex justify-between pt-1 border-t border-destructive/20">
+                  <span className="text-muted-foreground">Valor sugerido</span>
+                  <span className="font-semibold text-destructive">
+                    {formatCurrency(encargos!.valorSugerido)}
+                  </span>
+                </div>
+              </div>
+              <label className="flex items-center gap-2 text-xs cursor-pointer pt-1">
+                <input
+                  type="checkbox"
+                  checked={aplicarEncargos}
+                  onChange={(e) => setAplicarEncargos(e.target.checked)}
+                  className="accent-destructive"
+                />
+                <span>Aplicar multa e juros ao valor pago</span>
+              </label>
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label>Valor Pago *</Label>
