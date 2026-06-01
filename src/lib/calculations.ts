@@ -75,16 +75,25 @@ export function calcularAntecipacao(
   const diasDiferenca = differenceInDays(vencimento, dataPagamento);
 
   // Pagamento atrasado (após vencimento)
+  // Aplica multa de 2% + juros de mora usando a taxa diária do contrato
   if (diasDiferenca < 0) {
+    const diasAtraso = Math.abs(diasDiferenca);
+    const multa = Math.round(valorParcela * MULTA_PADRAO * 100) / 100;
+    const jurosMora = Math.round(valorParcela * taxaDiaria * diasAtraso * 100) / 100;
+    const totalEncargos = Math.round((multa + jurosMora) * 100) / 100;
+    const valorPago = Math.round((valorParcela + totalEncargos) * 100) / 100;
     return {
       valorOriginal: valorParcela,
-      valorPago: valorParcela, // Sem desconto para atraso
+      valorPago,
       economia: 0,
       diasAntecedencia: 0,
-      juros: valorParcela * taxaDiaria * 30, // Estimativa de juros mensais
-      amortizacao: valorParcela - (valorParcela * taxaDiaria * 30),
+      juros: totalEncargos,
+      amortizacao: valorParcela,
       isAntecipada: false,
       isAtrasada: true,
+      multa,
+      jurosMora,
+      diasAtraso,
     };
   }
 
