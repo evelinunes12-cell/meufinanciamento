@@ -262,7 +262,8 @@ const Transacoes = () => {
     transacaoId: string;
     valorPrevisto: number;
     descricao: string | null;
-  }>({ open: false, transacaoId: "", valorPrevisto: 0, descricao: null });
+    dataVencimento: string | null;
+  }>({ open: false, transacaoId: "", valorPrevisto: 0, descricao: null, dataVencimento: null });
 
   const [deleteSeriesDialog, setDeleteSeriesDialog] = useState<{
     open: boolean;
