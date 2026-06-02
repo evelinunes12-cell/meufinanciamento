@@ -690,6 +690,20 @@ const Cartoes = () => {
                   const percentualUsado = limite > 0 ? (Math.max(0, saldoDevedor) / limite) * 100 : 0;
                   const disponivel = limite - Math.max(0, saldoDevedor);
 
+                  // Opções do seletor de fatura fechada (últimos ciclos + ciclo natural atual).
+                  const naturalEnd = format(getNaturalClosedCycleEnd(cartao), "yyyy-MM-dd");
+                  const cicloOptions = (() => {
+                    const ciclos = getHistoricoCiclos(cartao, 12).map((c) => ({
+                      value: c.fim,
+                      label: c.mesReferencia,
+                    }));
+                    const map = new Map<string, { value: string; label: string }>();
+                    ciclos.forEach((c) => map.set(c.value, c));
+                    return Array.from(map.values()).sort((a, b) => b.value.localeCompare(a.value));
+                  })();
+                  const selectedCycle = viewCycleEnd[cartao.id] ?? "auto";
+                  const isViewingPast = !!viewCycleEnd[cartao.id] && viewCycleEnd[cartao.id] !== naturalEnd;
+
                   return (
                     <Card key={cartao.id} className="shadow-card overflow-hidden">
                       <div className="h-2" style={{ backgroundColor: cartao.cor }} />
