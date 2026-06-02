@@ -80,7 +80,7 @@ function getCurrentCycleEnd(cartao: Conta, hoje: Date = new Date()) {
 
 function getActiveForcedCycleEnd(cartao: Conta, state: ForceCloseState, hoje: Date = new Date()) {
   const forcedEnd = state[cartao.id];
-  if (!forcedEnd) return null;
+  if (typeof forcedEnd !== "string") return null;
 
   const naturalEnd = format(getNaturalClosedCycleEnd(cartao, hoje), "yyyy-MM-dd");
   return forcedEnd > naturalEnd ? forcedEnd : null;
@@ -196,7 +196,7 @@ function getForceCloseState(): ForceCloseState {
   try {
     const parsed = JSON.parse(localStorage.getItem(FORCE_CLOSE_KEY) || "{}");
     return Object.fromEntries(
-      Object.entries(parsed).filter(([, value]) => typeof value === "string")
+      Object.entries(parsed).filter(([, value]) => typeof value === "string" || typeof value === "boolean")
     ) as ForceCloseState;
   } catch {
     return {};
