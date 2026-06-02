@@ -192,15 +192,18 @@ async function fetchCartoesData(userId: string | undefined) {
 
 const FORCE_CLOSE_KEY = "cartoes_force_close";
 
-function getForceCloseState(): Record<string, boolean> {
+function getForceCloseState(): ForceCloseState {
   try {
-    return JSON.parse(localStorage.getItem(FORCE_CLOSE_KEY) || "{}");
+    const parsed = JSON.parse(localStorage.getItem(FORCE_CLOSE_KEY) || "{}");
+    return Object.fromEntries(
+      Object.entries(parsed).filter(([, value]) => typeof value === "string")
+    ) as ForceCloseState;
   } catch {
     return {};
   }
 }
 
-function setForceCloseState(state: Record<string, boolean>) {
+function setForceCloseState(state: ForceCloseState) {
   localStorage.setItem(FORCE_CLOSE_KEY, JSON.stringify(state));
 }
 
@@ -208,7 +211,7 @@ const Cartoes = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("faturas");
-  const [forceClose, setForceClose] = useState<Record<string, boolean>>(getForceCloseState);
+  const [forceClose, setForceClose] = useState<ForceCloseState>(getForceCloseState);
   const [faturaModal, setFaturaModal] = useState<{
     open: boolean;
     cartaoId: string;
@@ -254,9 +257,15 @@ const Cartoes = () => {
     return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
   };
 
-  const toggleForceClose = (cartaoId: string) => {
+  const toggleForceClose = (cartao: Conta) => {
     setForceClose((prev) => {
-      const next = { ...prev, [cartaoId]: !prev[cartaoId] };
+      const next = { ...prev };
+      const activeForcedEnd = getActiveForcedCycleEnd(cartao, prev);
+      if (activeForcedEnd) {
+        delete next[cartao.id];
+      } else {
+        next[cartao.id] = format(getCurrentCycleEnd(cartao), "yyyy-MM-dd");
+      }
       setForceCloseState(next);
       return next;
     });
