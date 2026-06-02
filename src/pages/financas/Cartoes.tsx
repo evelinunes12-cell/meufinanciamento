@@ -817,9 +817,14 @@ const Cartoes = () => {
                                     <p className="text-xs text-muted-foreground">
                                       Fatura Fechada ({faturasInfo.fechada.mesReferencia})
                                     </p>
-                                    {isForced && !jaFechouNaturalmente && (
+                                    {isForced && !jaFechouNaturalmente && !isViewingPast && (
                                       <Badge variant="outline" className="text-[9px] px-1 py-0 border-warning text-warning">
                                         Manual
+                                      </Badge>
+                                    )}
+                                    {isViewingPast && (
+                                      <Badge variant="outline" className="text-[9px] px-1 py-0 border-primary text-primary">
+                                        Histórico
                                       </Badge>
                                     )}
                                     <Badge variant={isPaga ? "outline" : "destructive"} className={`text-[9px] px-1.5 py-0 ${isPaga ? "border-success text-success" : ""}`}>
