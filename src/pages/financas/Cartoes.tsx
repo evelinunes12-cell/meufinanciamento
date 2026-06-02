@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { CreditCard, Calendar, AlertTriangle, Banknote, Info, History, Lock, LockOpen, Zap, Check, MoreVertical, ArrowLeft, ArrowRight, Split } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { format, subMonths, addMonths, parseISO } from "date-fns";
+import { addDays, format, subMonths, addMonths, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Link } from "react-router-dom";
 import PagarFaturaModal from "@/components/PagarFaturaModal";
@@ -56,40 +56,72 @@ interface Transacao {
 // Lógica de ciclo de fatura de cartão de crédito
 // ==========================================
 
-function getFaturasInfo(cartao: Conta, hoje: Date = new Date(), forceClose = false) {
+type ForceCloseState = Record<string, string>;
+
+function getDateForCardDay(year: number, monthIndex: number, day: number) {
+  const lastDay = new Date(year, monthIndex + 1, 0).getDate();
+  return new Date(year, monthIndex, Math.min(Math.max(day, 1), lastDay));
+}
+
+function getNaturalClosedCycleEnd(cartao: Conta, hoje: Date = new Date()) {
   const diaFechamento = cartao.dia_fechamento || 1;
-  const diaVencimento = cartao.dia_vencimento || 10;
   const diaHoje = hoje.getDate();
   const mesHoje = hoje.getMonth();
   const anoHoje = hoje.getFullYear();
+  const jaFechou = diaHoje >= diaFechamento;
 
-  // Se forceClose é true, tratamos como se já tivesse fechado
-  const jaFechou = forceClose ? true : diaHoje >= diaFechamento;
+  return getDateForCardDay(anoHoje, jaFechou ? mesHoje : mesHoje - 1, diaFechamento);
+}
 
-  let abertaInicio: Date;
-  let abertaFim: Date;
+function getCurrentCycleEnd(cartao: Conta, hoje: Date = new Date()) {
+  const diaFechamento = cartao.dia_fechamento || 1;
+  return getDateForCardDay(hoje.getFullYear(), hoje.getMonth(), diaFechamento);
+}
 
-  if (jaFechou) {
-    abertaInicio = new Date(anoHoje, mesHoje, diaFechamento + 1);
-    abertaFim = new Date(anoHoje, mesHoje + 1, diaFechamento);
-  } else {
-    abertaInicio = new Date(anoHoje, mesHoje - 1, diaFechamento + 1);
-    abertaFim = new Date(anoHoje, mesHoje, diaFechamento);
+function getActiveForcedCycleEnd(cartao: Conta, state: ForceCloseState, hoje: Date = new Date()) {
+  const forcedEnd = state[cartao.id];
+  if (typeof forcedEnd !== "string") return null;
+
+  const naturalEnd = format(getNaturalClosedCycleEnd(cartao, hoje), "yyyy-MM-dd");
+  return forcedEnd > naturalEnd ? forcedEnd : null;
+}
+
+function getFaturasInfo(cartao: Conta, hoje: Date = new Date(), forcedCycleEnd?: string | null) {
+  const diaFechamento = cartao.dia_fechamento || 1;
+  const diaVencimento = cartao.dia_vencimento || 10;
+
+  const naturalClosedEnd = getNaturalClosedCycleEnd(cartao, hoje);
+  const forcedClosedEnd = forcedCycleEnd ? parseISO(forcedCycleEnd) : null;
+  const fechadaFim = forcedClosedEnd && forcedCycleEnd > format(naturalClosedEnd, "yyyy-MM-dd")
+    ? forcedClosedEnd
+    : naturalClosedEnd;
+
+  const fechadaAnteriorFim = getDateForCardDay(
+    fechadaFim.getFullYear(),
+    fechadaFim.getMonth() - 1,
+    diaFechamento,
+  );
+  const fechadaInicio = addDays(fechadaAnteriorFim, 1);
+
+  let fechadaVencimento = getDateForCardDay(
+    fechadaFim.getFullYear(),
+    fechadaFim.getMonth(),
+    diaVencimento,
+  );
+  if (fechadaVencimento <= fechadaFim) {
+    fechadaVencimento = getDateForCardDay(
+      fechadaFim.getFullYear(),
+      fechadaFim.getMonth() + 1,
+      diaVencimento,
+    );
   }
 
-  let fechadaFim: Date;
-  let fechadaInicio: Date;
-  let fechadaVencimento: Date;
-
-  if (jaFechou) {
-    fechadaFim = new Date(anoHoje, mesHoje, diaFechamento);
-    fechadaInicio = new Date(anoHoje, mesHoje - 1, diaFechamento + 1);
-    fechadaVencimento = new Date(anoHoje, mesHoje, diaVencimento);
-  } else {
-    fechadaFim = new Date(anoHoje, mesHoje - 1, diaFechamento);
-    fechadaInicio = new Date(anoHoje, mesHoje - 2, diaFechamento + 1);
-    fechadaVencimento = new Date(anoHoje, mesHoje - 1, diaVencimento);
-  }
+  const abertaInicio = addDays(fechadaFim, 1);
+  const abertaFim = getDateForCardDay(
+    fechadaFim.getFullYear(),
+    fechadaFim.getMonth() + 1,
+    diaFechamento,
+  );
 
   return {
     aberta: {
@@ -160,15 +192,18 @@ async function fetchCartoesData(userId: string | undefined) {
 
 const FORCE_CLOSE_KEY = "cartoes_force_close";
 
-function getForceCloseState(): Record<string, boolean> {
+function getForceCloseState(): ForceCloseState {
   try {
-    return JSON.parse(localStorage.getItem(FORCE_CLOSE_KEY) || "{}");
+    const parsed = JSON.parse(localStorage.getItem(FORCE_CLOSE_KEY) || "{}");
+    return Object.fromEntries(
+      Object.entries(parsed).filter(([, value]) => typeof value === "string")
+    ) as ForceCloseState;
   } catch {
     return {};
   }
 }
 
-function setForceCloseState(state: Record<string, boolean>) {
+function setForceCloseState(state: ForceCloseState) {
   localStorage.setItem(FORCE_CLOSE_KEY, JSON.stringify(state));
 }
 
@@ -176,7 +211,7 @@ const Cartoes = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("faturas");
-  const [forceClose, setForceClose] = useState<Record<string, boolean>>(getForceCloseState);
+  const [forceClose, setForceClose] = useState<ForceCloseState>(getForceCloseState);
   const [faturaModal, setFaturaModal] = useState<{
     open: boolean;
     cartaoId: string;
@@ -222,9 +257,15 @@ const Cartoes = () => {
     return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
   };
 
-  const toggleForceClose = (cartaoId: string) => {
+  const toggleForceClose = (cartao: Conta) => {
     setForceClose((prev) => {
-      const next = { ...prev, [cartaoId]: !prev[cartaoId] };
+      const next = { ...prev };
+      const activeForcedEnd = getActiveForcedCycleEnd(cartao, prev);
+      if (activeForcedEnd) {
+        delete next[cartao.id];
+      } else {
+        next[cartao.id] = format(getCurrentCycleEnd(cartao), "yyyy-MM-dd");
+      }
       setForceCloseState(next);
       return next;
     });
@@ -272,8 +313,8 @@ const Cartoes = () => {
   };
 
   const getFaturaFechada = (cartao: Conta) => {
-    const isForced = forceClose[cartao.id] || false;
-    const { fechada } = getFaturasInfo(cartao, new Date(), isForced);
+    const forcedCycleEnd = getActiveForcedCycleEnd(cartao, forceClose);
+    const { fechada } = getFaturasInfo(cartao, new Date(), forcedCycleEnd);
     const transacoesCiclo = getTransacoesCiclo(cartao.id, fechada.inicio, fechada.fim);
     const total = transacoesCiclo
       .filter(affectsInvoiceBalance)
@@ -282,8 +323,8 @@ const Cartoes = () => {
   };
 
   const getFaturasAnterioresNaoPagas = (cartao: Conta) => {
-    const isForced = forceClose[cartao.id] || false;
-    const { fechada } = getFaturasInfo(cartao, new Date(), isForced);
+    const forcedCycleEnd = getActiveForcedCycleEnd(cartao, forceClose);
+    const { fechada } = getFaturasInfo(cartao, new Date(), forcedCycleEnd);
     return transacoes
       .filter(t => {
         if (t.conta_id !== cartao.id) return false;
@@ -294,8 +335,8 @@ const Cartoes = () => {
   };
 
   const getFaturaAberta = (cartao: Conta) => {
-    const isForced = forceClose[cartao.id] || false;
-    const { aberta } = getFaturasInfo(cartao, new Date(), isForced);
+    const forcedCycleEnd = getActiveForcedCycleEnd(cartao, forceClose);
+    const { aberta } = getFaturasInfo(cartao, new Date(), forcedCycleEnd);
     const transacoesCiclo = getTransacoesCiclo(cartao.id, aberta.inicio, aberta.fim);
     const total = transacoesCiclo
       .filter(t => t.tipo === "receita" || t.is_pago_executado !== true)
@@ -311,8 +352,8 @@ const Cartoes = () => {
 
   // Detects whether a closed invoice has a "Crédito de Ajuste" — i.e. it was parceled.
   const faturaFoiParcelada = (cartao: Conta) => {
-    const isForced = forceClose[cartao.id] || false;
-    const { fechada } = getFaturasInfo(cartao, new Date(), isForced);
+    const forcedCycleEnd = getActiveForcedCycleEnd(cartao, forceClose);
+    const { fechada } = getFaturasInfo(cartao, new Date(), forcedCycleEnd);
     const ciclo = getTransacoesCiclo(cartao.id, fechada.inicio, fechada.fim);
     return ciclo.some(t => t.tipo === "receita" && (t.descricao || "").toLowerCase().includes("crédito de ajuste"));
   };
@@ -365,7 +406,7 @@ const Cartoes = () => {
                   {transacao.descricao || "Sem descrição"}
                 </p>
                 <div className="flex items-center gap-2 text-muted-foreground flex-wrap">
-                  <span>{format(new Date(transacao.data), "dd/MM")}</span>
+                  <span>{format(parseISO(transacao.data), "dd/MM")}</span>
                   {transacao.parcelas_total && transacao.parcela_atual && transacao.parcelas_total > 1 && (
                     <Badge variant="outline" className="text-[10px] px-1 py-0">
                       {transacao.parcela_atual}/{transacao.parcelas_total}
@@ -433,8 +474,8 @@ const Cartoes = () => {
   };
 
   const handlePagarFatura = (cartao: Conta) => {
-    const isForced = forceClose[cartao.id] || false;
-    const { fechada } = getFaturasInfo(cartao, new Date(), isForced);
+    const forcedCycleEnd = getActiveForcedCycleEnd(cartao, forceClose);
+    const { fechada } = getFaturasInfo(cartao, new Date(), forcedCycleEnd);
     const faturaFechada = getFaturaFechada(cartao);
     const faturasAnteriores = getFaturasAnterioresNaoPagas(cartao);
     const valorTotal = faturaFechada + faturasAnteriores;
@@ -465,17 +506,25 @@ const Cartoes = () => {
   };
 
   const handleFecharEPagarAberta = (cartao: Conta) => {
-    // Force close the invoice first
-    if (!forceClose[cartao.id]) {
-      toggleForceClose(cartao.id);
+    const forcedCycleEnd = format(getCurrentCycleEnd(cartao), "yyyy-MM-dd");
+    if (!getActiveForcedCycleEnd(cartao, forceClose)) {
+      setForceClose((prev) => {
+        const next = { ...prev, [cartao.id]: forcedCycleEnd };
+        setForceCloseState(next);
+        return next;
+      });
     }
-    // After force close, the "aberta" becomes "fechada" with different dates
-    // So we recalculate with forceClose = true
-    const { fechada } = getFaturasInfo(cartao, new Date(), true);
+    const { fechada } = getFaturasInfo(cartao, new Date(), forcedCycleEnd);
     const transacoesCiclo = getTransacoesCiclo(cartao.id, fechada.inicio, fechada.fim);
     const pendentesCiclo = transacoesCiclo.filter((t) => t.tipo === "despesa" && t.is_pago_executado !== true);
     const valor = pendentesCiclo.reduce((acc, t) => acc + signedValue(t), 0);
-    const faturasAnteriores = getFaturasAnterioresNaoPagas(cartao);
+    const faturasAnteriores = transacoes
+      .filter((t) => {
+        if (t.conta_id !== cartao.id) return false;
+        const dataCompetencia = getDataCompetencia(t);
+        return dataCompetencia < fechada.inicio && affectsInvoiceBalance(t);
+      })
+      .reduce((acc, t) => acc + signedValue(t), 0);
     const idsAnteriores = transacoes
       .filter((t) => {
         if (t.conta_id !== cartao.id) return false;
@@ -497,8 +546,8 @@ const Cartoes = () => {
   };
 
   const handleAnteciparFatura = (cartao: Conta) => {
-    const isForced = forceClose[cartao.id] || false;
-    const { aberta } = getFaturasInfo(cartao, new Date(), isForced);
+    const forcedCycleEnd = getActiveForcedCycleEnd(cartao, forceClose);
+    const { aberta } = getFaturasInfo(cartao, new Date(), forcedCycleEnd);
     const valorAberta = getFaturaAberta(cartao);
 
     // Real due date for the open invoice = one month after the closed
@@ -610,11 +659,12 @@ const Cartoes = () => {
             <TabsContent value="faturas" className="mt-4">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {cartoes.map((cartao) => {
-                  const isForced = forceClose[cartao.id] || false;
+                  const forcedCycleEnd = getActiveForcedCycleEnd(cartao, forceClose);
+                  const isForced = !!forcedCycleEnd;
                   const diaHoje = new Date().getDate();
                   const diaFechamento = cartao.dia_fechamento || 1;
                   const jaFechouNaturalmente = diaHoje >= diaFechamento;
-                  const faturasInfo = getFaturasInfo(cartao, new Date(), isForced);
+                  const faturasInfo = getFaturasInfo(cartao, new Date(), forcedCycleEnd);
                   const transacoesFechada = getTransacoesCiclo(cartao.id, faturasInfo.fechada.inicio, faturasInfo.fechada.fim);
                   const transacoesAberta = getTransacoesCiclo(cartao.id, faturasInfo.aberta.inicio, faturasInfo.aberta.fim);
                   const faturaFechada = getFaturaFechada(cartao);
@@ -679,7 +729,7 @@ const Cartoes = () => {
                               </span>
                               <Switch
                                 checked={isForced}
-                                onCheckedChange={() => toggleForceClose(cartao.id)}
+                                onCheckedChange={() => toggleForceClose(cartao)}
                               />
                             </div>
                           </div>
@@ -721,7 +771,7 @@ const Cartoes = () => {
                                       </TooltipTrigger>
                                       <TooltipContent>
                                         <p className="max-w-xs text-xs">
-                                          Compras de {format(new Date(faturasInfo.fechada.inicio), "dd/MM")} a {format(new Date(faturasInfo.fechada.fim), "dd/MM")}.
+                                          Compras de {format(parseISO(faturasInfo.fechada.inicio), "dd/MM")} a {format(parseISO(faturasInfo.fechada.fim), "dd/MM")}.
                                           Vencimento: {format(faturasInfo.fechada.vencimento, "dd/MM/yyyy")}.
                                           {faturasAnteriores > 0 && ` Inclui ${formatCurrency(faturasAnteriores)} de faturas anteriores não pagas.`}
                                         </p>
@@ -762,7 +812,7 @@ const Cartoes = () => {
                                             cartaoVencimento: cartao.dia_vencimento || 10,
                                             valorFatura: Math.max(0, totalFechada),
                                             vencimentoFatura: format(faturasInfo.fechada.vencimento, "yyyy-MM-dd"),
-                                            mesReferencia: format(faturasInfo.fechada.vencimento, "yyyy-MM"),
+                                            mesReferencia: format(parseISO(faturasInfo.fechada.fim), "yyyy-MM"),
                                           });
                                         }}
                                       >
@@ -828,7 +878,7 @@ const Cartoes = () => {
                                   </TooltipTrigger>
                                   <TooltipContent>
                                     <p className="max-w-xs text-xs">
-                                      Compras de {format(new Date(faturasInfo.aberta.inicio), "dd/MM")} a {format(new Date(faturasInfo.aberta.fim), "dd/MM")}.
+                                      Compras de {format(parseISO(faturasInfo.aberta.inicio), "dd/MM")} a {format(parseISO(faturasInfo.aberta.fim), "dd/MM")}.
                                       Esta fatura ainda não fechou.
                                     </p>
                                   </TooltipContent>
