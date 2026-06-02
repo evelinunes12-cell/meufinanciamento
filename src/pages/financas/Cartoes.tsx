@@ -99,9 +99,7 @@ function getFaturasInfo(cartao: Conta, hoje: Date = new Date(), forcedCycleEnd?:
 
   const naturalClosedEnd = getNaturalClosedCycleEnd(cartao, hoje);
   const forcedClosedEnd = forcedCycleEnd ? parseISO(forcedCycleEnd) : null;
-  const fechadaFim = forcedClosedEnd && forcedCycleEnd > format(naturalClosedEnd, "yyyy-MM-dd")
-    ? forcedClosedEnd
-    : naturalClosedEnd;
+  const fechadaFim = forcedClosedEnd ?? naturalClosedEnd;
 
   const fechadaAnteriorFim = getDateForCardDay(
     fechadaFim.getFullYear(),
