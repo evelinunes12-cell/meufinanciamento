@@ -474,8 +474,8 @@ const Cartoes = () => {
   };
 
   const handlePagarFatura = (cartao: Conta) => {
-    const isForced = forceClose[cartao.id] || false;
-    const { fechada } = getFaturasInfo(cartao, new Date(), isForced);
+    const forcedCycleEnd = getActiveForcedCycleEnd(cartao, forceClose);
+    const { fechada } = getFaturasInfo(cartao, new Date(), forcedCycleEnd);
     const faturaFechada = getFaturaFechada(cartao);
     const faturasAnteriores = getFaturasAnterioresNaoPagas(cartao);
     const valorTotal = faturaFechada + faturasAnteriores;
@@ -506,17 +506,25 @@ const Cartoes = () => {
   };
 
   const handleFecharEPagarAberta = (cartao: Conta) => {
-    // Force close the invoice first
-    if (!forceClose[cartao.id]) {
-      toggleForceClose(cartao.id);
+    const forcedCycleEnd = format(getCurrentCycleEnd(cartao), "yyyy-MM-dd");
+    if (!getActiveForcedCycleEnd(cartao, forceClose)) {
+      setForceClose((prev) => {
+        const next = { ...prev, [cartao.id]: forcedCycleEnd };
+        setForceCloseState(next);
+        return next;
+      });
     }
-    // After force close, the "aberta" becomes "fechada" with different dates
-    // So we recalculate with forceClose = true
-    const { fechada } = getFaturasInfo(cartao, new Date(), true);
+    const { fechada } = getFaturasInfo(cartao, new Date(), forcedCycleEnd);
     const transacoesCiclo = getTransacoesCiclo(cartao.id, fechada.inicio, fechada.fim);
     const pendentesCiclo = transacoesCiclo.filter((t) => t.tipo === "despesa" && t.is_pago_executado !== true);
     const valor = pendentesCiclo.reduce((acc, t) => acc + signedValue(t), 0);
-    const faturasAnteriores = getFaturasAnterioresNaoPagas(cartao);
+    const faturasAnteriores = transacoes
+      .filter((t) => {
+        if (t.conta_id !== cartao.id) return false;
+        const dataCompetencia = getDataCompetencia(t);
+        return dataCompetencia < fechada.inicio && affectsInvoiceBalance(t);
+      })
+      .reduce((acc, t) => acc + signedValue(t), 0);
     const idsAnteriores = transacoes
       .filter((t) => {
         if (t.conta_id !== cartao.id) return false;
@@ -538,8 +546,8 @@ const Cartoes = () => {
   };
 
   const handleAnteciparFatura = (cartao: Conta) => {
-    const isForced = forceClose[cartao.id] || false;
-    const { aberta } = getFaturasInfo(cartao, new Date(), isForced);
+    const forcedCycleEnd = getActiveForcedCycleEnd(cartao, forceClose);
+    const { aberta } = getFaturasInfo(cartao, new Date(), forcedCycleEnd);
     const valorAberta = getFaturaAberta(cartao);
 
     // Real due date for the open invoice = one month after the closed
