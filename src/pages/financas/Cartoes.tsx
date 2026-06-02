@@ -263,6 +263,14 @@ const Cartoes = () => {
     return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
   };
 
+  // Cycle end actually in use: user-selected (any past cycle) overrides forced/natural.
+  const getEffectiveCycleEnd = (cartao: Conta): string | null => {
+    const selected = viewCycleEnd[cartao.id];
+    if (selected) return selected;
+    return getActiveForcedCycleEnd(cartao, forceClose);
+  };
+
+
   const toggleForceClose = (cartao: Conta) => {
     setForceClose((prev) => {
       const next = { ...prev };
