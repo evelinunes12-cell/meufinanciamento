@@ -812,7 +812,7 @@ const Cartoes = () => {
                                             cartaoVencimento: cartao.dia_vencimento || 10,
                                             valorFatura: Math.max(0, totalFechada),
                                             vencimentoFatura: format(faturasInfo.fechada.vencimento, "yyyy-MM-dd"),
-                                            mesReferencia: format(faturasInfo.fechada.vencimento, "yyyy-MM"),
+                                            mesReferencia: format(parseISO(faturasInfo.fechada.fim), "yyyy-MM"),
                                           });
                                         }}
                                       >
