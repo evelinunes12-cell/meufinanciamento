@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { CreditCard, Calendar, AlertTriangle, Banknote, Info, History, Lock, LockOpen, Zap, Check, MoreVertical, ArrowLeft, ArrowRight, Split } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { format, subMonths, addMonths, parseISO } from "date-fns";
+import { addDays, format, subMonths, addMonths, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Link } from "react-router-dom";
 import PagarFaturaModal from "@/components/PagarFaturaModal";
@@ -56,40 +56,72 @@ interface Transacao {
 // Lógica de ciclo de fatura de cartão de crédito
 // ==========================================
 
-function getFaturasInfo(cartao: Conta, hoje: Date = new Date(), forceClose = false) {
+type ForceCloseState = Record<string, string>;
+
+function getDateForCardDay(year: number, monthIndex: number, day: number) {
+  const lastDay = new Date(year, monthIndex + 1, 0).getDate();
+  return new Date(year, monthIndex, Math.min(Math.max(day, 1), lastDay));
+}
+
+function getNaturalClosedCycleEnd(cartao: Conta, hoje: Date = new Date()) {
   const diaFechamento = cartao.dia_fechamento || 1;
-  const diaVencimento = cartao.dia_vencimento || 10;
   const diaHoje = hoje.getDate();
   const mesHoje = hoje.getMonth();
   const anoHoje = hoje.getFullYear();
+  const jaFechou = diaHoje >= diaFechamento;
 
-  // Se forceClose é true, tratamos como se já tivesse fechado
-  const jaFechou = forceClose ? true : diaHoje >= diaFechamento;
+  return getDateForCardDay(anoHoje, jaFechou ? mesHoje : mesHoje - 1, diaFechamento);
+}
 
-  let abertaInicio: Date;
-  let abertaFim: Date;
+function getCurrentCycleEnd(cartao: Conta, hoje: Date = new Date()) {
+  const diaFechamento = cartao.dia_fechamento || 1;
+  return getDateForCardDay(hoje.getFullYear(), hoje.getMonth(), diaFechamento);
+}
 
-  if (jaFechou) {
-    abertaInicio = new Date(anoHoje, mesHoje, diaFechamento + 1);
-    abertaFim = new Date(anoHoje, mesHoje + 1, diaFechamento);
-  } else {
-    abertaInicio = new Date(anoHoje, mesHoje - 1, diaFechamento + 1);
-    abertaFim = new Date(anoHoje, mesHoje, diaFechamento);
+function getActiveForcedCycleEnd(cartao: Conta, state: ForceCloseState, hoje: Date = new Date()) {
+  const forcedEnd = state[cartao.id];
+  if (!forcedEnd) return null;
+
+  const naturalEnd = format(getNaturalClosedCycleEnd(cartao, hoje), "yyyy-MM-dd");
+  return forcedEnd > naturalEnd ? forcedEnd : null;
+}
+
+function getFaturasInfo(cartao: Conta, hoje: Date = new Date(), forcedCycleEnd?: string | null) {
+  const diaFechamento = cartao.dia_fechamento || 1;
+  const diaVencimento = cartao.dia_vencimento || 10;
+
+  const naturalClosedEnd = getNaturalClosedCycleEnd(cartao, hoje);
+  const forcedClosedEnd = forcedCycleEnd ? parseISO(forcedCycleEnd) : null;
+  const fechadaFim = forcedClosedEnd && forcedCycleEnd > format(naturalClosedEnd, "yyyy-MM-dd")
+    ? forcedClosedEnd
+    : naturalClosedEnd;
+
+  const fechadaAnteriorFim = getDateForCardDay(
+    fechadaFim.getFullYear(),
+    fechadaFim.getMonth() - 1,
+    diaFechamento,
+  );
+  const fechadaInicio = addDays(fechadaAnteriorFim, 1);
+
+  let fechadaVencimento = getDateForCardDay(
+    fechadaFim.getFullYear(),
+    fechadaFim.getMonth(),
+    diaVencimento,
+  );
+  if (fechadaVencimento <= fechadaFim) {
+    fechadaVencimento = getDateForCardDay(
+      fechadaFim.getFullYear(),
+      fechadaFim.getMonth() + 1,
+      diaVencimento,
+    );
   }
 
-  let fechadaFim: Date;
-  let fechadaInicio: Date;
-  let fechadaVencimento: Date;
-
-  if (jaFechou) {
-    fechadaFim = new Date(anoHoje, mesHoje, diaFechamento);
-    fechadaInicio = new Date(anoHoje, mesHoje - 1, diaFechamento + 1);
-    fechadaVencimento = new Date(anoHoje, mesHoje, diaVencimento);
-  } else {
-    fechadaFim = new Date(anoHoje, mesHoje - 1, diaFechamento);
-    fechadaInicio = new Date(anoHoje, mesHoje - 2, diaFechamento + 1);
-    fechadaVencimento = new Date(anoHoje, mesHoje - 1, diaVencimento);
-  }
+  const abertaInicio = addDays(fechadaFim, 1);
+  const abertaFim = getDateForCardDay(
+    fechadaFim.getFullYear(),
+    fechadaFim.getMonth() + 1,
+    diaFechamento,
+  );
 
   return {
     aberta: {
