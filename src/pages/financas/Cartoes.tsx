@@ -763,6 +763,44 @@ const Cartoes = () => {
                           </div>
                         )}
 
+                        {/* Seletor de fatura fechada por mês */}
+                        <div className="flex items-center justify-between gap-2 p-2 rounded-lg bg-muted/30 border border-border">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
+                            <div className="min-w-0">
+                              <p className="text-xs font-medium text-foreground">Fatura visualizada</p>
+                              <p className="text-[10px] text-muted-foreground truncate">
+                                {isViewingPast ? "Visualizando fatura histórica" : "Última fatura encerrada"}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Select
+                              value={selectedCycle}
+                              onValueChange={(v) =>
+                                setViewCycleEnd((prev) => {
+                                  const next = { ...prev };
+                                  if (v === "auto") delete next[cartao.id];
+                                  else next[cartao.id] = v;
+                                  return next;
+                                })
+                              }
+                            >
+                              <SelectTrigger className="h-8 w-[180px] text-xs capitalize">
+                                <SelectValue placeholder="Selecione" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="auto">Automática (atual)</SelectItem>
+                                {cicloOptions.map((opt) => (
+                                  <SelectItem key={opt.value} value={opt.value} className="capitalize">
+                                    {opt.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+
                         {/* Fatura Fechada */}
                         {(() => {
                           const pendentes = transacoesFechada.filter(t => t.tipo === "despesa" && t.is_pago_executado !== true);
