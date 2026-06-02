@@ -217,6 +217,7 @@ const Cartoes = () => {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("faturas");
   const [forceClose, setForceClose] = useState<ForceCloseState>(getForceCloseState);
+  const [viewCycleEnd, setViewCycleEnd] = useState<Record<string, string>>({});
   const [faturaModal, setFaturaModal] = useState<{
     open: boolean;
     cartaoId: string;
