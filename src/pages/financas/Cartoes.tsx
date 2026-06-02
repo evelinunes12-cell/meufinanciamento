@@ -313,8 +313,8 @@ const Cartoes = () => {
   };
 
   const getFaturaFechada = (cartao: Conta) => {
-    const isForced = forceClose[cartao.id] || false;
-    const { fechada } = getFaturasInfo(cartao, new Date(), isForced);
+    const forcedCycleEnd = getActiveForcedCycleEnd(cartao, forceClose);
+    const { fechada } = getFaturasInfo(cartao, new Date(), forcedCycleEnd);
     const transacoesCiclo = getTransacoesCiclo(cartao.id, fechada.inicio, fechada.fim);
     const total = transacoesCiclo
       .filter(affectsInvoiceBalance)
@@ -323,8 +323,8 @@ const Cartoes = () => {
   };
 
   const getFaturasAnterioresNaoPagas = (cartao: Conta) => {
-    const isForced = forceClose[cartao.id] || false;
-    const { fechada } = getFaturasInfo(cartao, new Date(), isForced);
+    const forcedCycleEnd = getActiveForcedCycleEnd(cartao, forceClose);
+    const { fechada } = getFaturasInfo(cartao, new Date(), forcedCycleEnd);
     return transacoes
       .filter(t => {
         if (t.conta_id !== cartao.id) return false;
@@ -335,8 +335,8 @@ const Cartoes = () => {
   };
 
   const getFaturaAberta = (cartao: Conta) => {
-    const isForced = forceClose[cartao.id] || false;
-    const { aberta } = getFaturasInfo(cartao, new Date(), isForced);
+    const forcedCycleEnd = getActiveForcedCycleEnd(cartao, forceClose);
+    const { aberta } = getFaturasInfo(cartao, new Date(), forcedCycleEnd);
     const transacoesCiclo = getTransacoesCiclo(cartao.id, aberta.inicio, aberta.fim);
     const total = transacoesCiclo
       .filter(t => t.tipo === "receita" || t.is_pago_executado !== true)
@@ -352,8 +352,8 @@ const Cartoes = () => {
 
   // Detects whether a closed invoice has a "Crédito de Ajuste" — i.e. it was parceled.
   const faturaFoiParcelada = (cartao: Conta) => {
-    const isForced = forceClose[cartao.id] || false;
-    const { fechada } = getFaturasInfo(cartao, new Date(), isForced);
+    const forcedCycleEnd = getActiveForcedCycleEnd(cartao, forceClose);
+    const { fechada } = getFaturasInfo(cartao, new Date(), forcedCycleEnd);
     const ciclo = getTransacoesCiclo(cartao.id, fechada.inicio, fechada.fim);
     return ciclo.some(t => t.tipo === "receita" && (t.descricao || "").toLowerCase().includes("crédito de ajuste"));
   };
