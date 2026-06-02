@@ -659,11 +659,12 @@ const Cartoes = () => {
             <TabsContent value="faturas" className="mt-4">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {cartoes.map((cartao) => {
-                  const isForced = forceClose[cartao.id] || false;
+                  const forcedCycleEnd = getActiveForcedCycleEnd(cartao, forceClose);
+                  const isForced = !!forcedCycleEnd;
                   const diaHoje = new Date().getDate();
                   const diaFechamento = cartao.dia_fechamento || 1;
                   const jaFechouNaturalmente = diaHoje >= diaFechamento;
-                  const faturasInfo = getFaturasInfo(cartao, new Date(), isForced);
+                  const faturasInfo = getFaturasInfo(cartao, new Date(), forcedCycleEnd);
                   const transacoesFechada = getTransacoesCiclo(cartao.id, faturasInfo.fechada.inicio, faturasInfo.fechada.fim);
                   const transacoesAberta = getTransacoesCiclo(cartao.id, faturasInfo.aberta.inicio, faturasInfo.aberta.fim);
                   const faturaFechada = getFaturaFechada(cartao);
@@ -728,7 +729,7 @@ const Cartoes = () => {
                               </span>
                               <Switch
                                 checked={isForced}
-                                onCheckedChange={() => toggleForceClose(cartao.id)}
+                                onCheckedChange={() => toggleForceClose(cartao)}
                               />
                             </div>
                           </div>
