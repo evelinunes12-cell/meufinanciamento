@@ -19,6 +19,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { CreditCard, Calendar, AlertTriangle, Banknote, Info, History, Lock, LockOpen, Zap, Check, MoreVertical, ArrowLeft, ArrowRight, Split } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { addDays, format, subMonths, addMonths, parseISO } from "date-fns";
@@ -92,9 +99,7 @@ function getFaturasInfo(cartao: Conta, hoje: Date = new Date(), forcedCycleEnd?:
 
   const naturalClosedEnd = getNaturalClosedCycleEnd(cartao, hoje);
   const forcedClosedEnd = forcedCycleEnd ? parseISO(forcedCycleEnd) : null;
-  const fechadaFim = forcedClosedEnd && forcedCycleEnd > format(naturalClosedEnd, "yyyy-MM-dd")
-    ? forcedClosedEnd
-    : naturalClosedEnd;
+  const fechadaFim = forcedClosedEnd ?? naturalClosedEnd;
 
   const fechadaAnteriorFim = getDateForCardDay(
     fechadaFim.getFullYear(),
@@ -212,6 +217,7 @@ const Cartoes = () => {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("faturas");
   const [forceClose, setForceClose] = useState<ForceCloseState>(getForceCloseState);
+  const [viewCycleEnd, setViewCycleEnd] = useState<Record<string, string>>({});
   const [faturaModal, setFaturaModal] = useState<{
     open: boolean;
     cartaoId: string;
@@ -256,6 +262,14 @@ const Cartoes = () => {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
   };
+
+  // Cycle end actually in use: user-selected (any past cycle) overrides forced/natural.
+  const getEffectiveCycleEnd = (cartao: Conta): string | null => {
+    const selected = viewCycleEnd[cartao.id];
+    if (selected) return selected;
+    return getActiveForcedCycleEnd(cartao, forceClose);
+  };
+
 
   const toggleForceClose = (cartao: Conta) => {
     setForceClose((prev) => {
@@ -313,7 +327,7 @@ const Cartoes = () => {
   };
 
   const getFaturaFechada = (cartao: Conta) => {
-    const forcedCycleEnd = getActiveForcedCycleEnd(cartao, forceClose);
+    const forcedCycleEnd = getEffectiveCycleEnd(cartao);
     const { fechada } = getFaturasInfo(cartao, new Date(), forcedCycleEnd);
     const transacoesCiclo = getTransacoesCiclo(cartao.id, fechada.inicio, fechada.fim);
     const total = transacoesCiclo
@@ -323,7 +337,7 @@ const Cartoes = () => {
   };
 
   const getFaturasAnterioresNaoPagas = (cartao: Conta) => {
-    const forcedCycleEnd = getActiveForcedCycleEnd(cartao, forceClose);
+    const forcedCycleEnd = getEffectiveCycleEnd(cartao);
     const { fechada } = getFaturasInfo(cartao, new Date(), forcedCycleEnd);
     return transacoes
       .filter(t => {
@@ -335,7 +349,7 @@ const Cartoes = () => {
   };
 
   const getFaturaAberta = (cartao: Conta) => {
-    const forcedCycleEnd = getActiveForcedCycleEnd(cartao, forceClose);
+    const forcedCycleEnd = getEffectiveCycleEnd(cartao);
     const { aberta } = getFaturasInfo(cartao, new Date(), forcedCycleEnd);
     const transacoesCiclo = getTransacoesCiclo(cartao.id, aberta.inicio, aberta.fim);
     const total = transacoesCiclo
@@ -352,7 +366,7 @@ const Cartoes = () => {
 
   // Detects whether a closed invoice has a "Crédito de Ajuste" — i.e. it was parceled.
   const faturaFoiParcelada = (cartao: Conta) => {
-    const forcedCycleEnd = getActiveForcedCycleEnd(cartao, forceClose);
+    const forcedCycleEnd = getEffectiveCycleEnd(cartao);
     const { fechada } = getFaturasInfo(cartao, new Date(), forcedCycleEnd);
     const ciclo = getTransacoesCiclo(cartao.id, fechada.inicio, fechada.fim);
     return ciclo.some(t => t.tipo === "receita" && (t.descricao || "").toLowerCase().includes("crédito de ajuste"));
@@ -474,7 +488,7 @@ const Cartoes = () => {
   };
 
   const handlePagarFatura = (cartao: Conta) => {
-    const forcedCycleEnd = getActiveForcedCycleEnd(cartao, forceClose);
+    const forcedCycleEnd = getEffectiveCycleEnd(cartao);
     const { fechada } = getFaturasInfo(cartao, new Date(), forcedCycleEnd);
     const faturaFechada = getFaturaFechada(cartao);
     const faturasAnteriores = getFaturasAnterioresNaoPagas(cartao);
@@ -507,7 +521,7 @@ const Cartoes = () => {
 
   const handleFecharEPagarAberta = (cartao: Conta) => {
     const forcedCycleEnd = format(getCurrentCycleEnd(cartao), "yyyy-MM-dd");
-    if (!getActiveForcedCycleEnd(cartao, forceClose)) {
+    if (!getEffectiveCycleEnd(cartao)) {
       setForceClose((prev) => {
         const next = { ...prev, [cartao.id]: forcedCycleEnd };
         setForceCloseState(next);
@@ -546,7 +560,7 @@ const Cartoes = () => {
   };
 
   const handleAnteciparFatura = (cartao: Conta) => {
-    const forcedCycleEnd = getActiveForcedCycleEnd(cartao, forceClose);
+    const forcedCycleEnd = getEffectiveCycleEnd(cartao);
     const { aberta } = getFaturasInfo(cartao, new Date(), forcedCycleEnd);
     const valorAberta = getFaturaAberta(cartao);
 
@@ -659,7 +673,7 @@ const Cartoes = () => {
             <TabsContent value="faturas" className="mt-4">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {cartoes.map((cartao) => {
-                  const forcedCycleEnd = getActiveForcedCycleEnd(cartao, forceClose);
+                  const forcedCycleEnd = getEffectiveCycleEnd(cartao);
                   const isForced = !!forcedCycleEnd;
                   const diaHoje = new Date().getDate();
                   const diaFechamento = cartao.dia_fechamento || 1;
@@ -675,6 +689,20 @@ const Cartoes = () => {
                   const limite = Number(cartao.limite) || 0;
                   const percentualUsado = limite > 0 ? (Math.max(0, saldoDevedor) / limite) * 100 : 0;
                   const disponivel = limite - Math.max(0, saldoDevedor);
+
+                  // Opções do seletor de fatura fechada (últimos ciclos + ciclo natural atual).
+                  const naturalEnd = format(getNaturalClosedCycleEnd(cartao), "yyyy-MM-dd");
+                  const cicloOptions = (() => {
+                    const ciclos = getHistoricoCiclos(cartao, 12).map((c) => ({
+                      value: c.fim,
+                      label: c.mesReferencia,
+                    }));
+                    const map = new Map<string, { value: string; label: string }>();
+                    ciclos.forEach((c) => map.set(c.value, c));
+                    return Array.from(map.values()).sort((a, b) => b.value.localeCompare(a.value));
+                  })();
+                  const selectedCycle = viewCycleEnd[cartao.id] ?? "auto";
+                  const isViewingPast = !!viewCycleEnd[cartao.id] && viewCycleEnd[cartao.id] !== naturalEnd;
 
                   return (
                     <Card key={cartao.id} className="shadow-card overflow-hidden">
@@ -735,6 +763,44 @@ const Cartoes = () => {
                           </div>
                         )}
 
+                        {/* Seletor de fatura fechada por mês */}
+                        <div className="flex items-center justify-between gap-2 p-2 rounded-lg bg-muted/30 border border-border">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
+                            <div className="min-w-0">
+                              <p className="text-xs font-medium text-foreground">Fatura visualizada</p>
+                              <p className="text-[10px] text-muted-foreground truncate">
+                                {isViewingPast ? "Visualizando fatura histórica" : "Última fatura encerrada"}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Select
+                              value={selectedCycle}
+                              onValueChange={(v) =>
+                                setViewCycleEnd((prev) => {
+                                  const next = { ...prev };
+                                  if (v === "auto") delete next[cartao.id];
+                                  else next[cartao.id] = v;
+                                  return next;
+                                })
+                              }
+                            >
+                              <SelectTrigger className="h-8 w-[180px] text-xs capitalize">
+                                <SelectValue placeholder="Selecione" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="auto">Automática (atual)</SelectItem>
+                                {cicloOptions.map((opt) => (
+                                  <SelectItem key={opt.value} value={opt.value} className="capitalize">
+                                    {opt.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+
                         {/* Fatura Fechada */}
                         {(() => {
                           const pendentes = transacoesFechada.filter(t => t.tipo === "despesa" && t.is_pago_executado !== true);
@@ -751,9 +817,14 @@ const Cartoes = () => {
                                     <p className="text-xs text-muted-foreground">
                                       Fatura Fechada ({faturasInfo.fechada.mesReferencia})
                                     </p>
-                                    {isForced && !jaFechouNaturalmente && (
+                                    {isForced && !jaFechouNaturalmente && !isViewingPast && (
                                       <Badge variant="outline" className="text-[9px] px-1 py-0 border-warning text-warning">
                                         Manual
+                                      </Badge>
+                                    )}
+                                    {isViewingPast && (
+                                      <Badge variant="outline" className="text-[9px] px-1 py-0 border-primary text-primary">
+                                        Histórico
                                       </Badge>
                                     )}
                                     <Badge variant={isPaga ? "outline" : "destructive"} className={`text-[9px] px-1.5 py-0 ${isPaga ? "border-success text-success" : ""}`}>
