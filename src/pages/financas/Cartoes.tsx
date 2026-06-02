@@ -406,7 +406,7 @@ const Cartoes = () => {
                   {transacao.descricao || "Sem descrição"}
                 </p>
                 <div className="flex items-center gap-2 text-muted-foreground flex-wrap">
-                  <span>{format(new Date(transacao.data), "dd/MM")}</span>
+                  <span>{format(parseISO(transacao.data), "dd/MM")}</span>
                   {transacao.parcelas_total && transacao.parcela_atual && transacao.parcelas_total > 1 && (
                     <Badge variant="outline" className="text-[10px] px-1 py-0">
                       {transacao.parcela_atual}/{transacao.parcelas_total}
@@ -771,7 +771,7 @@ const Cartoes = () => {
                                       </TooltipTrigger>
                                       <TooltipContent>
                                         <p className="max-w-xs text-xs">
-                                          Compras de {format(new Date(faturasInfo.fechada.inicio), "dd/MM")} a {format(new Date(faturasInfo.fechada.fim), "dd/MM")}.
+                                          Compras de {format(parseISO(faturasInfo.fechada.inicio), "dd/MM")} a {format(parseISO(faturasInfo.fechada.fim), "dd/MM")}.
                                           Vencimento: {format(faturasInfo.fechada.vencimento, "dd/MM/yyyy")}.
                                           {faturasAnteriores > 0 && ` Inclui ${formatCurrency(faturasAnteriores)} de faturas anteriores não pagas.`}
                                         </p>
@@ -878,7 +878,7 @@ const Cartoes = () => {
                                   </TooltipTrigger>
                                   <TooltipContent>
                                     <p className="max-w-xs text-xs">
-                                      Compras de {format(new Date(faturasInfo.aberta.inicio), "dd/MM")} a {format(new Date(faturasInfo.aberta.fim), "dd/MM")}.
+                                      Compras de {format(parseISO(faturasInfo.aberta.inicio), "dd/MM")} a {format(parseISO(faturasInfo.aberta.fim), "dd/MM")}.
                                       Esta fatura ainda não fechou.
                                     </p>
                                   </TooltipContent>
