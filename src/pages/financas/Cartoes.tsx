@@ -319,7 +319,7 @@ const Cartoes = () => {
   };
 
   const getFaturaFechada = (cartao: Conta) => {
-    const forcedCycleEnd = getActiveForcedCycleEnd(cartao, forceClose);
+    const forcedCycleEnd = getEffectiveCycleEnd(cartao);
     const { fechada } = getFaturasInfo(cartao, new Date(), forcedCycleEnd);
     const transacoesCiclo = getTransacoesCiclo(cartao.id, fechada.inicio, fechada.fim);
     const total = transacoesCiclo
@@ -329,7 +329,7 @@ const Cartoes = () => {
   };
 
   const getFaturasAnterioresNaoPagas = (cartao: Conta) => {
-    const forcedCycleEnd = getActiveForcedCycleEnd(cartao, forceClose);
+    const forcedCycleEnd = getEffectiveCycleEnd(cartao);
     const { fechada } = getFaturasInfo(cartao, new Date(), forcedCycleEnd);
     return transacoes
       .filter(t => {
@@ -341,7 +341,7 @@ const Cartoes = () => {
   };
 
   const getFaturaAberta = (cartao: Conta) => {
-    const forcedCycleEnd = getActiveForcedCycleEnd(cartao, forceClose);
+    const forcedCycleEnd = getEffectiveCycleEnd(cartao);
     const { aberta } = getFaturasInfo(cartao, new Date(), forcedCycleEnd);
     const transacoesCiclo = getTransacoesCiclo(cartao.id, aberta.inicio, aberta.fim);
     const total = transacoesCiclo
@@ -358,7 +358,7 @@ const Cartoes = () => {
 
   // Detects whether a closed invoice has a "Crédito de Ajuste" — i.e. it was parceled.
   const faturaFoiParcelada = (cartao: Conta) => {
-    const forcedCycleEnd = getActiveForcedCycleEnd(cartao, forceClose);
+    const forcedCycleEnd = getEffectiveCycleEnd(cartao);
     const { fechada } = getFaturasInfo(cartao, new Date(), forcedCycleEnd);
     const ciclo = getTransacoesCiclo(cartao.id, fechada.inicio, fechada.fim);
     return ciclo.some(t => t.tipo === "receita" && (t.descricao || "").toLowerCase().includes("crédito de ajuste"));
@@ -480,7 +480,7 @@ const Cartoes = () => {
   };
 
   const handlePagarFatura = (cartao: Conta) => {
-    const forcedCycleEnd = getActiveForcedCycleEnd(cartao, forceClose);
+    const forcedCycleEnd = getEffectiveCycleEnd(cartao);
     const { fechada } = getFaturasInfo(cartao, new Date(), forcedCycleEnd);
     const faturaFechada = getFaturaFechada(cartao);
     const faturasAnteriores = getFaturasAnterioresNaoPagas(cartao);
@@ -513,7 +513,7 @@ const Cartoes = () => {
 
   const handleFecharEPagarAberta = (cartao: Conta) => {
     const forcedCycleEnd = format(getCurrentCycleEnd(cartao), "yyyy-MM-dd");
-    if (!getActiveForcedCycleEnd(cartao, forceClose)) {
+    if (!getEffectiveCycleEnd(cartao)) {
       setForceClose((prev) => {
         const next = { ...prev, [cartao.id]: forcedCycleEnd };
         setForceCloseState(next);
@@ -552,7 +552,7 @@ const Cartoes = () => {
   };
 
   const handleAnteciparFatura = (cartao: Conta) => {
-    const forcedCycleEnd = getActiveForcedCycleEnd(cartao, forceClose);
+    const forcedCycleEnd = getEffectiveCycleEnd(cartao);
     const { aberta } = getFaturasInfo(cartao, new Date(), forcedCycleEnd);
     const valorAberta = getFaturaAberta(cartao);
 
@@ -665,7 +665,7 @@ const Cartoes = () => {
             <TabsContent value="faturas" className="mt-4">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {cartoes.map((cartao) => {
-                  const forcedCycleEnd = getActiveForcedCycleEnd(cartao, forceClose);
+                  const forcedCycleEnd = getEffectiveCycleEnd(cartao);
                   const isForced = !!forcedCycleEnd;
                   const diaHoje = new Date().getDate();
                   const diaFechamento = cartao.dia_fechamento || 1;
