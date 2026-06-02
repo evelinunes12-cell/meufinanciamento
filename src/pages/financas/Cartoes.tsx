@@ -196,7 +196,7 @@ function getForceCloseState(): ForceCloseState {
   try {
     const parsed = JSON.parse(localStorage.getItem(FORCE_CLOSE_KEY) || "{}");
     return Object.fromEntries(
-      Object.entries(parsed).filter(([, value]) => typeof value === "string" || typeof value === "boolean")
+      Object.entries(parsed).filter(([, value]) => typeof value === "string")
     ) as ForceCloseState;
   } catch {
     return {};
