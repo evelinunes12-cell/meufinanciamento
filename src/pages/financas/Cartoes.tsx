@@ -26,7 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CreditCard, Calendar, AlertTriangle, Banknote, Info, History, Lock, LockOpen, Zap, Check, MoreVertical, ArrowLeft, ArrowRight, Split } from "lucide-react";
+import { CreditCard, Calendar, AlertTriangle, Banknote, Info, History, Lock, LockOpen, Zap, Check, MoreVertical, ArrowLeft, ArrowRight, Split, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { addDays, format, subMonths, addMonths, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -401,6 +401,73 @@ const Cartoes = () => {
   };
 
 
+  const cancelarPagamentoFatura = async (receita: Transacao) => {
+    const ok = window.confirm(
+      "Cancelar este pagamento de fatura? As transações quitadas por ele voltarão a ficar pendentes e o lançamento na conta de origem será removido."
+    );
+    if (!ok) return;
+
+    try {
+      const valor = Number(receita.valor);
+      const cartaoId = receita.conta_id;
+      const dataPagamento = receita.data;
+
+      // 1) Encontrar a despesa-espelho na conta de origem (transferência para este cartão,
+      //    mesmo valor e mesma data).
+      const { data: espelho, error: errEspelho } = await supabase
+        .from("transacoes")
+        .select("id")
+        .eq("conta_destino_id", cartaoId)
+        .eq("tipo", "despesa")
+        .eq("forma_pagamento", "transferencia")
+        .eq("valor", valor)
+        .eq("data", dataPagamento)
+        .limit(2);
+
+      if (errEspelho) throw errEspelho;
+
+      // 2) Reabrir despesas do cartão que foram quitadas por este pagamento
+      //    (heurística: mesma data_execucao_pagamento e mesmo cartão).
+      const { error: errReabrir } = await supabase
+        .from("transacoes")
+        .update({ is_pago_executado: false, data_execucao_pagamento: null })
+        .eq("conta_id", cartaoId)
+        .eq("tipo", "despesa")
+        .eq("forma_pagamento", "credito")
+        .eq("data_execucao_pagamento", dataPagamento)
+        .eq("is_pago_executado", true);
+      if (errReabrir) throw errReabrir;
+
+      // 3) Apagar a receita (entrada no cartão) e a despesa-espelho.
+      const idsParaApagar = [receita.id, ...(espelho?.map((e) => e.id) ?? [])];
+      const { error: errDelete } = await supabase
+        .from("transacoes")
+        .delete()
+        .in("id", idsParaApagar);
+      if (errDelete) throw errDelete;
+
+      toast({
+        title: "Pagamento cancelado",
+        description:
+          (espelho?.length ?? 0) > 0
+            ? "Pagamento removido e transações da fatura reabertas."
+            : "Pagamento removido. Nenhum lançamento espelho encontrado na conta de origem.",
+      });
+
+      queryClient.invalidateQueries({ queryKey: ["cartoes"] });
+      queryClient.invalidateQueries({ queryKey: ["transacoes"] });
+      queryClient.invalidateQueries({ queryKey: ["saldo-contas"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-financas"] });
+    } catch (err) {
+      if (import.meta.env.DEV) console.error("Erro ao cancelar pagamento de fatura:", err);
+      toast({
+        title: "Erro",
+        description: "Não foi possível cancelar o pagamento.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const renderFaturaDetalhes = (transacoesCiclo: Transacao[], emptyText: string) => {
     if (transacoesCiclo.length === 0) {
       return <p className="text-xs text-muted-foreground py-2">{emptyText}</p>;
@@ -410,6 +477,8 @@ const Cartoes = () => {
       <div className="space-y-2 pt-1">
         {transacoesCiclo.map((transacao) => {
           const isReceita = transacao.tipo === "receita";
+          const isPagamentoFatura =
+            isReceita && (transacao.descricao || "").toLowerCase().startsWith("pagamento");
           return (
             <div
               key={transacao.id}
@@ -431,6 +500,11 @@ const Cartoes = () => {
                       Movida
                     </Badge>
                   )}
+                  {isPagamentoFatura && (
+                    <Badge variant="outline" className="text-[10px] px-1 py-0 border-success/40 text-success">
+                      Pagamento
+                    </Badge>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-1.5">
@@ -449,33 +523,45 @@ const Cartoes = () => {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56">
-                    <DropdownMenuItem onClick={() => moverFatura(transacao, "anterior")}>
-                      <ArrowLeft className="h-4 w-4 mr-2" />
-                      Mover para fatura anterior
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => moverFatura(transacao, "seguinte")}>
-                      <ArrowRight className="h-4 w-4 mr-2" />
-                      Mover para fatura seguinte
-                    </DropdownMenuItem>
-                    {transacao.mes_fatura_override && (
+                    {isPagamentoFatura ? (
                       <DropdownMenuItem
-                        onClick={async () => {
-                          const { error } = await supabase
-                            .from("transacoes")
-                            .update({ mes_fatura_override: null })
-                            .eq("id", transacao.id);
-                          if (error) {
-                            toast({ title: "Erro", description: error.message, variant: "destructive" });
-                            return;
-                          }
-                          toast({ title: "Movimentação desfeita" });
-                          queryClient.invalidateQueries({ queryKey: ["cartoes"] });
-                          queryClient.invalidateQueries({ queryKey: ["transacoes"] });
-                        }}
+                        onClick={() => cancelarPagamentoFatura(transacao)}
+                        className="text-destructive focus:text-destructive"
                       >
-                        <Check className="h-4 w-4 mr-2" />
-                        Restaurar fatura original
+                        <X className="h-4 w-4 mr-2" />
+                        Cancelar pagamento
                       </DropdownMenuItem>
+                    ) : (
+                      <>
+                        <DropdownMenuItem onClick={() => moverFatura(transacao, "anterior")}>
+                          <ArrowLeft className="h-4 w-4 mr-2" />
+                          Mover para fatura anterior
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => moverFatura(transacao, "seguinte")}>
+                          <ArrowRight className="h-4 w-4 mr-2" />
+                          Mover para fatura seguinte
+                        </DropdownMenuItem>
+                        {transacao.mes_fatura_override && (
+                          <DropdownMenuItem
+                            onClick={async () => {
+                              const { error } = await supabase
+                                .from("transacoes")
+                                .update({ mes_fatura_override: null })
+                                .eq("id", transacao.id);
+                              if (error) {
+                                toast({ title: "Erro", description: error.message, variant: "destructive" });
+                                return;
+                              }
+                              toast({ title: "Movimentação desfeita" });
+                              queryClient.invalidateQueries({ queryKey: ["cartoes"] });
+                              queryClient.invalidateQueries({ queryKey: ["transacoes"] });
+                            }}
+                          >
+                            <Check className="h-4 w-4 mr-2" />
+                            Restaurar fatura original
+                          </DropdownMenuItem>
+                        )}
+                      </>
                     )}
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -486,6 +572,7 @@ const Cartoes = () => {
       </div>
     );
   };
+
 
   const handlePagarFatura = (cartao: Conta) => {
     const forcedCycleEnd = getEffectiveCycleEnd(cartao);
