@@ -26,6 +26,7 @@ interface Transacao {
   data: string;
   data_pagamento?: string | null;
   parcela_atual?: number | null;
+  parcelas_total?: number | null;
   mes_fatura_override?: string | null;
   is_pago_executado: boolean | null;
 }
