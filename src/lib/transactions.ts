@@ -659,6 +659,7 @@ interface TransacaoFatura {
   data_pagamento?: string | null;
   is_pago_executado: boolean | null;
   parcela_atual?: number | null;
+  parcelas_total?: number | null;
   mes_fatura_override?: string | null;
   forma_pagamento?: string | null;
 }
