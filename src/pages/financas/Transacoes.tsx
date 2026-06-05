@@ -829,6 +829,7 @@ const Transacoes = () => {
           data_pagamento: transacao.data_pagamento,
           conta_id: transacao.conta_id,
           parcela_atual: transacao.parcela_atual,
+          parcelas_total: transacao.parcelas_total,
         },
         allContas
       );
