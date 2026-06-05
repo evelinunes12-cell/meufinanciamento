@@ -292,6 +292,7 @@ const Cartoes = () => {
         data_pagamento: transacao.data_pagamento,
         conta_id: transacao.conta_id,
         parcela_atual: transacao.parcela_atual,
+        parcelas_total: transacao.parcelas_total,
         mes_fatura_override: transacao.mes_fatura_override,
       },
       todasContas
@@ -697,6 +698,8 @@ const Cartoes = () => {
 
       return {
         mesReferencia: ciclo.mesReferencia,
+        inicio: ciclo.inicio,
+        fim: ciclo.fim,
         vencimento: ciclo.vencimento,
         valorFechado,
         valorPago,
@@ -704,6 +707,7 @@ const Cartoes = () => {
         estaPaga,
         pagamentoParcial,
         qtdTransacoes: transacoesCiclo.length,
+        transacoes: transacoesCiclo,
       };
     }).filter(h => h.qtdTransacoes > 0 || h.valorFechado > 0);
   };
@@ -1153,37 +1157,38 @@ const Cartoes = () => {
                             <p className="text-muted-foreground text-sm">Nenhum histórico de fatura encontrado</p>
                           </div>
                         ) : (
-                          <div className="overflow-x-auto">
-                            <Table>
-                              <TableHeader>
-                                <TableRow>
-                                  <TableHead>Mês</TableHead>
-                                  <TableHead>Vencimento</TableHead>
-                                  <TableHead className="text-right">Valor Fatura</TableHead>
-                                  <TableHead className="text-right">Valor Pago</TableHead>
-                                  <TableHead className="text-right">Pendente</TableHead>
-                                  <TableHead className="text-center">Status</TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {historico.map((item) => (
-                                  <TableRow key={item.mesReferencia}>
-                                    <TableCell className="font-medium capitalize">
-                                      {item.mesReferencia}
-                                    </TableCell>
-                                    <TableCell className="text-muted-foreground">
-                                      {format(item.vencimento, "dd/MM/yyyy")}
-                                    </TableCell>
-                                    <TableCell className="text-right font-medium">
-                                      {formatCurrency(item.valorFechado)}
-                                    </TableCell>
-                                    <TableCell className="text-right text-success">
-                                      {formatCurrency(item.valorPago)}
-                                    </TableCell>
-                                    <TableCell className={`text-right ${item.valorPendente > 0 ? "text-destructive font-medium" : "text-muted-foreground"}`}>
-                                      {formatCurrency(item.valorPendente)}
-                                    </TableCell>
-                                    <TableCell className="text-center">
+                          <Accordion type="multiple" className="space-y-2">
+                            {historico.map((item) => (
+                              <AccordionItem
+                                key={item.mesReferencia}
+                                value={item.mesReferencia}
+                                className="border rounded-lg px-3 bg-muted/20"
+                              >
+                                <AccordionTrigger className="py-2 hover:no-underline">
+                                  <div className="flex flex-1 items-center justify-between gap-3 pr-2">
+                                    <div className="flex flex-col items-start text-left min-w-0">
+                                      <span className="font-medium text-sm capitalize">
+                                        {item.mesReferencia}
+                                      </span>
+                                      <span className="text-[10px] text-muted-foreground">
+                                        Vence {format(item.vencimento, "dd/MM/yyyy")} · {item.qtdTransacoes} transação(ões)
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-3 shrink-0">
+                                      <div className="text-right hidden sm:block">
+                                        <p className="text-[10px] text-muted-foreground">Fatura</p>
+                                        <p className="text-xs font-medium">{formatCurrency(item.valorFechado)}</p>
+                                      </div>
+                                      <div className="text-right hidden md:block">
+                                        <p className="text-[10px] text-muted-foreground">Pago</p>
+                                        <p className="text-xs font-medium text-success">{formatCurrency(item.valorPago)}</p>
+                                      </div>
+                                      <div className="text-right">
+                                        <p className="text-[10px] text-muted-foreground">Pendente</p>
+                                        <p className={`text-xs font-medium ${item.valorPendente > 0 ? "text-destructive" : "text-muted-foreground"}`}>
+                                          {formatCurrency(item.valorPendente)}
+                                        </p>
+                                      </div>
                                       {item.estaPaga ? (
                                         <Badge className="bg-success/20 text-success border-success/30 hover:bg-success/30">
                                           Paga
@@ -1197,12 +1202,18 @@ const Cartoes = () => {
                                           Pendente
                                         </Badge>
                                       )}
-                                    </TableCell>
-                                  </TableRow>
-                                ))}
-                              </TableBody>
-                            </Table>
-                          </div>
+                                    </div>
+                                  </div>
+                                </AccordionTrigger>
+                                <AccordionContent>
+                                  {renderFaturaDetalhes(
+                                    item.transacoes,
+                                    "Nenhuma transação encontrada nesta fatura.",
+                                  )}
+                                </AccordionContent>
+                              </AccordionItem>
+                            ))}
+                          </Accordion>
                         )}
                       </CardContent>
                     </Card>

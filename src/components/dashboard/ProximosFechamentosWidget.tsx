@@ -26,6 +26,7 @@ interface Transacao {
   data: string;
   data_pagamento?: string | null;
   parcela_atual?: number | null;
+  parcelas_total?: number | null;
   mes_fatura_override?: string | null;
   is_pago_executado: boolean | null;
 }
@@ -187,7 +188,7 @@ export function ProximosFechamentosWidget({ contas, transacoes }: ProximosFecham
                             if (t.tipo !== "despesa") return false;
                             if (t.is_pago_executado === true) return false;
                             const comp = getDataCompetenciaTransacao(
-                              { data: t.data, data_pagamento: t.data_pagamento, conta_id: t.conta_id, parcela_atual: t.parcela_atual, mes_fatura_override: t.mes_fatura_override },
+                              { data: t.data, data_pagamento: t.data_pagamento, conta_id: t.conta_id, parcela_atual: t.parcela_atual, parcelas_total: t.parcelas_total, mes_fatura_override: t.mes_fatura_override },
                               contas
                             );
                             return comp <= cutoff;
