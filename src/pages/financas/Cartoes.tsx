@@ -698,6 +698,8 @@ const Cartoes = () => {
 
       return {
         mesReferencia: ciclo.mesReferencia,
+        inicio: ciclo.inicio,
+        fim: ciclo.fim,
         vencimento: ciclo.vencimento,
         valorFechado,
         valorPago,
@@ -705,6 +707,7 @@ const Cartoes = () => {
         estaPaga,
         pagamentoParcial,
         qtdTransacoes: transacoesCiclo.length,
+        transacoes: transacoesCiclo,
       };
     }).filter(h => h.qtdTransacoes > 0 || h.valorFechado > 0);
   };
