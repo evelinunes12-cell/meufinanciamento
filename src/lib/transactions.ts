@@ -451,7 +451,14 @@ export function getDataCompetenciaTransacao(
     }
   }
 
-  const indiceParcela = Math.max(0, (transacao.parcela_atual ?? 1) - 1);
+  // Only shift by parcela index for ACTUAL installment plans (parcelas_total > 1).
+  // Recurring transactions reuse parcela_atual as a sequence counter but already
+  // store the correct `data` for each occurrence, so they must not be shifted.
+  const totalParcelas = transacao.parcelas_total ?? 0;
+  const isParcelado = totalParcelas > 1;
+  const indiceParcela = isParcelado
+    ? Math.max(0, (transacao.parcela_atual ?? 1) - 1)
+    : 0;
 
   if (indiceParcela === 0) {
     return transacao.data;
