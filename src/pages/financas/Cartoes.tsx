@@ -292,6 +292,7 @@ const Cartoes = () => {
         data_pagamento: transacao.data_pagamento,
         conta_id: transacao.conta_id,
         parcela_atual: transacao.parcela_atual,
+        parcelas_total: transacao.parcelas_total,
         mes_fatura_override: transacao.mes_fatura_override,
       },
       todasContas
