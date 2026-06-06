@@ -584,34 +584,26 @@ const Cartoes = () => {
   const handlePagarFatura = (cartao: Conta) => {
     const forcedCycleEnd = getEffectiveCycleEnd(cartao);
     const { fechada } = getFaturasInfo(cartao, new Date(), forcedCycleEnd);
-    const faturaFechada = getFaturaFechada(cartao);
-    const faturasAnteriores = getFaturasAnterioresNaoPagas(cartao);
-    const valorTotal = faturaFechada + faturasAnteriores;
+    const valorFechada = getFaturaFechada(cartao);
 
-    // Collect every pending row (closed cycle + earlier unpaid) so the
-    // modal can mark exactly these as executed.
+    // Apenas IDs pendentes do próprio ciclo da fatura fechada — para alinhar
+    // com o valor exibido (que não inclui mais faturas anteriores).
     const idsCiclo = getTransacoesCiclo(cartao.id, fechada.inicio, fechada.fim)
       .filter((t) => t.tipo === "despesa" && t.is_pago_executado !== true)
-      .map((t) => t.id);
-    const idsAnteriores = transacoes
-      .filter((t) => {
-        if (t.conta_id !== cartao.id) return false;
-        const dataCompetencia = getDataCompetencia(t);
-        return dataCompetencia < fechada.inicio && t.tipo === "despesa" && t.is_pago_executado !== true;
-      })
       .map((t) => t.id);
 
     setFaturaModal({
       open: true,
       cartaoId: cartao.id,
       cartaoNome: cartao.nome_conta,
-      valorFatura: Math.max(0, valorTotal),
+      valorFatura: Math.max(0, valorFechada),
       vencimentoFatura: format(fechada.vencimento, "yyyy-MM-dd"),
       tipo: "fechada",
-      transacaoIds: [...idsCiclo, ...idsAnteriores],
+      transacaoIds: idsCiclo,
       mesReferencia: format(parseISO(fechada.fim), "yyyy-MM"),
     });
   };
+
 
   const handleFecharEPagarAberta = (cartao: Conta) => {
     const forcedCycleEnd = format(getCurrentCycleEnd(cartao), "yyyy-MM-dd");
