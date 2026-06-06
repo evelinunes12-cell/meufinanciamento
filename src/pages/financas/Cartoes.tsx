@@ -984,33 +984,8 @@ const Cartoes = () => {
                                       </Button>
                                     </>
                                   )}
-                                  {!isPaga && !hasAmount(totalFechada) && pendentes.length > 0 && (
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      className="gap-1 border-success text-success hover:bg-success hover:text-success-foreground"
-                                      onClick={() => {
-                                        const dataHoje = format(new Date(), "yyyy-MM-dd");
-                                        Promise.all(
-                                          pendentes.map(t =>
-                                            supabase
-                                              .from("transacoes")
-                                              .update({ is_pago_executado: true, data_execucao_pagamento: dataHoje })
-                                              .eq("id", t.id)
-                                          )
-                                        ).then(() => {
-                                          toast({ title: "Fatura marcada como paga", description: `${pendentes.length} transação(ões) quitada(s).` });
-                                          queryClient.invalidateQueries({ queryKey: ["cartoes"] });
-                                          queryClient.invalidateQueries({ queryKey: ["transacoes"] });
-                                          queryClient.invalidateQueries({ queryKey: ["saldo-contas"] });
-                                        });
-                                      }}
-                                    >
-                                      <Check className="h-4 w-4" />
-                                      Confirmar Paga
-                                    </Button>
-                                  )}
                                 </div>
+
                               </div>
                               <Accordion type="single" collapsible className="mt-2">
                                 <AccordionItem value="detalhes-fatura-fechada" className="border-0">
