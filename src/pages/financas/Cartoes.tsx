@@ -331,10 +331,15 @@ const Cartoes = () => {
     const forcedCycleEnd = getEffectiveCycleEnd(cartao);
     const { fechada } = getFaturasInfo(cartao, new Date(), forcedCycleEnd);
     const transacoesCiclo = getTransacoesCiclo(cartao.id, fechada.inicio, fechada.fim);
-    const total = transacoesCiclo
-      .filter(affectsInvoiceBalance)
-      .reduce((acc, t) => acc + signedValue(t), 0);
-    return Math.max(0, total);
+    // Mesma lógica do histórico: total de despesas do ciclo (independente de pagas)
+    // menos pagamentos/créditos do mesmo ciclo. Piso em 0.
+    const despesas = transacoesCiclo
+      .filter(t => t.tipo === "despesa")
+      .reduce((acc, t) => acc + Number(t.valor), 0);
+    const creditos = transacoesCiclo
+      .filter(t => t.tipo === "receita")
+      .reduce((acc, t) => acc + Number(t.valor), 0);
+    return Math.max(0, despesas - creditos);
   };
 
   const getFaturasAnterioresNaoPagas = (cartao: Conta) => {
@@ -348,6 +353,7 @@ const Cartoes = () => {
       })
       .reduce((acc, t) => acc + signedValue(t), 0);
   };
+
 
   const getFaturaAberta = (cartao: Conta) => {
     const forcedCycleEnd = getEffectiveCycleEnd(cartao);
@@ -512,60 +518,68 @@ const Cartoes = () => {
                 <p className={`font-semibold whitespace-nowrap ${isReceita ? "text-success" : "text-foreground"}`}>
                   {isReceita ? "−" : ""}{formatCurrency(Number(transacao.valor))}
                 </p>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6"
-                      aria-label="Mais ações"
-                    >
-                      <MoreVertical className="h-3.5 w-3.5" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56">
-                    {isPagamentoFatura ? (
-                      <DropdownMenuItem
+                {isPagamentoFatura ? (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-destructive hover:bg-destructive/10 hover:text-destructive"
                         onClick={() => cancelarPagamentoFatura(transacao)}
-                        className="text-destructive focus:text-destructive"
+                        aria-label="Cancelar pagamento"
                       >
-                        <X className="h-4 w-4 mr-2" />
-                        Cancelar pagamento
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="text-xs">Cancelar pagamento</p>
+                    </TooltipContent>
+                  </Tooltip>
+                ) : (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        aria-label="Mais ações"
+                      >
+                        <MoreVertical className="h-3.5 w-3.5" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      <DropdownMenuItem onClick={() => moverFatura(transacao, "anterior")}>
+                        <ArrowLeft className="h-4 w-4 mr-2" />
+                        Mover para fatura anterior
                       </DropdownMenuItem>
-                    ) : (
-                      <>
-                        <DropdownMenuItem onClick={() => moverFatura(transacao, "anterior")}>
-                          <ArrowLeft className="h-4 w-4 mr-2" />
-                          Mover para fatura anterior
+                      <DropdownMenuItem onClick={() => moverFatura(transacao, "seguinte")}>
+                        <ArrowRight className="h-4 w-4 mr-2" />
+                        Mover para fatura seguinte
+                      </DropdownMenuItem>
+                      {transacao.mes_fatura_override && (
+                        <DropdownMenuItem
+                          onClick={async () => {
+                            const { error } = await supabase
+                              .from("transacoes")
+                              .update({ mes_fatura_override: null })
+                              .eq("id", transacao.id);
+                            if (error) {
+                              toast({ title: "Erro", description: error.message, variant: "destructive" });
+                              return;
+                            }
+                            toast({ title: "Movimentação desfeita" });
+                            queryClient.invalidateQueries({ queryKey: ["cartoes"] });
+                            queryClient.invalidateQueries({ queryKey: ["transacoes"] });
+                          }}
+                        >
+                          <Check className="h-4 w-4 mr-2" />
+                          Restaurar fatura original
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => moverFatura(transacao, "seguinte")}>
-                          <ArrowRight className="h-4 w-4 mr-2" />
-                          Mover para fatura seguinte
-                        </DropdownMenuItem>
-                        {transacao.mes_fatura_override && (
-                          <DropdownMenuItem
-                            onClick={async () => {
-                              const { error } = await supabase
-                                .from("transacoes")
-                                .update({ mes_fatura_override: null })
-                                .eq("id", transacao.id);
-                              if (error) {
-                                toast({ title: "Erro", description: error.message, variant: "destructive" });
-                                return;
-                              }
-                              toast({ title: "Movimentação desfeita" });
-                              queryClient.invalidateQueries({ queryKey: ["cartoes"] });
-                              queryClient.invalidateQueries({ queryKey: ["transacoes"] });
-                            }}
-                          >
-                            <Check className="h-4 w-4 mr-2" />
-                            Restaurar fatura original
-                          </DropdownMenuItem>
-                        )}
-                      </>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+
               </div>
             </div>
           );
@@ -578,34 +592,26 @@ const Cartoes = () => {
   const handlePagarFatura = (cartao: Conta) => {
     const forcedCycleEnd = getEffectiveCycleEnd(cartao);
     const { fechada } = getFaturasInfo(cartao, new Date(), forcedCycleEnd);
-    const faturaFechada = getFaturaFechada(cartao);
-    const faturasAnteriores = getFaturasAnterioresNaoPagas(cartao);
-    const valorTotal = faturaFechada + faturasAnteriores;
+    const valorFechada = getFaturaFechada(cartao);
 
-    // Collect every pending row (closed cycle + earlier unpaid) so the
-    // modal can mark exactly these as executed.
+    // Apenas IDs pendentes do próprio ciclo da fatura fechada — para alinhar
+    // com o valor exibido (que não inclui mais faturas anteriores).
     const idsCiclo = getTransacoesCiclo(cartao.id, fechada.inicio, fechada.fim)
       .filter((t) => t.tipo === "despesa" && t.is_pago_executado !== true)
-      .map((t) => t.id);
-    const idsAnteriores = transacoes
-      .filter((t) => {
-        if (t.conta_id !== cartao.id) return false;
-        const dataCompetencia = getDataCompetencia(t);
-        return dataCompetencia < fechada.inicio && t.tipo === "despesa" && t.is_pago_executado !== true;
-      })
       .map((t) => t.id);
 
     setFaturaModal({
       open: true,
       cartaoId: cartao.id,
       cartaoNome: cartao.nome_conta,
-      valorFatura: Math.max(0, valorTotal),
+      valorFatura: Math.max(0, valorFechada),
       vencimentoFatura: format(fechada.vencimento, "yyyy-MM-dd"),
       tipo: "fechada",
-      transacaoIds: [...idsCiclo, ...idsAnteriores],
+      transacaoIds: idsCiclo,
       mesReferencia: format(parseISO(fechada.fim), "yyyy-MM"),
     });
   };
+
 
   const handleFecharEPagarAberta = (cartao: Conta) => {
     const forcedCycleEnd = format(getCurrentCycleEnd(cartao), "yyyy-MM-dd");
@@ -774,7 +780,10 @@ const Cartoes = () => {
                   const transacoesAberta = getTransacoesCiclo(cartao.id, faturasInfo.aberta.inicio, faturasInfo.aberta.fim);
                   const faturaFechada = getFaturaFechada(cartao);
                   const faturasAnteriores = getFaturasAnterioresNaoPagas(cartao);
-                  const totalFechada = faturaFechada + faturasAnteriores;
+                  // O card "Fatura Fechada" exibe somente o valor do ciclo (alinhado ao histórico).
+                  // Faturas anteriores não-pagas viram apenas um aviso informativo.
+                  const totalFechada = faturaFechada;
+
                   const faturaAberta = getFaturaAberta(cartao);
                   const saldoDevedor = getSaldoDevedor(cartao.id);
                   const limite = Number(cartao.limite) || 0;
@@ -983,33 +992,8 @@ const Cartoes = () => {
                                       </Button>
                                     </>
                                   )}
-                                  {!isPaga && !hasAmount(totalFechada) && pendentes.length > 0 && (
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      className="gap-1 border-success text-success hover:bg-success hover:text-success-foreground"
-                                      onClick={() => {
-                                        const dataHoje = format(new Date(), "yyyy-MM-dd");
-                                        Promise.all(
-                                          pendentes.map(t =>
-                                            supabase
-                                              .from("transacoes")
-                                              .update({ is_pago_executado: true, data_execucao_pagamento: dataHoje })
-                                              .eq("id", t.id)
-                                          )
-                                        ).then(() => {
-                                          toast({ title: "Fatura marcada como paga", description: `${pendentes.length} transação(ões) quitada(s).` });
-                                          queryClient.invalidateQueries({ queryKey: ["cartoes"] });
-                                          queryClient.invalidateQueries({ queryKey: ["transacoes"] });
-                                          queryClient.invalidateQueries({ queryKey: ["saldo-contas"] });
-                                        });
-                                      }}
-                                    >
-                                      <Check className="h-4 w-4" />
-                                      Confirmar Paga
-                                    </Button>
-                                  )}
                                 </div>
+
                               </div>
                               <Accordion type="single" collapsible className="mt-2">
                                 <AccordionItem value="detalhes-fatura-fechada" className="border-0">
