@@ -772,7 +772,10 @@ const Cartoes = () => {
                   const transacoesAberta = getTransacoesCiclo(cartao.id, faturasInfo.aberta.inicio, faturasInfo.aberta.fim);
                   const faturaFechada = getFaturaFechada(cartao);
                   const faturasAnteriores = getFaturasAnterioresNaoPagas(cartao);
-                  const totalFechada = faturaFechada + faturasAnteriores;
+                  // O card "Fatura Fechada" exibe somente o valor do ciclo (alinhado ao histórico).
+                  // Faturas anteriores não-pagas viram apenas um aviso informativo.
+                  const totalFechada = faturaFechada;
+
                   const faturaAberta = getFaturaAberta(cartao);
                   const saldoDevedor = getSaldoDevedor(cartao.id);
                   const limite = Number(cartao.limite) || 0;
