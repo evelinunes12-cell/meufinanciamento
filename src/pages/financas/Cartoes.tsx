@@ -518,60 +518,68 @@ const Cartoes = () => {
                 <p className={`font-semibold whitespace-nowrap ${isReceita ? "text-success" : "text-foreground"}`}>
                   {isReceita ? "−" : ""}{formatCurrency(Number(transacao.valor))}
                 </p>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6"
-                      aria-label="Mais ações"
-                    >
-                      <MoreVertical className="h-3.5 w-3.5" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56">
-                    {isPagamentoFatura ? (
-                      <DropdownMenuItem
+                {isPagamentoFatura ? (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-destructive hover:bg-destructive/10 hover:text-destructive"
                         onClick={() => cancelarPagamentoFatura(transacao)}
-                        className="text-destructive focus:text-destructive"
+                        aria-label="Cancelar pagamento"
                       >
-                        <X className="h-4 w-4 mr-2" />
-                        Cancelar pagamento
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="text-xs">Cancelar pagamento</p>
+                    </TooltipContent>
+                  </Tooltip>
+                ) : (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        aria-label="Mais ações"
+                      >
+                        <MoreVertical className="h-3.5 w-3.5" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      <DropdownMenuItem onClick={() => moverFatura(transacao, "anterior")}>
+                        <ArrowLeft className="h-4 w-4 mr-2" />
+                        Mover para fatura anterior
                       </DropdownMenuItem>
-                    ) : (
-                      <>
-                        <DropdownMenuItem onClick={() => moverFatura(transacao, "anterior")}>
-                          <ArrowLeft className="h-4 w-4 mr-2" />
-                          Mover para fatura anterior
+                      <DropdownMenuItem onClick={() => moverFatura(transacao, "seguinte")}>
+                        <ArrowRight className="h-4 w-4 mr-2" />
+                        Mover para fatura seguinte
+                      </DropdownMenuItem>
+                      {transacao.mes_fatura_override && (
+                        <DropdownMenuItem
+                          onClick={async () => {
+                            const { error } = await supabase
+                              .from("transacoes")
+                              .update({ mes_fatura_override: null })
+                              .eq("id", transacao.id);
+                            if (error) {
+                              toast({ title: "Erro", description: error.message, variant: "destructive" });
+                              return;
+                            }
+                            toast({ title: "Movimentação desfeita" });
+                            queryClient.invalidateQueries({ queryKey: ["cartoes"] });
+                            queryClient.invalidateQueries({ queryKey: ["transacoes"] });
+                          }}
+                        >
+                          <Check className="h-4 w-4 mr-2" />
+                          Restaurar fatura original
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => moverFatura(transacao, "seguinte")}>
-                          <ArrowRight className="h-4 w-4 mr-2" />
-                          Mover para fatura seguinte
-                        </DropdownMenuItem>
-                        {transacao.mes_fatura_override && (
-                          <DropdownMenuItem
-                            onClick={async () => {
-                              const { error } = await supabase
-                                .from("transacoes")
-                                .update({ mes_fatura_override: null })
-                                .eq("id", transacao.id);
-                              if (error) {
-                                toast({ title: "Erro", description: error.message, variant: "destructive" });
-                                return;
-                              }
-                              toast({ title: "Movimentação desfeita" });
-                              queryClient.invalidateQueries({ queryKey: ["cartoes"] });
-                              queryClient.invalidateQueries({ queryKey: ["transacoes"] });
-                            }}
-                          >
-                            <Check className="h-4 w-4 mr-2" />
-                            Restaurar fatura original
-                          </DropdownMenuItem>
-                        )}
-                      </>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+
               </div>
             </div>
           );
