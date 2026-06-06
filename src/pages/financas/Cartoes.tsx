@@ -331,10 +331,15 @@ const Cartoes = () => {
     const forcedCycleEnd = getEffectiveCycleEnd(cartao);
     const { fechada } = getFaturasInfo(cartao, new Date(), forcedCycleEnd);
     const transacoesCiclo = getTransacoesCiclo(cartao.id, fechada.inicio, fechada.fim);
-    const total = transacoesCiclo
-      .filter(affectsInvoiceBalance)
-      .reduce((acc, t) => acc + signedValue(t), 0);
-    return Math.max(0, total);
+    // Mesma lógica do histórico: total de despesas do ciclo (independente de pagas)
+    // menos pagamentos/créditos do mesmo ciclo. Piso em 0.
+    const despesas = transacoesCiclo
+      .filter(t => t.tipo === "despesa")
+      .reduce((acc, t) => acc + Number(t.valor), 0);
+    const creditos = transacoesCiclo
+      .filter(t => t.tipo === "receita")
+      .reduce((acc, t) => acc + Number(t.valor), 0);
+    return Math.max(0, despesas - creditos);
   };
 
   const getFaturasAnterioresNaoPagas = (cartao: Conta) => {
@@ -348,6 +353,7 @@ const Cartoes = () => {
       })
       .reduce((acc, t) => acc + signedValue(t), 0);
   };
+
 
   const getFaturaAberta = (cartao: Conta) => {
     const forcedCycleEnd = getEffectiveCycleEnd(cartao);
