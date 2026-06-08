@@ -435,17 +435,22 @@ const Transacoes = () => {
 
     // Handle transfer logic
     if (isTransfer && !editingId) {
-      // Create two transactions: one expense (origin) and one income (destination)
+      const sharedCategoria = formData.categoria_id || null;
+      const sharedDescricao = formData.descricao?.trim() || null;
+      const contaDestinoNome = contas.find(c => c.id === formData.conta_destino_id)?.nome_conta;
+      const contaOrigemNome = contas.find(c => c.id === formData.conta_id)?.nome_conta;
+
+      // Create two linked records, both tipo='transferencia', sharing categoria/descricao
       const transacaoSaida = {
         user_id: user?.id as string,
         conta_id: formData.conta_id,
-        categoria_id: null,
+        categoria_id: sharedCategoria,
         valor: parsedValor,
-        tipo: 'despesa',
+        tipo: 'transferencia',
         data: formData.data,
         forma_pagamento: 'transferencia',
         recorrencia: 'nenhuma',
-        descricao: formData.descricao || `Transferência para ${contas.find(c => c.id === formData.conta_destino_id)?.nome_conta}`,
+        descricao: sharedDescricao || `Transferência para ${contaDestinoNome}`,
         is_pago_executado: true,
         conta_destino_id: formData.conta_destino_id,
       };
@@ -453,13 +458,13 @@ const Transacoes = () => {
       const transacaoEntrada = {
         user_id: user?.id as string,
         conta_id: formData.conta_destino_id,
-        categoria_id: null,
+        categoria_id: sharedCategoria,
         valor: parsedValor,
-        tipo: 'receita',
+        tipo: 'transferencia',
         data: formData.data,
         forma_pagamento: 'transferencia',
         recorrencia: 'nenhuma',
-        descricao: formData.descricao || `Transferência de ${contas.find(c => c.id === formData.conta_id)?.nome_conta}`,
+        descricao: sharedDescricao || `Transferência de ${contaOrigemNome}`,
         is_pago_executado: true,
         conta_destino_id: null,
       };
@@ -1080,53 +1085,51 @@ const Transacoes = () => {
                     </div>
                   )}
 
-                  {/* Category selection - hide for transfers */}
-                  {!showTransferFields && (
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Label>Categoria</Label>
-                        <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
-                          <DialogTrigger asChild>
-                            <Button type="button" variant="ghost" size="sm" className="h-6 text-xs">
-                              <Plus className="h-3 w-3 mr-1" />
-                              Nova
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="max-w-sm">
-                            <DialogHeader>
-                              <DialogTitle>Nova Categoria</DialogTitle>
-                              <DialogDescription>
-                                Criar categoria de {formData.tipo}
-                              </DialogDescription>
-                            </DialogHeader>
-                            <div className="space-y-4">
-                              <div className="space-y-2">
-                                <Label>Nome *</Label>
-                                <Input
-                                  value={newCategoryName}
-                                  onChange={(e) => setNewCategoryName(e.target.value)}
-                                  placeholder="Ex: Alimentação, Salário..."
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label>Cor</Label>
-                                <ColorPicker value={newCategoryCor} onChange={setNewCategoryCor} />
-                              </div>
-                              <Button type="button" onClick={handleCreateCategory} className="w-full gradient-primary text-primary-foreground">
-                                Criar Categoria
-                              </Button>
+                  {/* Category selection — available for receita, despesa, and transferência */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label>Categoria{showTransferFields ? " (opcional)" : ""}</Label>
+                      <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
+                        <DialogTrigger asChild>
+                          <Button type="button" variant="ghost" size="sm" className="h-6 text-xs">
+                            <Plus className="h-3 w-3 mr-1" />
+                            Nova
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-sm">
+                          <DialogHeader>
+                            <DialogTitle>Nova Categoria</DialogTitle>
+                            <DialogDescription>
+                              Criar categoria de {showTransferFields ? "transferência" : formData.tipo}
+                            </DialogDescription>
+                          </DialogHeader>
+                          <div className="space-y-4">
+                            <div className="space-y-2">
+                              <Label>Nome *</Label>
+                              <Input
+                                value={newCategoryName}
+                                onChange={(e) => setNewCategoryName(e.target.value)}
+                                placeholder="Ex: Alimentação, Salário..."
+                              />
                             </div>
-                          </DialogContent>
-                        </Dialog>
-                      </div>
-                      <CategoryCombobox
-                        categorias={categorias}
-                        tipo={formData.tipo}
-                        value={formData.categoria_id}
-                        onValueChange={(v) => setFormData({ ...formData, categoria_id: v })}
-                      />
+                            <div className="space-y-2">
+                              <Label>Cor</Label>
+                              <ColorPicker value={newCategoryCor} onChange={setNewCategoryCor} />
+                            </div>
+                            <Button type="button" onClick={handleCreateCategory} className="w-full gradient-primary text-primary-foreground">
+                              Criar Categoria
+                            </Button>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
                     </div>
-                  )}
+                    <CategoryCombobox
+                      categorias={categorias}
+                      tipo={showTransferFields ? "transferencia" : formData.tipo}
+                      value={formData.categoria_id}
+                      onValueChange={(v) => setFormData({ ...formData, categoria_id: v })}
+                    />
+                  </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
@@ -1143,11 +1146,15 @@ const Transacoes = () => {
                         value={formData.forma_pagamento}
                         onValueChange={(v) => {
                           const isTransferType = v === 'transferencia';
+                          // Clear categoria_id when switching to/from transferência so the combobox
+                          // doesn't keep an id from an incompatible tipo.
+                          const wasTransfer = formData.forma_pagamento === 'transferencia';
+                          const shouldClearCategoria = isTransferType !== wasTransfer;
                           setFormData({
                             ...formData,
                             forma_pagamento: v,
                             tipo: isTransferType ? 'despesa' : formData.tipo,
-                            categoria_id: isTransferType ? '' : formData.categoria_id,
+                            categoria_id: shouldClearCategoria ? '' : formData.categoria_id,
                           });
                         }}
                       >

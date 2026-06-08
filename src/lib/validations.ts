@@ -7,7 +7,7 @@ export const transacaoSchema = z.object({
   valor: z.number({ invalid_type_error: "Valor deve ser um número" })
     .positive({ message: "Valor deve ser maior que zero" })
     .max(999999999.99, { message: "Valor máximo excedido" }),
-  tipo: z.enum(['receita', 'despesa'], { message: "Tipo deve ser receita ou despesa" }),
+  tipo: z.enum(['receita', 'despesa', 'transferencia'], { message: "Tipo deve ser receita, despesa ou transferência" }),
   data: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: "Data inválida" }),
   forma_pagamento: z.enum(['pix', 'debito', 'credito', 'dinheiro', 'rendimento', 'transferencia', 'outro'], { message: "Forma de pagamento inválida" }),
   recorrencia: z.enum(['nenhuma', 'semanal', 'mensal', 'anual', 'fixa', 'pausada'], { message: "Recorrência inválida" }),
@@ -118,7 +118,7 @@ export const categoriaSchema = z.object({
     .max(100, { message: "Nome muito longo (máximo 100 caracteres)" })
     .trim()
     .refine(val => val.length > 0, { message: "Nome não pode ser apenas espaços" }),
-  tipo: z.enum(['receita', 'despesa'], { message: "Tipo inválido" }),
+  tipo: z.enum(['receita', 'despesa', 'transferencia'], { message: "Tipo inválido" }),
   cor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, { message: "Cor deve ser um código hexadecimal válido" }),
   categoria_pai_id: z.string().uuid({ message: "Categoria pai inválida" }).nullable().optional(),
   is_default: z.boolean().default(false).optional(),
