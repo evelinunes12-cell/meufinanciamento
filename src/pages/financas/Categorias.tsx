@@ -394,7 +394,7 @@ const Categorias = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsList className="grid w-full max-w-xl grid-cols-3">
             <TabsTrigger value="despesa" className="flex items-center gap-2">
               <TrendingDown className="h-4 w-4" />
               Despesas ({categoriasDespesa.length})
@@ -402,6 +402,10 @@ const Categorias = () => {
             <TabsTrigger value="receita" className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
               Receitas ({categoriasReceita.length})
+            </TabsTrigger>
+            <TabsTrigger value="transferencia" className="flex items-center gap-2">
+              <ArrowRightLeft className="h-4 w-4" />
+              Transferências ({categoriasTransferencia.length})
             </TabsTrigger>
           </TabsList>
 
@@ -423,6 +427,17 @@ const Categorias = () => {
               renderGrid(
                 paginatedParents,
                 searchTerm ? "Nenhuma categoria encontrada" : "Nenhuma categoria de receita cadastrada",
+              )
+            )}
+          </TabsContent>
+
+          <TabsContent value="transferencia" className="mt-4">
+            {isTabSwitching ? (
+              <TabContentSkeleton variant="list" />
+            ) : (
+              renderGrid(
+                paginatedParents,
+                searchTerm ? "Nenhuma categoria encontrada" : "Nenhuma categoria de transferência cadastrada",
               )
             )}
           </TabsContent>
