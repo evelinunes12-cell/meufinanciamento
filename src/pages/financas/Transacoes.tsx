@@ -435,17 +435,22 @@ const Transacoes = () => {
 
     // Handle transfer logic
     if (isTransfer && !editingId) {
-      // Create two transactions: one expense (origin) and one income (destination)
+      const sharedCategoria = formData.categoria_id || null;
+      const sharedDescricao = formData.descricao?.trim() || null;
+      const contaDestinoNome = contas.find(c => c.id === formData.conta_destino_id)?.nome_conta;
+      const contaOrigemNome = contas.find(c => c.id === formData.conta_id)?.nome_conta;
+
+      // Create two linked records, both tipo='transferencia', sharing categoria/descricao
       const transacaoSaida = {
         user_id: user?.id as string,
         conta_id: formData.conta_id,
-        categoria_id: null,
+        categoria_id: sharedCategoria,
         valor: parsedValor,
-        tipo: 'despesa',
+        tipo: 'transferencia',
         data: formData.data,
         forma_pagamento: 'transferencia',
         recorrencia: 'nenhuma',
-        descricao: formData.descricao || `Transferência para ${contas.find(c => c.id === formData.conta_destino_id)?.nome_conta}`,
+        descricao: sharedDescricao || `Transferência para ${contaDestinoNome}`,
         is_pago_executado: true,
         conta_destino_id: formData.conta_destino_id,
       };
@@ -453,13 +458,13 @@ const Transacoes = () => {
       const transacaoEntrada = {
         user_id: user?.id as string,
         conta_id: formData.conta_destino_id,
-        categoria_id: null,
+        categoria_id: sharedCategoria,
         valor: parsedValor,
-        tipo: 'receita',
+        tipo: 'transferencia',
         data: formData.data,
         forma_pagamento: 'transferencia',
         recorrencia: 'nenhuma',
-        descricao: formData.descricao || `Transferência de ${contas.find(c => c.id === formData.conta_id)?.nome_conta}`,
+        descricao: sharedDescricao || `Transferência de ${contaOrigemNome}`,
         is_pago_executado: true,
         conta_destino_id: null,
       };
