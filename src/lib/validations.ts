@@ -118,7 +118,7 @@ export const categoriaSchema = z.object({
     .max(100, { message: "Nome muito longo (máximo 100 caracteres)" })
     .trim()
     .refine(val => val.length > 0, { message: "Nome não pode ser apenas espaços" }),
-  tipo: z.enum(['receita', 'despesa'], { message: "Tipo inválido" }),
+  tipo: z.enum(['receita', 'despesa', 'transferencia'], { message: "Tipo inválido" }),
   cor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, { message: "Cor deve ser um código hexadecimal válido" }),
   categoria_pai_id: z.string().uuid({ message: "Categoria pai inválida" }).nullable().optional(),
   is_default: z.boolean().default(false).optional(),
