@@ -7,7 +7,7 @@ export const transacaoSchema = z.object({
   valor: z.number({ invalid_type_error: "Valor deve ser um número" })
     .positive({ message: "Valor deve ser maior que zero" })
     .max(999999999.99, { message: "Valor máximo excedido" }),
-  tipo: z.enum(['receita', 'despesa'], { message: "Tipo deve ser receita ou despesa" }),
+  tipo: z.enum(['receita', 'despesa', 'transferencia'], { message: "Tipo deve ser receita, despesa ou transferência" }),
   data: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: "Data inválida" }),
   forma_pagamento: z.enum(['pix', 'debito', 'credito', 'dinheiro', 'rendimento', 'transferencia', 'outro'], { message: "Forma de pagamento inválida" }),
   recorrencia: z.enum(['nenhuma', 'semanal', 'mensal', 'anual', 'fixa', 'pausada'], { message: "Recorrência inválida" }),
