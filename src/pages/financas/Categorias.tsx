@@ -169,8 +169,12 @@ const Categorias = () => {
     .filter(c => c.tipo === "despesa")
     .filter(c => c.nome.toLowerCase().includes(searchTerm.toLowerCase()));
 
+  const categoriasTransferencia = categorias
+    .filter(c => c.tipo === "transferencia")
+    .filter(c => c.nome.toLowerCase().includes(searchTerm.toLowerCase()));
+
   // Get only main categories (no parent) for the current tab
-  const currentAllCategorias = activeTab === "receita" ? categoriasReceita : categoriasDespesa;
+  const currentAllCategorias = activeTab === "receita" ? categoriasReceita : activeTab === "transferencia" ? categoriasTransferencia : categoriasDespesa;
   const mainCategorias = currentAllCategorias.filter(c => !c.categoria_pai_id);
   const getSubcategorias = (parentId: string) => currentAllCategorias.filter(c => c.categoria_pai_id === parentId);
 
