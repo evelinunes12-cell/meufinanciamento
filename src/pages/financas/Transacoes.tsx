@@ -1146,11 +1146,15 @@ const Transacoes = () => {
                         value={formData.forma_pagamento}
                         onValueChange={(v) => {
                           const isTransferType = v === 'transferencia';
+                          // Clear categoria_id when switching to/from transferência so the combobox
+                          // doesn't keep an id from an incompatible tipo.
+                          const wasTransfer = formData.forma_pagamento === 'transferencia';
+                          const shouldClearCategoria = isTransferType !== wasTransfer;
                           setFormData({
                             ...formData,
                             forma_pagamento: v,
                             tipo: isTransferType ? 'despesa' : formData.tipo,
-                            categoria_id: isTransferType ? '' : formData.categoria_id,
+                            categoria_id: shouldClearCategoria ? '' : formData.categoria_id,
                           });
                         }}
                       >
