@@ -1085,53 +1085,51 @@ const Transacoes = () => {
                     </div>
                   )}
 
-                  {/* Category selection - hide for transfers */}
-                  {!showTransferFields && (
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Label>Categoria</Label>
-                        <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
-                          <DialogTrigger asChild>
-                            <Button type="button" variant="ghost" size="sm" className="h-6 text-xs">
-                              <Plus className="h-3 w-3 mr-1" />
-                              Nova
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="max-w-sm">
-                            <DialogHeader>
-                              <DialogTitle>Nova Categoria</DialogTitle>
-                              <DialogDescription>
-                                Criar categoria de {formData.tipo}
-                              </DialogDescription>
-                            </DialogHeader>
-                            <div className="space-y-4">
-                              <div className="space-y-2">
-                                <Label>Nome *</Label>
-                                <Input
-                                  value={newCategoryName}
-                                  onChange={(e) => setNewCategoryName(e.target.value)}
-                                  placeholder="Ex: Alimentação, Salário..."
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label>Cor</Label>
-                                <ColorPicker value={newCategoryCor} onChange={setNewCategoryCor} />
-                              </div>
-                              <Button type="button" onClick={handleCreateCategory} className="w-full gradient-primary text-primary-foreground">
-                                Criar Categoria
-                              </Button>
+                  {/* Category selection — available for receita, despesa, and transferência */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label>Categoria{showTransferFields ? " (opcional)" : ""}</Label>
+                      <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
+                        <DialogTrigger asChild>
+                          <Button type="button" variant="ghost" size="sm" className="h-6 text-xs">
+                            <Plus className="h-3 w-3 mr-1" />
+                            Nova
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-sm">
+                          <DialogHeader>
+                            <DialogTitle>Nova Categoria</DialogTitle>
+                            <DialogDescription>
+                              Criar categoria de {showTransferFields ? "transferência" : formData.tipo}
+                            </DialogDescription>
+                          </DialogHeader>
+                          <div className="space-y-4">
+                            <div className="space-y-2">
+                              <Label>Nome *</Label>
+                              <Input
+                                value={newCategoryName}
+                                onChange={(e) => setNewCategoryName(e.target.value)}
+                                placeholder="Ex: Alimentação, Salário..."
+                              />
                             </div>
-                          </DialogContent>
-                        </Dialog>
-                      </div>
-                      <CategoryCombobox
-                        categorias={categorias}
-                        tipo={formData.tipo}
-                        value={formData.categoria_id}
-                        onValueChange={(v) => setFormData({ ...formData, categoria_id: v })}
-                      />
+                            <div className="space-y-2">
+                              <Label>Cor</Label>
+                              <ColorPicker value={newCategoryCor} onChange={setNewCategoryCor} />
+                            </div>
+                            <Button type="button" onClick={handleCreateCategory} className="w-full gradient-primary text-primary-foreground">
+                              Criar Categoria
+                            </Button>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
                     </div>
-                  )}
+                    <CategoryCombobox
+                      categorias={categorias}
+                      tipo={showTransferFields ? "transferencia" : formData.tipo}
+                      value={formData.categoria_id}
+                      onValueChange={(v) => setFormData({ ...formData, categoria_id: v })}
+                    />
+                  </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
