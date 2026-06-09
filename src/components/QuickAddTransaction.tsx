@@ -289,12 +289,13 @@ const QuickAddTransaction = ({ open, onOpenChange }: QuickAddTransactionProps) =
 
     // Handle transfer
     if (isTransfer) {
+      const sharedCategoria = formData.categoria_id || null;
       const transacaoSaida = {
         user_id: user?.id as string,
         conta_id: formData.conta_id,
-        categoria_id: null,
+        categoria_id: sharedCategoria,
         valor: parsedValor,
-        tipo: 'despesa',
+        tipo: 'transferencia',
         data: formData.data,
         forma_pagamento: 'transferencia',
         recorrencia: 'nenhuma',
@@ -305,9 +306,9 @@ const QuickAddTransaction = ({ open, onOpenChange }: QuickAddTransactionProps) =
       const transacaoEntrada = {
         user_id: user?.id as string,
         conta_id: formData.conta_destino_id,
-        categoria_id: null,
+        categoria_id: sharedCategoria,
         valor: parsedValor,
-        tipo: 'receita',
+        tipo: 'transferencia',
         data: formData.data,
         forma_pagamento: 'transferencia',
         recorrencia: 'nenhuma',
