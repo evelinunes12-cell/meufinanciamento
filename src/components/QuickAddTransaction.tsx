@@ -496,7 +496,7 @@ const QuickAddTransaction = ({ open, onOpenChange }: QuickAddTransactionProps) =
     const { data: newCat, error } = await supabase.from("categorias").insert({
       user_id: user?.id,
       nome: newCategoryName.trim(),
-      tipo: formData.tipo,
+      tipo: showTransferFields ? 'transferencia' : formData.tipo,
       cor: newCategoryCor,
     }).select().single();
 
