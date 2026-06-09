@@ -529,9 +529,27 @@ const QuickAddTransaction = ({ open, onOpenChange }: QuickAddTransactionProps) =
             <div className="space-y-2">
               <Label>Tipo</Label>
               <Select
-                value={formData.tipo}
-                onValueChange={(v) => setFormData({ ...formData, tipo: v, categoria_id: "" })}
-                disabled={showTransferFields}
+                value={showTransferFields ? 'transferencia' : formData.tipo}
+                onValueChange={(v) => {
+                  if (v === 'transferencia') {
+                    setFormData({
+                      ...formData,
+                      tipo: 'despesa',
+                      forma_pagamento: 'transferencia',
+                      categoria_id: '',
+                      recorrencia: 'nenhuma',
+                    });
+                  } else {
+                    const wasTransfer = formData.forma_pagamento === 'transferencia';
+                    setFormData({
+                      ...formData,
+                      tipo: v,
+                      categoria_id: '',
+                      forma_pagamento: wasTransfer ? 'pix' : formData.forma_pagamento,
+                      conta_destino_id: wasTransfer ? '' : formData.conta_destino_id,
+                    });
+                  }
+                }}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -539,6 +557,7 @@ const QuickAddTransaction = ({ open, onOpenChange }: QuickAddTransactionProps) =
                 <SelectContent>
                   <SelectItem value="receita">Receita</SelectItem>
                   <SelectItem value="despesa">Despesa</SelectItem>
+                  <SelectItem value="transferencia">Transferência</SelectItem>
                 </SelectContent>
               </Select>
             </div>
