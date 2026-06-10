@@ -289,30 +289,32 @@ const QuickAddTransaction = ({ open, onOpenChange }: QuickAddTransactionProps) =
 
     // Handle transfer
     if (isTransfer) {
-      const sharedCategoria = formData.categoria_id || null;
+      const transferCategoriaId = categorias.find(c => c.tipo === 'transferencia')?.id || null;
+      const contaOrigemNome = contas.find(c => c.id === formData.conta_id)?.nome_conta || '';
+      const contaDestinoNome = contas.find(c => c.id === formData.conta_destino_id)?.nome_conta || '';
       const transacaoSaida = {
         user_id: user?.id as string,
         conta_id: formData.conta_id,
-        categoria_id: sharedCategoria,
+        categoria_id: transferCategoriaId,
         valor: parsedValor,
         tipo: 'transferencia',
         data: formData.data,
         forma_pagamento: 'transferencia',
         recorrencia: 'nenhuma',
-        descricao: formData.descricao || `Transferência para ${contas.find(c => c.id === formData.conta_destino_id)?.nome_conta}`,
+        descricao: `Transferência enviada para ${contaDestinoNome}`,
         is_pago_executado: true,
         conta_destino_id: formData.conta_destino_id,
       };
       const transacaoEntrada = {
         user_id: user?.id as string,
         conta_id: formData.conta_destino_id,
-        categoria_id: sharedCategoria,
+        categoria_id: transferCategoriaId,
         valor: parsedValor,
         tipo: 'transferencia',
         data: formData.data,
         forma_pagamento: 'transferencia',
         recorrencia: 'nenhuma',
-        descricao: formData.descricao || `Transferência de ${contas.find(c => c.id === formData.conta_id)?.nome_conta}`,
+        descricao: `Transferência recebida de ${contaOrigemNome}`,
         is_pago_executado: true,
         conta_destino_id: null,
       };
