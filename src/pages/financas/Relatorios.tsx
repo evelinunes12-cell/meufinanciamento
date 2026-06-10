@@ -370,8 +370,8 @@ const Relatorios = () => {
                     <div key={t.id} className="p-3 space-y-1">
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium text-foreground truncate max-w-[60%]">{t.descricao || "-"}</span>
-                        <span className={`text-sm font-bold ${t.tipo === "receita" ? "text-success" : "text-destructive"}`}>
-                          {t.tipo === "receita" ? "+" : "-"}{formatCurrency(Number(t.valor))}
+                        <span className={`text-sm font-bold ${t.forma_pagamento === "transferencia" ? "text-primary" : t.tipo === "receita" ? "text-success" : "text-destructive"}`}>
+                          {t.forma_pagamento === "transferencia" ? "" : t.tipo === "receita" ? "+" : "-"}{formatCurrency(Number(t.valor))}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
