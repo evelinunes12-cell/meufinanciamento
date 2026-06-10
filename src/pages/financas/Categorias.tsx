@@ -37,7 +37,7 @@ async function fetchCategoriasData(userId: string | undefined) {
   const { data } = await supabase
     .from("categorias")
     .select("*")
-    .in("tipo", ["receita", "despesa", "transferencia"])
+    .in("tipo", ["receita", "despesa"])
     .order("nome");
 
   return (data || []) as Categoria[];
