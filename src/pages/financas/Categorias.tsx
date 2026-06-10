@@ -334,7 +334,6 @@ const Categorias = () => {
                     <SelectContent>
                       <SelectItem value="receita">Receita</SelectItem>
                       <SelectItem value="despesa">Despesa</SelectItem>
-                      <SelectItem value="transferencia">Transferência</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
