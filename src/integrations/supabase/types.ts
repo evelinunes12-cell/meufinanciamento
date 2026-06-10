@@ -22,6 +22,7 @@ export type Database = {
           icone: string | null
           id: string
           is_default: boolean
+          is_sistema: boolean
           nome: string
           tipo: string
           user_id: string
@@ -33,6 +34,7 @@ export type Database = {
           icone?: string | null
           id?: string
           is_default?: boolean
+          is_sistema?: boolean
           nome: string
           tipo: string
           user_id: string
@@ -44,6 +46,7 @@ export type Database = {
           icone?: string | null
           id?: string
           is_default?: boolean
+          is_sistema?: boolean
           nome?: string
           tipo?: string
           user_id?: string
