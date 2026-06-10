@@ -435,22 +435,21 @@ const Transacoes = () => {
 
     // Handle transfer logic
     if (isTransfer && !editingId) {
-      const sharedCategoria = formData.categoria_id || null;
-      const sharedDescricao = formData.descricao?.trim() || null;
-      const contaDestinoNome = contas.find(c => c.id === formData.conta_destino_id)?.nome_conta;
-      const contaOrigemNome = contas.find(c => c.id === formData.conta_id)?.nome_conta;
+      const transferCategoriaId = categorias.find(c => c.tipo === 'transferencia')?.id || null;
+      const contaDestinoNome = contas.find(c => c.id === formData.conta_destino_id)?.nome_conta || '';
+      const contaOrigemNome = contas.find(c => c.id === formData.conta_id)?.nome_conta || '';
 
-      // Create two linked records, both tipo='transferencia', sharing categoria/descricao
+      // Create two linked records, both tipo='transferencia', sharing the system category
       const transacaoSaida = {
         user_id: user?.id as string,
         conta_id: formData.conta_id,
-        categoria_id: sharedCategoria,
+        categoria_id: transferCategoriaId,
         valor: parsedValor,
         tipo: 'transferencia',
         data: formData.data,
         forma_pagamento: 'transferencia',
         recorrencia: 'nenhuma',
-        descricao: sharedDescricao || `Transferência para ${contaDestinoNome}`,
+        descricao: `Transferência enviada para ${contaDestinoNome}`,
         is_pago_executado: true,
         conta_destino_id: formData.conta_destino_id,
       };
@@ -458,13 +457,13 @@ const Transacoes = () => {
       const transacaoEntrada = {
         user_id: user?.id as string,
         conta_id: formData.conta_destino_id,
-        categoria_id: sharedCategoria,
+        categoria_id: transferCategoriaId,
         valor: parsedValor,
         tipo: 'transferencia',
         data: formData.data,
         forma_pagamento: 'transferencia',
         recorrencia: 'nenhuma',
-        descricao: sharedDescricao || `Transferência de ${contaOrigemNome}`,
+        descricao: `Transferência recebida de ${contaOrigemNome}`,
         is_pago_executado: true,
         conta_destino_id: null,
       };
