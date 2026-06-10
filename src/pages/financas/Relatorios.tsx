@@ -659,15 +659,17 @@ const Relatorios = () => {
                                 <TableCell></TableCell>
                                 <TableCell className="pl-10">
                                   <div className="flex flex-col">
-                                    <span className="text-sm text-foreground">{t.descricao || "-"}</span>
-                                    <span className="text-xs text-muted-foreground">{formatDate(t.data)} · {getCategoriaNome(t.categoria_id)}</span>
+                                    <span className="text-sm text-foreground">{t._origemLabel || t.descricao || "-"}</span>
+                                    <span className="text-xs text-muted-foreground">
+                                      {formatDate(t.data)} · {t._origemLabel ? (t.descricao || "—") : getCategoriaNome(t.categoria_id)}
+                                    </span>
                                   </div>
                                 </TableCell>
                                 <TableCell className="text-right text-sm text-success">
-                                  {t.tipo === "receita" ? formatCurrency(Number(t.valor)) : ""}
+                                  {t._tipoEfetivo === "receita" ? formatCurrency(Number(t.valor)) : ""}
                                 </TableCell>
                                 <TableCell className="text-right text-sm text-destructive">
-                                  {t.tipo === "despesa" ? formatCurrency(Number(t.valor)) : ""}
+                                  {t._tipoEfetivo === "despesa" ? formatCurrency(Number(t.valor)) : ""}
                                 </TableCell>
                                 <TableCell></TableCell>
                               </TableRow>
