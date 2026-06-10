@@ -1320,8 +1320,8 @@ const Transacoes = () => {
                     </div>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className={`font-bold text-sm ${transacao.tipo === 'receita' ? 'text-success' : 'text-destructive'}`}>
-                      {transacao.tipo === 'receita' ? '+' : '-'}{formatCurrency(Number(transacao.valor))}
+                    <p className={`font-bold text-sm ${transacao.forma_pagamento === 'transferencia' ? 'text-primary' : transacao.tipo === 'receita' ? 'text-success' : 'text-destructive'}`}>
+                      {transacao.forma_pagamento === 'transferencia' ? (transacao.conta_destino_id ? '−' : '+') : transacao.tipo === 'receita' ? '+' : '-'}{formatCurrency(Number(transacao.valor))}
                     </p>
                     {isPendente(transacao.is_pago_executado) ? (
                       <Badge className="bg-warning/10 text-warning text-[10px] px-1.5 py-0 h-4 mt-0.5">
