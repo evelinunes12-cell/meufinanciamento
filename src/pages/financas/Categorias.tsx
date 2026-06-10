@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Trash2, Edit, TrendingUp, TrendingDown, ArrowRightLeft, Search, ChevronLeft, ChevronRight, ChevronDown, FolderTree } from "lucide-react";
+import { Plus, Trash2, Edit, TrendingUp, TrendingDown, Search, ChevronLeft, ChevronRight, ChevronDown, FolderTree } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import ColorPicker from "@/components/ColorPicker";
 import { toast } from "@/hooks/use-toast";
@@ -37,7 +37,7 @@ async function fetchCategoriasData(userId: string | undefined) {
   const { data } = await supabase
     .from("categorias")
     .select("*")
-    .in("tipo", ["receita", "despesa", "transferencia"])
+    .in("tipo", ["receita", "despesa"])
     .order("nome");
 
   return (data || []) as Categoria[];
@@ -48,7 +48,7 @@ const Categorias = () => {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const { tab: activeTab, setTab: setActiveTab, isTransitioning: isTabSwitching } = useTabTransition<"despesa" | "receita" | "transferencia">("despesa");
+  const { tab: activeTab, setTab: setActiveTab, isTransitioning: isTabSwitching } = useTabTransition<"despesa" | "receita">("despesa");
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -97,7 +97,7 @@ const Categorias = () => {
     // Validate using zod schema
     const validationData = {
       nome: formData.nome.trim(),
-      tipo: formData.tipo as 'receita' | 'despesa' | 'transferencia',
+      tipo: formData.tipo as 'receita' | 'despesa',
       cor: formData.cor,
       categoria_pai_id: formData.categoria_pai_id || null,
     };
@@ -169,12 +169,8 @@ const Categorias = () => {
     .filter(c => c.tipo === "despesa")
     .filter(c => c.nome.toLowerCase().includes(searchTerm.toLowerCase()));
 
-  const categoriasTransferencia = categorias
-    .filter(c => c.tipo === "transferencia")
-    .filter(c => c.nome.toLowerCase().includes(searchTerm.toLowerCase()));
-
   // Get only main categories (no parent) for the current tab
-  const currentAllCategorias = activeTab === "receita" ? categoriasReceita : activeTab === "transferencia" ? categoriasTransferencia : categoriasDespesa;
+  const currentAllCategorias = activeTab === "receita" ? categoriasReceita : categoriasDespesa;
   const mainCategorias = currentAllCategorias.filter(c => !c.categoria_pai_id);
   const getSubcategorias = (parentId: string) => currentAllCategorias.filter(c => c.categoria_pai_id === parentId);
 
@@ -338,7 +334,6 @@ const Categorias = () => {
                     <SelectContent>
                       <SelectItem value="receita">Receita</SelectItem>
                       <SelectItem value="despesa">Despesa</SelectItem>
-                      <SelectItem value="transferencia">Transferência</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -394,7 +389,7 @@ const Categorias = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full max-w-xl grid-cols-3">
+          <TabsList className="grid w-full max-w-md grid-cols-2">
             <TabsTrigger value="despesa" className="flex items-center gap-2">
               <TrendingDown className="h-4 w-4" />
               Despesas ({categoriasDespesa.length})
@@ -402,10 +397,6 @@ const Categorias = () => {
             <TabsTrigger value="receita" className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
               Receitas ({categoriasReceita.length})
-            </TabsTrigger>
-            <TabsTrigger value="transferencia" className="flex items-center gap-2">
-              <ArrowRightLeft className="h-4 w-4" />
-              Transferências ({categoriasTransferencia.length})
             </TabsTrigger>
           </TabsList>
 
@@ -427,17 +418,6 @@ const Categorias = () => {
               renderGrid(
                 paginatedParents,
                 searchTerm ? "Nenhuma categoria encontrada" : "Nenhuma categoria de receita cadastrada",
-              )
-            )}
-          </TabsContent>
-
-          <TabsContent value="transferencia" className="mt-4">
-            {isTabSwitching ? (
-              <TabContentSkeleton variant="list" />
-            ) : (
-              renderGrid(
-                paginatedParents,
-                searchTerm ? "Nenhuma categoria encontrada" : "Nenhuma categoria de transferência cadastrada",
               )
             )}
           </TabsContent>

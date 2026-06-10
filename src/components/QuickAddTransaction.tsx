@@ -289,30 +289,32 @@ const QuickAddTransaction = ({ open, onOpenChange }: QuickAddTransactionProps) =
 
     // Handle transfer
     if (isTransfer) {
-      const sharedCategoria = formData.categoria_id || null;
+      const transferCategoriaId = categorias.find(c => c.tipo === 'transferencia')?.id || null;
+      const contaOrigemNome = contas.find(c => c.id === formData.conta_id)?.nome_conta || '';
+      const contaDestinoNome = contas.find(c => c.id === formData.conta_destino_id)?.nome_conta || '';
       const transacaoSaida = {
         user_id: user?.id as string,
         conta_id: formData.conta_id,
-        categoria_id: sharedCategoria,
+        categoria_id: transferCategoriaId,
         valor: parsedValor,
         tipo: 'transferencia',
         data: formData.data,
         forma_pagamento: 'transferencia',
         recorrencia: 'nenhuma',
-        descricao: formData.descricao || `Transferência para ${contas.find(c => c.id === formData.conta_destino_id)?.nome_conta}`,
+        descricao: `Transferência enviada para ${contaDestinoNome}`,
         is_pago_executado: true,
         conta_destino_id: formData.conta_destino_id,
       };
       const transacaoEntrada = {
         user_id: user?.id as string,
         conta_id: formData.conta_destino_id,
-        categoria_id: sharedCategoria,
+        categoria_id: transferCategoriaId,
         valor: parsedValor,
         tipo: 'transferencia',
         data: formData.data,
         forma_pagamento: 'transferencia',
         recorrencia: 'nenhuma',
-        descricao: formData.descricao || `Transferência de ${contas.find(c => c.id === formData.conta_id)?.nome_conta}`,
+        descricao: `Transferência recebida de ${contaOrigemNome}`,
         is_pago_executado: true,
         conta_destino_id: null,
       };
@@ -638,49 +640,51 @@ const QuickAddTransaction = ({ open, onOpenChange }: QuickAddTransactionProps) =
             </div>
           )}
 
-          {/* Category - hide for transfers */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label>Categoria{showTransferFields ? " (opcional)" : ""}</Label>
-              <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
-                <Button type="button" variant="ghost" size="sm" className="h-6 text-xs" onClick={() => setCategoryDialogOpen(true)}>
-                  <Plus className="h-3 w-3 mr-1" />
-                  Nova
-                </Button>
-                <DialogContent className="max-w-sm">
-                  <DialogHeader>
-                    <DialogTitle>Nova Categoria</DialogTitle>
-                    <DialogDescription>
-                      Criar categoria de {showTransferFields ? "transferência" : formData.tipo}
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label>Nome *</Label>
-                      <Input
-                        value={newCategoryName}
-                        onChange={(e) => setNewCategoryName(e.target.value)}
-                        placeholder="Ex: Alimentação, Salário..."
-                      />
+          {/* Category - hidden for transfers (auto-assigned by system) */}
+          {!showTransferFields && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Categoria</Label>
+                <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
+                  <Button type="button" variant="ghost" size="sm" className="h-6 text-xs" onClick={() => setCategoryDialogOpen(true)}>
+                    <Plus className="h-3 w-3 mr-1" />
+                    Nova
+                  </Button>
+                  <DialogContent className="max-w-sm">
+                    <DialogHeader>
+                      <DialogTitle>Nova Categoria</DialogTitle>
+                      <DialogDescription>
+                        Criar categoria de {formData.tipo}
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label>Nome *</Label>
+                        <Input
+                          value={newCategoryName}
+                          onChange={(e) => setNewCategoryName(e.target.value)}
+                          placeholder="Ex: Alimentação, Salário..."
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Cor</Label>
+                        <ColorPicker value={newCategoryCor} onChange={setNewCategoryCor} />
+                      </div>
+                      <Button type="button" onClick={handleCreateCategory} className="w-full gradient-primary text-primary-foreground">
+                        Criar Categoria
+                      </Button>
                     </div>
-                    <div className="space-y-2">
-                      <Label>Cor</Label>
-                      <ColorPicker value={newCategoryCor} onChange={setNewCategoryCor} />
-                    </div>
-                    <Button type="button" onClick={handleCreateCategory} className="w-full gradient-primary text-primary-foreground">
-                      Criar Categoria
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
+                  </DialogContent>
+                </Dialog>
+              </div>
+              <CategoryCombobox
+                categorias={categorias}
+                tipo={formData.tipo}
+                value={formData.categoria_id}
+                onValueChange={(v) => setFormData({ ...formData, categoria_id: v })}
+              />
             </div>
-            <CategoryCombobox
-              categorias={categorias}
-              tipo={showTransferFields ? "transferencia" : formData.tipo}
-              value={formData.categoria_id}
-              onValueChange={(v) => setFormData({ ...formData, categoria_id: v })}
-            />
-          </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
