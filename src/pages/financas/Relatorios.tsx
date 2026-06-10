@@ -604,11 +604,13 @@ const Relatorios = () => {
                             {r.transacoes.map((t) => (
                               <div key={t.id} className="flex items-center justify-between gap-3 py-2.5 pl-12 pr-4">
                                 <div className="min-w-0 flex-1">
-                                  <p className="text-sm text-foreground truncate">{t.descricao || "-"}</p>
-                                  <p className="text-xs text-muted-foreground">{formatDate(t.data)} · {getCategoriaNome(t.categoria_id)}</p>
+                                  <p className="text-sm text-foreground truncate">{t._origemLabel || t.descricao || "-"}</p>
+                                  <p className="text-xs text-muted-foreground truncate">
+                                    {formatDate(t.data)} · {t._origemLabel ? (t.descricao || "—") : getCategoriaNome(t.categoria_id)}
+                                  </p>
                                 </div>
-                                <span className={`text-sm font-semibold tabular-nums shrink-0 ${t.tipo === "receita" ? "text-success" : "text-destructive"}`}>
-                                  {t.tipo === "receita" ? "" : "-"}{formatCurrency(Number(t.valor))}
+                                <span className={`text-sm font-semibold tabular-nums shrink-0 ${t._tipoEfetivo === "receita" ? "text-success" : "text-destructive"}`}>
+                                  {t._tipoEfetivo === "receita" ? "+" : "-"}{formatCurrency(Number(t.valor))}
                                 </span>
                               </div>
                             ))}
