@@ -18,6 +18,7 @@ import { isExecutado, filterTransacoesPorPeriodoEfetivo } from "@/lib/transactio
 interface Transacao {
   id: string;
   conta_id: string;
+  conta_destino_id?: string | null;
   categoria_id: string | null;
   valor: number;
   tipo: string;
@@ -27,6 +28,11 @@ interface Transacao {
   descricao: string | null;
   is_pago_executado: boolean | null;
   recorrencia?: string | null;
+}
+
+interface TransacaoConta extends Transacao {
+  _tipoEfetivo: "receita" | "despesa";
+  _origemLabel: string | null;
 }
 
 interface Conta {
