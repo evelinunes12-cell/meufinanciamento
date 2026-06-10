@@ -277,6 +277,7 @@ export const AdvancedFilters = ({
                       <SelectItem value="__all__">Todos</SelectItem>
                       <SelectItem value="receita">Receita</SelectItem>
                       <SelectItem value="despesa">Despesa</SelectItem>
+                      <SelectItem value="transferencia">Transferência</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -298,7 +299,7 @@ export const AdvancedFilters = ({
                         {categoriasPrincipaisFiltradas.map((cat) => (
                           <SelectItem key={cat.id} value={cat.id}>
                             {cat.nome}
-                            {(!filters.tipo || filters.tipo === "") ? ` (${cat.tipo === "receita" ? "Receita" : "Despesa"})` : ""}
+                            {(!filters.tipo || filters.tipo === "") ? ` (${cat.tipo === "receita" ? "Receita" : cat.tipo === "transferencia" ? "Transferência" : "Despesa"})` : ""}
                           </SelectItem>
                         ))}
                       </SelectContent>
