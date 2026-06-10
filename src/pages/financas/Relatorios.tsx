@@ -198,13 +198,45 @@ const Relatorios = () => {
   }, [categorias, transacoesValidas]);
 
 
-  // Relatório por conta - com transações expansíveis
+  // Relatório por conta - inclui transferências e pagamentos de cartão como receitas/despesas
   const relatorioConta = contas.map(conta => {
-    const transacoesConta = transacoesValidas
-      .filter(t => t.conta_id === conta.id)
-      .sort((a, b) => (b.data > a.data ? 1 : -1));
-    const receitas = transacoesConta.filter(t => t.tipo === "receita").reduce((a, t) => a + Number(t.valor), 0);
-    const despesas = transacoesConta.filter(t => t.tipo === "despesa").reduce((a, t) => a + Number(t.valor), 0);
+    const transacoesConta: TransacaoConta[] = [];
+
+    filteredTransacoes.forEach(t => {
+      const isTransfer = t.forma_pagamento === "transferencia";
+
+      if (isTransfer) {
+        // Considera apenas o registro que possui conta_destino_id (evita duplicação do par receita/despesa).
+        if (!t.conta_destino_id) return;
+        const destinoConta = contas.find(c => c.id === t.conta_destino_id);
+        const origemConta = contas.find(c => c.id === t.conta_id);
+        const destinoEhCartao = destinoConta?.tipo === "credito";
+
+        if (t.conta_id === conta.id) {
+          transacoesConta.push({
+            ...t,
+            _tipoEfetivo: "despesa",
+            _origemLabel: destinoEhCartao
+              ? `Pagamento de cartão · ${destinoConta?.nome_conta ?? ""}`
+              : `Transferência enviada · ${destinoConta?.nome_conta ?? ""}`,
+          });
+        } else if (t.conta_destino_id === conta.id) {
+          transacoesConta.push({
+            ...t,
+            _tipoEfetivo: "receita",
+            _origemLabel: destinoEhCartao
+              ? `Recebimento de pagamento de cartão · ${origemConta?.nome_conta ?? ""}`
+              : `Transferência recebida · ${origemConta?.nome_conta ?? ""}`,
+          });
+        }
+      } else if (t.conta_id === conta.id && (t.tipo === "receita" || t.tipo === "despesa")) {
+        transacoesConta.push({ ...t, _tipoEfetivo: t.tipo as "receita" | "despesa", _origemLabel: null });
+      }
+    });
+
+    transacoesConta.sort((a, b) => (b.data > a.data ? 1 : -1));
+    const receitas = transacoesConta.filter(t => t._tipoEfetivo === "receita").reduce((a, t) => a + Number(t.valor), 0);
+    const despesas = transacoesConta.filter(t => t._tipoEfetivo === "despesa").reduce((a, t) => a + Number(t.valor), 0);
     return { id: conta.id, conta: conta.nome_conta, receitas, despesas, saldo: receitas - despesas, transacoes: transacoesConta };
   }).filter(r => r.receitas !== 0 || r.despesas !== 0);
 
