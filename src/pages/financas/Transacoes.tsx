@@ -1459,8 +1459,8 @@ const Transacoes = () => {
                       </TableCell>
                     )}
                     {isColVisible("valor") && (
-                      <TableCell className={`text-right font-medium ${transacao.tipo === "receita" ? "text-success" : "text-destructive"}`}>
-                        {transacao.tipo === "receita" ? "+" : "-"}{formatCurrency(Number(transacao.valor))}
+                      <TableCell className={`text-right font-medium ${transacao.forma_pagamento === "transferencia" ? "text-primary" : transacao.tipo === "receita" ? "text-success" : "text-destructive"}`}>
+                        {transacao.forma_pagamento === "transferencia" ? (transacao.conta_destino_id ? "−" : "+") : transacao.tipo === "receita" ? "+" : "-"}{formatCurrency(Number(transacao.valor))}
                       </TableCell>
                     )}
                     {isColVisible("status") && (
