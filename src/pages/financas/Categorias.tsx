@@ -97,7 +97,7 @@ const Categorias = () => {
     // Validate using zod schema
     const validationData = {
       nome: formData.nome.trim(),
-      tipo: formData.tipo as 'receita' | 'despesa' | 'transferencia',
+      tipo: formData.tipo as 'receita' | 'despesa',
       cor: formData.cor,
       categoria_pai_id: formData.categoria_pai_id || null,
     };
