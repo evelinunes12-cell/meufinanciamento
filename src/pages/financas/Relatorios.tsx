@@ -405,8 +405,8 @@ const Relatorios = () => {
                           <TableCell>{t.descricao || "-"}</TableCell>
                           <TableCell>{getCategoriaNome(t.categoria_id)}</TableCell>
                           <TableCell>{getContaNome(t.conta_id)}</TableCell>
-                          <TableCell className={`text-right font-medium ${t.tipo === "receita" ? "text-success" : "text-destructive"}`}>
-                            {t.tipo === "receita" ? "+" : "-"}{formatCurrency(Number(t.valor))}
+                          <TableCell className={`text-right font-medium ${t.forma_pagamento === "transferencia" ? "text-primary" : t.tipo === "receita" ? "text-success" : "text-destructive"}`}>
+                            {t.forma_pagamento === "transferencia" ? "" : t.tipo === "receita" ? "+" : "-"}{formatCurrency(Number(t.valor))}
                           </TableCell>
                         </TableRow>
                       ))}
