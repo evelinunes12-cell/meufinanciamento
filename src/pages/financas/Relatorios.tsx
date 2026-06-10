@@ -18,6 +18,7 @@ import { isExecutado, filterTransacoesPorPeriodoEfetivo } from "@/lib/transactio
 interface Transacao {
   id: string;
   conta_id: string;
+  conta_destino_id?: string | null;
   categoria_id: string | null;
   valor: number;
   tipo: string;
@@ -27,6 +28,11 @@ interface Transacao {
   descricao: string | null;
   is_pago_executado: boolean | null;
   recorrencia?: string | null;
+}
+
+interface TransacaoConta extends Transacao {
+  _tipoEfetivo: "receita" | "despesa";
+  _origemLabel: string | null;
 }
 
 interface Conta {
@@ -192,13 +198,45 @@ const Relatorios = () => {
   }, [categorias, transacoesValidas]);
 
 
-  // Relatório por conta - com transações expansíveis
+  // Relatório por conta - inclui transferências e pagamentos de cartão como receitas/despesas
   const relatorioConta = contas.map(conta => {
-    const transacoesConta = transacoesValidas
-      .filter(t => t.conta_id === conta.id)
-      .sort((a, b) => (b.data > a.data ? 1 : -1));
-    const receitas = transacoesConta.filter(t => t.tipo === "receita").reduce((a, t) => a + Number(t.valor), 0);
-    const despesas = transacoesConta.filter(t => t.tipo === "despesa").reduce((a, t) => a + Number(t.valor), 0);
+    const transacoesConta: TransacaoConta[] = [];
+
+    filteredTransacoes.forEach(t => {
+      const isTransfer = t.forma_pagamento === "transferencia";
+
+      if (isTransfer) {
+        // Considera apenas o registro que possui conta_destino_id (evita duplicação do par receita/despesa).
+        if (!t.conta_destino_id) return;
+        const destinoConta = contas.find(c => c.id === t.conta_destino_id);
+        const origemConta = contas.find(c => c.id === t.conta_id);
+        const destinoEhCartao = destinoConta?.tipo === "credito";
+
+        if (t.conta_id === conta.id) {
+          transacoesConta.push({
+            ...t,
+            _tipoEfetivo: "despesa",
+            _origemLabel: destinoEhCartao
+              ? `Pagamento de cartão · ${destinoConta?.nome_conta ?? ""}`
+              : `Transferência enviada · ${destinoConta?.nome_conta ?? ""}`,
+          });
+        } else if (t.conta_destino_id === conta.id) {
+          transacoesConta.push({
+            ...t,
+            _tipoEfetivo: "receita",
+            _origemLabel: destinoEhCartao
+              ? `Recebimento de pagamento de cartão · ${origemConta?.nome_conta ?? ""}`
+              : `Transferência recebida · ${origemConta?.nome_conta ?? ""}`,
+          });
+        }
+      } else if (t.conta_id === conta.id && (t.tipo === "receita" || t.tipo === "despesa")) {
+        transacoesConta.push({ ...t, _tipoEfetivo: t.tipo as "receita" | "despesa", _origemLabel: null });
+      }
+    });
+
+    transacoesConta.sort((a, b) => (b.data > a.data ? 1 : -1));
+    const receitas = transacoesConta.filter(t => t._tipoEfetivo === "receita").reduce((a, t) => a + Number(t.valor), 0);
+    const despesas = transacoesConta.filter(t => t._tipoEfetivo === "despesa").reduce((a, t) => a + Number(t.valor), 0);
     return { id: conta.id, conta: conta.nome_conta, receitas, despesas, saldo: receitas - despesas, transacoes: transacoesConta };
   }).filter(r => r.receitas !== 0 || r.despesas !== 0);
 
@@ -566,11 +604,13 @@ const Relatorios = () => {
                             {r.transacoes.map((t) => (
                               <div key={t.id} className="flex items-center justify-between gap-3 py-2.5 pl-12 pr-4">
                                 <div className="min-w-0 flex-1">
-                                  <p className="text-sm text-foreground truncate">{t.descricao || "-"}</p>
-                                  <p className="text-xs text-muted-foreground">{formatDate(t.data)} · {getCategoriaNome(t.categoria_id)}</p>
+                                  <p className="text-sm text-foreground truncate">{t._origemLabel || t.descricao || "-"}</p>
+                                  <p className="text-xs text-muted-foreground truncate">
+                                    {formatDate(t.data)} · {t._origemLabel ? (t.descricao || "—") : getCategoriaNome(t.categoria_id)}
+                                  </p>
                                 </div>
-                                <span className={`text-sm font-semibold tabular-nums shrink-0 ${t.tipo === "receita" ? "text-success" : "text-destructive"}`}>
-                                  {t.tipo === "receita" ? "" : "-"}{formatCurrency(Number(t.valor))}
+                                <span className={`text-sm font-semibold tabular-nums shrink-0 ${t._tipoEfetivo === "receita" ? "text-success" : "text-destructive"}`}>
+                                  {t._tipoEfetivo === "receita" ? "+" : "-"}{formatCurrency(Number(t.valor))}
                                 </span>
                               </div>
                             ))}
@@ -619,15 +659,17 @@ const Relatorios = () => {
                                 <TableCell></TableCell>
                                 <TableCell className="pl-10">
                                   <div className="flex flex-col">
-                                    <span className="text-sm text-foreground">{t.descricao || "-"}</span>
-                                    <span className="text-xs text-muted-foreground">{formatDate(t.data)} · {getCategoriaNome(t.categoria_id)}</span>
+                                    <span className="text-sm text-foreground">{t._origemLabel || t.descricao || "-"}</span>
+                                    <span className="text-xs text-muted-foreground">
+                                      {formatDate(t.data)} · {t._origemLabel ? (t.descricao || "—") : getCategoriaNome(t.categoria_id)}
+                                    </span>
                                   </div>
                                 </TableCell>
                                 <TableCell className="text-right text-sm text-success">
-                                  {t.tipo === "receita" ? formatCurrency(Number(t.valor)) : ""}
+                                  {t._tipoEfetivo === "receita" ? formatCurrency(Number(t.valor)) : ""}
                                 </TableCell>
                                 <TableCell className="text-right text-sm text-destructive">
-                                  {t.tipo === "despesa" ? formatCurrency(Number(t.valor)) : ""}
+                                  {t._tipoEfetivo === "despesa" ? formatCurrency(Number(t.valor)) : ""}
                                 </TableCell>
                                 <TableCell></TableCell>
                               </TableRow>
