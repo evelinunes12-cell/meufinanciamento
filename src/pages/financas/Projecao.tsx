@@ -489,8 +489,8 @@ const ProjecaoView = ({ result, contas, transacoes, cenario, setCenario, scopeLa
               <TrendingUp className="h-4 w-4" /> Projetado vs Real
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={280}>
+          <CardContent className="pb-6">
+            <ResponsiveContainer width="100%" height={340}>
               <LineChart data={chartLineData} margin={{ top: 10, right: 10, left: 10, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                 <XAxis dataKey="name" tick={{ fontSize: 11 }} />
@@ -531,8 +531,8 @@ const ProjecaoView = ({ result, contas, transacoes, cenario, setCenario, scopeLa
               <BarChart3 className="h-4 w-4" /> Receitas vs Despesas Projetadas
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={280}>
+          <CardContent className="pb-6">
+            <ResponsiveContainer width="100%" height={340}>
               <BarChart data={chartBarData} margin={{ top: 10, right: 10, left: 10, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                 <XAxis dataKey="name" tick={{ fontSize: 11 }} />
@@ -604,18 +604,18 @@ const ProjecaoView = ({ result, contas, transacoes, cenario, setCenario, scopeLa
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b text-left">
-                  <th className="pb-2 font-medium text-muted-foreground">Mês</th>
-                  <th className="pb-2 font-medium text-muted-foreground text-right">Receitas</th>
-                  <th className="pb-2 font-medium text-muted-foreground text-right">Desp. Lançadas</th>
-                  <th className="pb-2 font-medium text-muted-foreground text-right">Desp. Projetadas</th>
-                  <th className="pb-2 font-medium text-muted-foreground text-center">Fonte</th>
-                  <th className="pb-2 font-medium text-muted-foreground text-right">
+                  <th className="pb-3 px-2 font-medium text-muted-foreground">Mês</th>
+                  <th className="pb-3 px-2 font-medium text-muted-foreground text-right">Receitas</th>
+                  <th className="pb-3 px-2 font-medium text-muted-foreground text-right">Desp. Lançadas</th>
+                  <th className="pb-3 px-2 font-medium text-muted-foreground text-right">Desp. Projetadas</th>
+                  <th className="pb-3 px-2 font-medium text-muted-foreground text-center">Fonte</th>
+                  <th className="pb-3 px-2 font-medium text-muted-foreground text-right">
                     <Tooltip>
                       <TooltipTrigger asChild><span className="inline-flex items-center gap-1 cursor-help">Saldo Real <Info className="h-3 w-3" /></span></TooltipTrigger>
                       <TooltipContent><p className="text-xs max-w-52">Saldo real ao fim do mês, considerando apenas transações executadas (comparativo com a projeção).</p></TooltipContent>
                     </Tooltip>
                   </th>
-                  <th className="pb-2 font-medium text-muted-foreground text-right">Saldo Projetado</th>
+                  <th className="pb-3 px-2 font-medium text-muted-foreground text-right">Saldo Projetado</th>
                 </tr>
               </thead>
               <tbody>
