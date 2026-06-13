@@ -146,10 +146,11 @@ function calcularSaldoRealAteFim(
   fim: Date,
   contaFilterId: string | null,
 ): number {
-  const contasAtivo = contas.filter(
-    c => c.tipo !== "credito" && c.incluir_no_saldo !== false &&
-      (!contaFilterId || c.id === contaFilterId),
-  );
+  // Per-account view: include the selected account regardless of tipo/incluir_no_saldo.
+  // Total view: respects the "incluir no saldo" flag and excludes credit cards.
+  const contasAtivo = contaFilterId
+    ? contas.filter(c => c.id === contaFilterId)
+    : contas.filter(c => c.tipo !== "credito" && c.incluir_no_saldo !== false);
   const contasAtivoIds = new Set(contasAtivo.map(c => c.id));
   let total = contasAtivo.reduce((a, c) => a + Number(c.saldo_inicial), 0);
 
