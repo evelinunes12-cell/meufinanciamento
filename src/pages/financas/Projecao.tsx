@@ -193,10 +193,9 @@ function buildProjection(
   });
 
   // Saldo atual real
-  const contasAtivo = contas.filter(
-    c => c.tipo !== "credito" && c.incluir_no_saldo !== false &&
-      (!contaFilterId || c.id === contaFilterId),
-  );
+  const contasAtivo = contaFilterId
+    ? contas.filter(c => c.id === contaFilterId)
+    : contas.filter(c => c.tipo !== "credito" && c.incluir_no_saldo !== false);
   const mapped = transacoes.map(t => ({
     valor: t.valor, tipo: t.tipo, conta_id: t.conta_id,
     conta_destino_id: t.conta_destino_id,
