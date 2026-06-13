@@ -621,24 +621,24 @@ const ProjecaoView = ({ result, contas, transacoes, cenario, setCenario, scopeLa
               <tbody>
                 {projecaoMensal.map((m, i) => (
                   <tr key={i} className={`border-b last:border-0 ${m.saldoAcumulado < 0 ? "bg-destructive/5" : ""}`}>
-                    <td className="py-3 font-medium capitalize">
+                    <td className="py-4 px-2 font-medium capitalize">
                       {format(m.mes, "MMM/yy", { locale: ptBR })}
                       {i === 0 && <Badge variant="secondary" className="ml-2 text-[10px]">Atual</Badge>}
                     </td>
-                    <td className="py-3 text-right text-success font-medium">+{formatCurrency(m.receitas)}</td>
-                    <td className="py-3 text-right text-muted-foreground">{formatCurrency(m.despesasLancadas)}</td>
-                    <td className="py-3 text-right text-destructive font-medium">-{formatCurrency(m.despesasProjetadas)}</td>
-                    <td className="py-3 text-center">
+                    <td className="py-4 px-2 text-right text-success font-medium">+{formatCurrency(m.receitas)}</td>
+                    <td className="py-4 px-2 text-right text-muted-foreground">{formatCurrency(m.despesasLancadas)}</td>
+                    <td className="py-4 px-2 text-right text-destructive font-medium">-{formatCurrency(m.despesasProjetadas)}</td>
+                    <td className="py-4 px-2 text-center">
                       <Badge variant="outline" className={`text-[10px] ${
                         m.fonteProjecao === "orcamento" ? "border-primary/50 text-primary"
                           : m.fonteProjecao === "media" ? "border-warning/50 text-warning"
                           : "border-muted-foreground/50"
                       }`}>{fonteLabel(m.fonteProjecao)}</Badge>
                     </td>
-                    <td className={`py-3 text-right font-medium ${m.saldoReal >= 0 ? "text-success" : "text-destructive"}`}>
+                    <td className={`py-4 px-2 text-right font-medium ${m.saldoReal >= 0 ? "text-success" : "text-destructive"}`}>
                       {formatCurrency(m.saldoReal)}
                     </td>
-                    <td className={`py-3 text-right font-bold ${m.saldoAcumulado >= 0 ? "text-success" : "text-destructive"}`}>
+                    <td className={`py-4 px-2 text-right font-bold ${m.saldoAcumulado >= 0 ? "text-success" : "text-destructive"}`}>
                       {formatCurrency(m.saldoAcumulado)}
                     </td>
                   </tr>
