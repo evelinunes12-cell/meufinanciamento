@@ -401,7 +401,7 @@ const ProjecaoView = ({ result, contas, transacoes, cenario, setCenario, scopeLa
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="flex items-center justify-end">
         <div className="flex items-center gap-2">
           <Target className="h-4 w-4 text-muted-foreground hidden sm:block" />
@@ -439,9 +439,9 @@ const ProjecaoView = ({ result, contas, transacoes, cenario, setCenario, scopeLa
         </Alert>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
         <Card className="shadow-card">
-          <CardContent className="p-4">
+          <CardContent className="p-5">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-primary/10"><Wallet className="h-5 w-5 text-primary" /></div>
               <div className="min-w-0 flex-1">
