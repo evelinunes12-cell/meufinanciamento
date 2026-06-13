@@ -707,8 +707,10 @@ const Projecao = () => {
   const contas = data?.contas || [];
   const orcamentos = data?.orcamentos || [];
 
+  // Per-account tab lists every account (corrente, poupança, crédito, etc.),
+  // regardless of "incluir no saldo". This flag only impacts the total view.
   const contasUsuario = useMemo(
-    () => contas.filter(c => c.tipo !== "credito"),
+    () => [...contas].sort((a, b) => a.nome_conta.localeCompare(b.nome_conta)),
     [contas],
   );
 
