@@ -401,7 +401,7 @@ const ProjecaoView = ({ result, contas, transacoes, cenario, setCenario, scopeLa
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="flex items-center justify-end">
         <div className="flex items-center gap-2">
           <Target className="h-4 w-4 text-muted-foreground hidden sm:block" />
@@ -439,9 +439,9 @@ const ProjecaoView = ({ result, contas, transacoes, cenario, setCenario, scopeLa
         </Alert>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
         <Card className="shadow-card">
-          <CardContent className="p-4">
+          <CardContent className="p-5">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-primary/10"><Wallet className="h-5 w-5 text-primary" /></div>
               <div className="min-w-0 flex-1">
@@ -454,7 +454,7 @@ const ProjecaoView = ({ result, contas, transacoes, cenario, setCenario, scopeLa
           </CardContent>
         </Card>
         <Card className="shadow-card">
-          <CardContent className="p-4">
+          <CardContent className="p-5">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-warning/10"><BarChart3 className="h-5 w-5 text-warning" /></div>
               <div className="min-w-0 flex-1">
@@ -468,7 +468,7 @@ const ProjecaoView = ({ result, contas, transacoes, cenario, setCenario, scopeLa
           </CardContent>
         </Card>
         <Card className="shadow-card">
-          <CardContent className="p-4">
+          <CardContent className="p-5">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-success/10"><PiggyBank className="h-5 w-5 text-success" /></div>
               <div className="min-w-0 flex-1">
@@ -482,15 +482,15 @@ const ProjecaoView = ({ result, contas, transacoes, cenario, setCenario, scopeLa
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="shadow-card">
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
               <TrendingUp className="h-4 w-4" /> Projetado vs Real
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={280}>
+          <CardContent className="pb-6">
+            <ResponsiveContainer width="100%" height={340}>
               <LineChart data={chartLineData} margin={{ top: 10, right: 10, left: 10, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                 <XAxis dataKey="name" tick={{ fontSize: 11 }} />
@@ -531,8 +531,8 @@ const ProjecaoView = ({ result, contas, transacoes, cenario, setCenario, scopeLa
               <BarChart3 className="h-4 w-4" /> Receitas vs Despesas Projetadas
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={280}>
+          <CardContent className="pb-6">
+            <ResponsiveContainer width="100%" height={340}>
               <BarChart data={chartBarData} margin={{ top: 10, right: 10, left: 10, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                 <XAxis dataKey="name" tick={{ fontSize: 11 }} />
@@ -557,8 +557,8 @@ const ProjecaoView = ({ result, contas, transacoes, cenario, setCenario, scopeLa
       </div>
 
       <Card className="shadow-card">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Detalhamento Mensal</CardTitle>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg">Detalhamento Mensal</CardTitle>
         </CardHeader>
         <CardContent className="p-0 sm:p-6 sm:pt-0">
           <div className="md:hidden divide-y divide-border">
@@ -604,41 +604,41 @@ const ProjecaoView = ({ result, contas, transacoes, cenario, setCenario, scopeLa
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b text-left">
-                  <th className="pb-2 font-medium text-muted-foreground">Mês</th>
-                  <th className="pb-2 font-medium text-muted-foreground text-right">Receitas</th>
-                  <th className="pb-2 font-medium text-muted-foreground text-right">Desp. Lançadas</th>
-                  <th className="pb-2 font-medium text-muted-foreground text-right">Desp. Projetadas</th>
-                  <th className="pb-2 font-medium text-muted-foreground text-center">Fonte</th>
-                  <th className="pb-2 font-medium text-muted-foreground text-right">
+                  <th className="pb-3 px-2 font-medium text-muted-foreground">Mês</th>
+                  <th className="pb-3 px-2 font-medium text-muted-foreground text-right">Receitas</th>
+                  <th className="pb-3 px-2 font-medium text-muted-foreground text-right">Desp. Lançadas</th>
+                  <th className="pb-3 px-2 font-medium text-muted-foreground text-right">Desp. Projetadas</th>
+                  <th className="pb-3 px-2 font-medium text-muted-foreground text-center">Fonte</th>
+                  <th className="pb-3 px-2 font-medium text-muted-foreground text-right">
                     <Tooltip>
                       <TooltipTrigger asChild><span className="inline-flex items-center gap-1 cursor-help">Saldo Real <Info className="h-3 w-3" /></span></TooltipTrigger>
                       <TooltipContent><p className="text-xs max-w-52">Saldo real ao fim do mês, considerando apenas transações executadas (comparativo com a projeção).</p></TooltipContent>
                     </Tooltip>
                   </th>
-                  <th className="pb-2 font-medium text-muted-foreground text-right">Saldo Projetado</th>
+                  <th className="pb-3 px-2 font-medium text-muted-foreground text-right">Saldo Projetado</th>
                 </tr>
               </thead>
               <tbody>
                 {projecaoMensal.map((m, i) => (
                   <tr key={i} className={`border-b last:border-0 ${m.saldoAcumulado < 0 ? "bg-destructive/5" : ""}`}>
-                    <td className="py-3 font-medium capitalize">
+                    <td className="py-4 px-2 font-medium capitalize">
                       {format(m.mes, "MMM/yy", { locale: ptBR })}
                       {i === 0 && <Badge variant="secondary" className="ml-2 text-[10px]">Atual</Badge>}
                     </td>
-                    <td className="py-3 text-right text-success font-medium">+{formatCurrency(m.receitas)}</td>
-                    <td className="py-3 text-right text-muted-foreground">{formatCurrency(m.despesasLancadas)}</td>
-                    <td className="py-3 text-right text-destructive font-medium">-{formatCurrency(m.despesasProjetadas)}</td>
-                    <td className="py-3 text-center">
+                    <td className="py-4 px-2 text-right text-success font-medium">+{formatCurrency(m.receitas)}</td>
+                    <td className="py-4 px-2 text-right text-muted-foreground">{formatCurrency(m.despesasLancadas)}</td>
+                    <td className="py-4 px-2 text-right text-destructive font-medium">-{formatCurrency(m.despesasProjetadas)}</td>
+                    <td className="py-4 px-2 text-center">
                       <Badge variant="outline" className={`text-[10px] ${
                         m.fonteProjecao === "orcamento" ? "border-primary/50 text-primary"
                           : m.fonteProjecao === "media" ? "border-warning/50 text-warning"
                           : "border-muted-foreground/50"
                       }`}>{fonteLabel(m.fonteProjecao)}</Badge>
                     </td>
-                    <td className={`py-3 text-right font-medium ${m.saldoReal >= 0 ? "text-success" : "text-destructive"}`}>
+                    <td className={`py-4 px-2 text-right font-medium ${m.saldoReal >= 0 ? "text-success" : "text-destructive"}`}>
                       {formatCurrency(m.saldoReal)}
                     </td>
-                    <td className={`py-3 text-right font-bold ${m.saldoAcumulado >= 0 ? "text-success" : "text-destructive"}`}>
+                    <td className={`py-4 px-2 text-right font-bold ${m.saldoAcumulado >= 0 ? "text-success" : "text-destructive"}`}>
                       {formatCurrency(m.saldoAcumulado)}
                     </td>
                   </tr>
