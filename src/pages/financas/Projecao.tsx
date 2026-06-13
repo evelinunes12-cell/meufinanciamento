@@ -557,8 +557,8 @@ const ProjecaoView = ({ result, contas, transacoes, cenario, setCenario, scopeLa
       </div>
 
       <Card className="shadow-card">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Detalhamento Mensal</CardTitle>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg">Detalhamento Mensal</CardTitle>
         </CardHeader>
         <CardContent className="p-0 sm:p-6 sm:pt-0">
           <div className="md:hidden divide-y divide-border">
