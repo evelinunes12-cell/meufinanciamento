@@ -454,7 +454,7 @@ const ProjecaoView = ({ result, contas, transacoes, cenario, setCenario, scopeLa
           </CardContent>
         </Card>
         <Card className="shadow-card">
-          <CardContent className="p-4">
+          <CardContent className="p-5">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-warning/10"><BarChart3 className="h-5 w-5 text-warning" /></div>
               <div className="min-w-0 flex-1">
@@ -468,7 +468,7 @@ const ProjecaoView = ({ result, contas, transacoes, cenario, setCenario, scopeLa
           </CardContent>
         </Card>
         <Card className="shadow-card">
-          <CardContent className="p-4">
+          <CardContent className="p-5">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-success/10"><PiggyBank className="h-5 w-5 text-success" /></div>
               <div className="min-w-0 flex-1">
@@ -482,7 +482,7 @@ const ProjecaoView = ({ result, contas, transacoes, cenario, setCenario, scopeLa
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="shadow-card">
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
