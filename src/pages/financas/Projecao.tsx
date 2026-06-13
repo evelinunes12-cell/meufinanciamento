@@ -146,10 +146,11 @@ function calcularSaldoRealAteFim(
   fim: Date,
   contaFilterId: string | null,
 ): number {
-  const contasAtivo = contas.filter(
-    c => c.tipo !== "credito" && c.incluir_no_saldo !== false &&
-      (!contaFilterId || c.id === contaFilterId),
-  );
+  // Per-account view: include the selected account regardless of tipo/incluir_no_saldo.
+  // Total view: respects the "incluir no saldo" flag and excludes credit cards.
+  const contasAtivo = contaFilterId
+    ? contas.filter(c => c.id === contaFilterId)
+    : contas.filter(c => c.tipo !== "credito" && c.incluir_no_saldo !== false);
   const contasAtivoIds = new Set(contasAtivo.map(c => c.id));
   let total = contasAtivo.reduce((a, c) => a + Number(c.saldo_inicial), 0);
 
@@ -192,10 +193,9 @@ function buildProjection(
   });
 
   // Saldo atual real
-  const contasAtivo = contas.filter(
-    c => c.tipo !== "credito" && c.incluir_no_saldo !== false &&
-      (!contaFilterId || c.id === contaFilterId),
-  );
+  const contasAtivo = contaFilterId
+    ? contas.filter(c => c.id === contaFilterId)
+    : contas.filter(c => c.tipo !== "credito" && c.incluir_no_saldo !== false);
   const mapped = transacoes.map(t => ({
     valor: t.valor, tipo: t.tipo, conta_id: t.conta_id,
     conta_destino_id: t.conta_destino_id,
@@ -707,8 +707,10 @@ const Projecao = () => {
   const contas = data?.contas || [];
   const orcamentos = data?.orcamentos || [];
 
+  // Per-account tab lists every account (corrente, poupança, crédito, etc.),
+  // regardless of "incluir no saldo". This flag only impacts the total view.
   const contasUsuario = useMemo(
-    () => contas.filter(c => c.tipo !== "credito"),
+    () => [...contas].sort((a, b) => a.nome_conta.localeCompare(b.nome_conta)),
     [contas],
   );
 
