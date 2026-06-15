@@ -12,7 +12,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { TrendingUp, TrendingDown, Wallet, PiggyBank, AlertCircle, CreditCard, Info, BarChart3, Target } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, PiggyBank, AlertCircle, CreditCard, Info, BarChart3, Target, Gauge } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 import {
   format, addMonths, subMonths, startOfMonth, endOfMonth,
   parseISO, isBefore, isAfter,
@@ -21,10 +22,11 @@ import { ptBR } from "date-fns/locale";
 import { useMemo, useState } from "react";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip as RechartsTooltip, ResponsiveContainer, Legend, ReferenceLine,
+  Tooltip as RechartsTooltip, ResponsiveContainer, Legend, ReferenceLine, Cell,
 } from "recharts";
 import {
   isExecutado, calcularSaldoRealConta, getDataEfetiva,
+  getDataCompetenciaTransacao, calcularFaturaAbertaCartao,
 } from "@/lib/transactions";
 
 // ==========================================
