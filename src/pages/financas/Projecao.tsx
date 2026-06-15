@@ -12,7 +12,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { TrendingUp, TrendingDown, Wallet, PiggyBank, AlertCircle, CreditCard, Info, BarChart3, Target } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, PiggyBank, AlertCircle, CreditCard, Info, BarChart3, Target, Gauge } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 import {
   format, addMonths, subMonths, startOfMonth, endOfMonth,
   parseISO, isBefore, isAfter,
@@ -25,6 +26,7 @@ import {
 } from "recharts";
 import {
   isExecutado, calcularSaldoRealConta, getDataEfetiva,
+  getDataCompetenciaTransacao, calcularFaturaAbertaCartao,
 } from "@/lib/transactions";
 
 // ==========================================
@@ -44,6 +46,8 @@ interface Transacao {
   conta_id: string;
   conta_destino_id?: string | null;
   parcela_atual?: number | null;
+  parcelas_total?: number | null;
+  mes_fatura_override?: string | null;
 }
 
 interface Conta {
@@ -55,6 +59,7 @@ interface Conta {
   dia_fechamento: number | null;
   dia_vencimento: number | null;
   incluir_no_saldo?: boolean | null;
+  limite?: number | null;
 }
 
 interface Orcamento {
@@ -688,6 +693,398 @@ const ProjecaoView = ({ result, contas, transacoes, cenario, setCenario, scopeLa
 };
 
 // ==========================================
+// Credit Card View (per-account when tipo === 'credito')
+// ==========================================
+
+interface CartaoViewProps {
+  cartao: Conta;
+  contas: Conta[];
+  transacoes: Transacao[];
+}
+
+const CartaoView = ({ cartao, contas, transacoes }: CartaoViewProps) => {
+  const hoje = new Date();
+
+  // Only this card's expenses/credits affect invoices
+  const txCartao = useMemo(
+    () => transacoes.filter(t =>
+      t.conta_id === cartao.id &&
+      (t.tipo === "despesa" || t.tipo === "receita") &&
+      t.forma_pagamento !== "transferencia"
+    ),
+    [transacoes, cartao.id],
+  );
+
+  const competenciaStr = (t: Transacao) => getDataCompetenciaTransacao(
+    {
+      data: t.data,
+      data_pagamento: t.data_pagamento,
+      conta_id: t.conta_id,
+      parcela_atual: t.parcela_atual,
+      parcelas_total: t.parcelas_total,
+      mes_fatura_override: t.mes_fatura_override,
+    },
+    contas,
+  );
+
+  const signedDespesa = (t: Transacao) =>
+    t.tipo === "receita" ? -Number(t.valor) : Number(t.valor);
+
+  // Per-month invoice (by competência) for last 6 months (real) + next 6 (mix)
+  type MesFatura = {
+    mes: Date;
+    label: string;
+    valor: number;
+    pago: number;
+    pendente: number;
+    isFuturo: boolean;
+    isAtual: boolean;
+  };
+
+  const construirMes = (mes: Date): MesFatura => {
+    const inicio = startOfMonth(mes);
+    const fim = endOfMonth(mes);
+    const inicioStr = format(inicio, "yyyy-MM-dd");
+    const fimStr = format(fim, "yyyy-MM-dd");
+
+    let pago = 0, pendente = 0;
+    for (const t of txCartao) {
+      const c = competenciaStr(t);
+      if (c < inicioStr || c > fimStr) continue;
+      const v = signedDespesa(t);
+      if (isExecutado(t.is_pago_executado)) pago += v;
+      else pendente += v;
+    }
+    const valor = pago + pendente;
+    const isAtual = format(mes, "yyyy-MM") === format(hoje, "yyyy-MM");
+    const isFuturo = isAfter(startOfMonth(mes), endOfMonth(hoje));
+    return {
+      mes,
+      label: format(mes, "MMM/yy", { locale: ptBR }),
+      valor: Math.max(0, valor),
+      pago: Math.max(0, pago),
+      pendente: Math.max(0, pendente),
+      isFuturo,
+      isAtual,
+    };
+  };
+
+  const passadas: MesFatura[] = [];
+  for (let i = 6; i >= 1; i--) passadas.push(construirMes(subMonths(hoje, i)));
+
+  const futuras: MesFatura[] = [];
+  for (let i = 0; i < 6; i++) futuras.push(construirMes(addMonths(hoje, i)));
+
+  // Average from past closed months (excluding zero months)
+  const passadasComValor = passadas.filter(m => m.valor > 0);
+  const mediaMensal = passadasComValor.length
+    ? passadasComValor.reduce((a, m) => a + m.valor, 0) / passadasComValor.length
+    : 0;
+
+  // Smart projection for future months: max(lancado, media)
+  const futurasProjetadas = futuras.map((m, idx) => {
+    if (m.isAtual) return m;
+    const projetado = Math.max(m.valor, mediaMensal);
+    return { ...m, valorProjetado: projetado };
+  });
+
+  // Open invoice (current liability)
+  const faturaAberta = useMemo(
+    () => calcularFaturaAbertaCartao(cartao, transacoes as any, contas as any),
+    [cartao, transacoes, contas],
+  );
+
+  const limite = cartao.limite ?? 0;
+  const temLimite = limite > 0;
+  const utilizado = temLimite ? Math.min(100, (faturaAberta / limite) * 100) : 0;
+  const disponivel = temLimite ? Math.max(0, limite - faturaAberta) : 0;
+
+  // Projected total commitment for upcoming 6 invoices (future obligations)
+  const totalComprometidoFuturo = futurasProjetadas.reduce(
+    (a, m: any) => a + (m.valorProjetado ?? m.valor),
+    0,
+  );
+
+  const chartData = [
+    ...passadas.map(m => ({
+      name: m.label,
+      real: m.valor,
+      projetada: null as number | null,
+      tipo: "real" as const,
+    })),
+    ...futurasProjetadas.map((m: any) => ({
+      name: m.label,
+      real: m.isAtual ? m.valor : null,
+      projetada: m.isAtual ? m.valor : m.valorProjetado,
+      tipo: m.isAtual ? "atual" : "futuro",
+    })),
+  ];
+
+  const proximaFatura = futurasProjetadas[0];
+  const seguinte = futurasProjetadas[1];
+
+  return (
+    <div className="space-y-8">
+      {/* KPIs */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <Card className="shadow-card">
+          <CardContent className="p-5">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-destructive/10">
+                <CreditCard className="h-5 w-5 text-destructive" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs text-muted-foreground">Fatura em Aberto</p>
+                <p className="text-lg font-bold text-destructive">{formatCurrency(faturaAberta)}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  Fechada não paga + aberta atual
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-card">
+          <CardContent className="p-5">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <Gauge className="h-5 w-5 text-primary" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs text-muted-foreground">Limite Disponível</p>
+                {temLimite ? (
+                  <>
+                    <p className={`text-lg font-bold ${utilizado >= 90 ? "text-destructive" : utilizado >= 70 ? "text-warning" : "text-success"}`}>
+                      {formatCurrency(disponivel)}
+                    </p>
+                    <div className="mt-1.5">
+                      <Progress value={utilizado} className="h-1.5" />
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        {utilizado.toFixed(0)}% de {formatCurrency(limite)}
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-lg font-bold text-muted-foreground">—</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Defina o limite na conta</p>
+                  </>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-card">
+          <CardContent className="p-5">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-warning/10">
+                <BarChart3 className="h-5 w-5 text-warning" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs text-muted-foreground">Média Mensal</p>
+                <p className="text-lg font-bold">{formatCurrency(mediaMensal)}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  Base: {passadasComValor.length} {passadasComValor.length === 1 ? "fatura" : "faturas"}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-card">
+          <CardContent className="p-5">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-secondary">
+                <TrendingUp className="h-5 w-5 text-foreground" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs text-muted-foreground">Comprometido 6 meses</p>
+                <p className="text-lg font-bold">{formatCurrency(totalComprometidoFuturo)}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  Soma das próximas faturas projetadas
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Alerts */}
+      {temLimite && utilizado >= 90 && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Limite quase esgotado</AlertTitle>
+          <AlertDescription>
+            A fatura em aberto consome {utilizado.toFixed(0)}% do limite de {formatCurrency(limite)}.
+          </AlertDescription>
+        </Alert>
+      )}
+      {proximaFatura && mediaMensal > 0 && (proximaFatura as any).valorProjetado > mediaMensal * 1.3 && (
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Próxima fatura acima da média</AlertTitle>
+          <AlertDescription>
+            Projeção da próxima fatura ({formatCurrency((proximaFatura as any).valorProjetado)}) é{" "}
+            {(((((proximaFatura as any).valorProjetado / mediaMensal) - 1) * 100)).toFixed(0)}% acima da média histórica.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Chart: invoices history + projection */}
+      <Card className="shadow-card">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <CreditCard className="h-4 w-4" /> Histórico e Projeção de Faturas
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pb-6">
+          <ResponsiveContainer width="100%" height={340}>
+            <BarChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+              <YAxis tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
+              <RechartsTooltip
+                formatter={(value: number, name: string) => {
+                  if (value == null) return ["—", name];
+                  const labels: Record<string, string> = { real: "Fatura Real", projetada: "Fatura Projetada" };
+                  return [formatCurrency(value), labels[name] || name];
+                }}
+                contentStyle={{
+                  backgroundColor: "hsl(var(--card))",
+                  border: "1px solid hsl(var(--border))",
+                  borderRadius: "8px", fontSize: "12px",
+                }}
+              />
+              <Legend formatter={(value: string) => {
+                const labels: Record<string, string> = { real: "Fatura Real", projetada: "Projeção" };
+                return labels[value] || value;
+              }} />
+              {mediaMensal > 0 && (
+                <ReferenceLine
+                  y={mediaMensal}
+                  stroke="hsl(var(--warning))"
+                  strokeDasharray="4 4"
+                  label={{ value: `Média ${formatCurrency(mediaMensal)}`, position: "insideTopRight", fill: "hsl(var(--warning))", fontSize: 10 }}
+                />
+              )}
+              {temLimite && (
+                <ReferenceLine
+                  y={limite}
+                  stroke="hsl(var(--destructive))"
+                  strokeDasharray="2 2"
+                  label={{ value: `Limite ${formatCurrency(limite)}`, position: "insideBottomRight", fill: "hsl(var(--destructive))", fontSize: 10 }}
+                />
+              )}
+              <Bar dataKey="real" name="real" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="projetada" name="projetada" fill="hsl(var(--muted-foreground))" fillOpacity={0.5} radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+
+      {/* Future invoices table */}
+      <Card className="shadow-card">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg">Próximas Faturas (6 meses)</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0 sm:p-6 sm:pt-0">
+          {/* Mobile */}
+          <div className="md:hidden divide-y divide-border">
+            {futurasProjetadas.map((m: any, i) => {
+              const valor = m.valorProjetado ?? m.valor;
+              const diffMedia = mediaMensal > 0 ? ((valor / mediaMensal) - 1) * 100 : 0;
+              const utilFat = temLimite ? (valor / limite) * 100 : 0;
+              return (
+                <div key={i} className="p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold capitalize text-sm">{m.label}</span>
+                      {m.isAtual && <Badge variant="secondary" className="text-[10px]">Atual</Badge>}
+                    </div>
+                    <span className="text-sm font-bold text-destructive">{formatCurrency(valor)}</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Lançado</span>
+                      <span className="font-medium">{formatCurrency(m.valor)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">vs Média</span>
+                      <span className={`font-medium ${diffMedia > 10 ? "text-destructive" : diffMedia < -10 ? "text-success" : "text-muted-foreground"}`}>
+                        {mediaMensal > 0 ? `${diffMedia >= 0 ? "+" : ""}${diffMedia.toFixed(0)}%` : "—"}
+                      </span>
+                    </div>
+                    {temLimite && (
+                      <div className="flex justify-between col-span-2">
+                        <span className="text-muted-foreground">% Limite</span>
+                        <span className={`font-medium ${utilFat >= 90 ? "text-destructive" : utilFat >= 70 ? "text-warning" : ""}`}>
+                          {utilFat.toFixed(0)}%
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {/* Desktop */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-left">
+                  <th className="pb-3 px-2 font-medium text-muted-foreground">Mês</th>
+                  <th className="pb-3 px-2 font-medium text-muted-foreground text-right">Lançado</th>
+                  <th className="pb-3 px-2 font-medium text-muted-foreground text-right">
+                    <Tooltip>
+                      <TooltipTrigger asChild><span className="inline-flex items-center gap-1 cursor-help">Projetado <Info className="h-3 w-3" /></span></TooltipTrigger>
+                      <TooltipContent><p className="text-xs max-w-52">Maior valor entre o lançado e a média histórica das faturas.</p></TooltipContent>
+                    </Tooltip>
+                  </th>
+                  <th className="pb-3 px-2 font-medium text-muted-foreground text-right">vs Média</th>
+                  {temLimite && <th className="pb-3 px-2 font-medium text-muted-foreground text-right">% Limite</th>}
+                  <th className="pb-3 px-2 font-medium text-muted-foreground text-center">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {futurasProjetadas.map((m: any, i) => {
+                  const valor = m.valorProjetado ?? m.valor;
+                  const diffMedia = mediaMensal > 0 ? ((valor / mediaMensal) - 1) * 100 : 0;
+                  const utilFat = temLimite ? (valor / limite) * 100 : 0;
+                  return (
+                    <tr key={i} className="border-b last:border-0">
+                      <td className="py-4 px-2 font-medium capitalize">
+                        {m.label}
+                        {m.isAtual && <Badge variant="secondary" className="ml-2 text-[10px]">Atual</Badge>}
+                      </td>
+                      <td className="py-4 px-2 text-right text-muted-foreground">{formatCurrency(m.valor)}</td>
+                      <td className="py-4 px-2 text-right font-semibold text-destructive">{formatCurrency(valor)}</td>
+                      <td className={`py-4 px-2 text-right font-medium ${diffMedia > 10 ? "text-destructive" : diffMedia < -10 ? "text-success" : "text-muted-foreground"}`}>
+                        {mediaMensal > 0 ? `${diffMedia >= 0 ? "+" : ""}${diffMedia.toFixed(0)}%` : "—"}
+                      </td>
+                      {temLimite && (
+                        <td className={`py-4 px-2 text-right font-medium ${utilFat >= 90 ? "text-destructive" : utilFat >= 70 ? "text-warning" : ""}`}>
+                          {utilFat.toFixed(0)}%
+                        </td>
+                      )}
+                      <td className="py-4 px-2 text-center">
+                        <Badge variant="outline" className="text-[10px]">
+                          {m.isAtual ? "Aberta" : "Futura"}
+                        </Badge>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+// ==========================================
 // Page
 // ==========================================
 
@@ -790,16 +1187,28 @@ const Projecao = () => {
                     </SelectContent>
                   </Select>
                 </div>
-                {resultConta && (
-                  <ProjecaoView
-                    result={resultConta}
-                    contas={contas}
-                    transacoes={transacoes}
-                    cenario={cenario}
-                    setCenario={setCenario}
-                    scopeLabel={contasUsuario.find(c => c.id === effectiveContaId)?.nome_conta || "Conta"}
-                  />
-                )}
+                {resultConta && (() => {
+                  const contaSel = contasUsuario.find(c => c.id === effectiveContaId);
+                  if (contaSel?.tipo === "credito") {
+                    return (
+                      <CartaoView
+                        cartao={contaSel}
+                        contas={contas}
+                        transacoes={transacoes}
+                      />
+                    );
+                  }
+                  return (
+                    <ProjecaoView
+                      result={resultConta}
+                      contas={contas}
+                      transacoes={transacoes}
+                      cenario={cenario}
+                      setCenario={setCenario}
+                      scopeLabel={contaSel?.nome_conta || "Conta"}
+                    />
+                  );
+                })()}
               </>
             )}
           </TabsContent>
