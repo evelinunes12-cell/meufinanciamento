@@ -57,6 +57,7 @@ interface Conta {
   dia_fechamento: number | null;
   dia_vencimento: number | null;
   incluir_no_saldo?: boolean | null;
+  limite?: number | null;
 }
 
 interface Orcamento {
