@@ -1187,16 +1187,28 @@ const Projecao = () => {
                     </SelectContent>
                   </Select>
                 </div>
-                {resultConta && (
-                  <ProjecaoView
-                    result={resultConta}
-                    contas={contas}
-                    transacoes={transacoes}
-                    cenario={cenario}
-                    setCenario={setCenario}
-                    scopeLabel={contasUsuario.find(c => c.id === effectiveContaId)?.nome_conta || "Conta"}
-                  />
-                )}
+                {resultConta && (() => {
+                  const contaSel = contasUsuario.find(c => c.id === effectiveContaId);
+                  if (contaSel?.tipo === "credito") {
+                    return (
+                      <CartaoView
+                        cartao={contaSel}
+                        contas={contas}
+                        transacoes={transacoes}
+                      />
+                    );
+                  }
+                  return (
+                    <ProjecaoView
+                      result={resultConta}
+                      contas={contas}
+                      transacoes={transacoes}
+                      cenario={cenario}
+                      setCenario={setCenario}
+                      scopeLabel={contaSel?.nome_conta || "Conta"}
+                    />
+                  );
+                })()}
               </>
             )}
           </TabsContent>
