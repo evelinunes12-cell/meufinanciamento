@@ -46,6 +46,8 @@ interface Transacao {
   conta_id: string;
   conta_destino_id?: string | null;
   parcela_atual?: number | null;
+  parcelas_total?: number | null;
+  mes_fatura_override?: string | null;
 }
 
 interface Conta {
