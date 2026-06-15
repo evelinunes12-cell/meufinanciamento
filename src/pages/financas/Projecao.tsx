@@ -22,7 +22,7 @@ import { ptBR } from "date-fns/locale";
 import { useMemo, useState } from "react";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip as RechartsTooltip, ResponsiveContainer, Legend, ReferenceLine, Cell,
+  Tooltip as RechartsTooltip, ResponsiveContainer, Legend, ReferenceLine,
 } from "recharts";
 import {
   isExecutado, calcularSaldoRealConta, getDataEfetiva,
