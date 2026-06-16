@@ -525,7 +525,7 @@ interface ProjecaoViewProps {
 }
 
 
-const ProjecaoView = ({ result, contas, transacoes, cenario, setCenario, scopeLabel, showRadarFaturas = true }: ProjecaoViewProps) => {
+const ProjecaoView = ({ result, contas, transacoes, cenario, setCenario, scopeLabel, showRadarFaturas = true, scopeContaId }: ProjecaoViewProps) => {
   const { saldoAtual, mediaHistorica, mesesUsadosMedia, projecaoOtimista, projecaoRealista, projecaoPessimista } = result;
 
   const projecaoMensal = cenario === "otimista" ? projecaoOtimista : cenario === "pessimista" ? projecaoPessimista : projecaoRealista;
