@@ -1391,6 +1391,7 @@ const Projecao = () => {
                       setCenario={setCenario}
                       scopeLabel={contaSel?.nome_conta || "Conta"}
                       showRadarFaturas={false}
+                      scopeContaId={effectiveContaId}
                     />
                   );
                 })()}
