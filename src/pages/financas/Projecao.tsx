@@ -1262,6 +1262,8 @@ const CartaoView = ({ cartao, contas, transacoes }: CartaoViewProps) => {
           </div>
         </CardContent>
       </Card>
+
+      <RadarRecorrencias contaId={cartao.id} transacoes={transacoes} />
     </div>
   );
 };
