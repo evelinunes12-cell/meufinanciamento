@@ -339,6 +339,180 @@ function buildProjection(
 // View
 // ==========================================
 
+// ==========================================
+// Radar de Recorrências (per-account)
+// ==========================================
+
+const RECORRENCIA_LABEL: Record<string, string> = {
+  diaria: "Diária",
+  semanal: "Semanal",
+  quinzenal: "Quinzenal",
+  mensal: "Mensal",
+  bimestral: "Bimestral",
+  trimestral: "Trimestral",
+  semestral: "Semestral",
+  anual: "Anual",
+};
+
+const fatorMensal = (r: string | null | undefined): number => {
+  switch ((r || "").toLowerCase()) {
+    case "diaria": return 30;
+    case "semanal": return 4.33;
+    case "quinzenal": return 2;
+    case "mensal": return 1;
+    case "bimestral": return 1 / 2;
+    case "trimestral": return 1 / 3;
+    case "semestral": return 1 / 6;
+    case "anual": return 1 / 12;
+    default: return 1;
+  }
+};
+
+interface RadarRecorrenciasProps {
+  contaId: string;
+  transacoes: Transacao[];
+}
+
+const RadarRecorrencias = ({ contaId, transacoes }: RadarRecorrenciasProps) => {
+  const itens = useMemo(() => {
+    const recorrentes = transacoes.filter(t =>
+      t.conta_id === contaId &&
+      t.recorrencia &&
+      t.forma_pagamento !== "transferencia" &&
+      (t.tipo === "receita" || t.tipo === "despesa")
+    );
+    // Dedupe by (descricao, valor, tipo, recorrencia) — recurring series share these
+    const map = new Map<string, { descricao: string; valor: number; tipo: string; recorrencia: string; ocorrencias: number }>();
+    for (const t of recorrentes) {
+      const key = `${(t.descricao || "").trim().toLowerCase()}|${Number(t.valor)}|${t.tipo}|${t.recorrencia}`;
+      const existing = map.get(key);
+      if (existing) {
+        existing.ocorrencias += 1;
+      } else {
+        map.set(key, {
+          descricao: t.descricao || "(sem descrição)",
+          valor: Number(t.valor),
+          tipo: t.tipo,
+          recorrencia: t.recorrencia || "mensal",
+          ocorrencias: 1,
+        });
+      }
+    }
+    return Array.from(map.values());
+  }, [transacoes, contaId]);
+
+  const receitas = itens.filter(i => i.tipo === "receita");
+  const despesas = itens.filter(i => i.tipo === "despesa");
+
+  const totalReceitasMensal = receitas.reduce((a, i) => a + i.valor * fatorMensal(i.recorrencia), 0);
+  const totalDespesasMensal = despesas.reduce((a, i) => a + i.valor * fatorMensal(i.recorrencia), 0);
+  const saldoLiquidoMensal = totalReceitasMensal - totalDespesasMensal;
+
+  return (
+    <Card className="shadow-card">
+      <CardHeader className="pb-2">
+        <div className="flex items-center gap-2">
+          <Repeat className="h-4 w-4" />
+          <CardTitle className="text-base">Radar de Recorrências</CardTitle>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Compromissos e entradas recorrentes desta conta, normalizados em base mensal.
+        </p>
+      </CardHeader>
+      <CardContent>
+        {itens.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-2">
+            Nenhuma recorrência cadastrada para esta conta.
+          </p>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
+              <div className="p-4 rounded-lg bg-success/5 border border-success/20">
+                <div className="flex items-center gap-2 mb-1">
+                  <TrendingUp className="h-4 w-4 text-success" />
+                  <p className="text-xs text-muted-foreground">Receitas recorrentes</p>
+                </div>
+                <p className="text-lg font-bold text-success">{formatCurrency(totalReceitasMensal)}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  {receitas.length} {receitas.length === 1 ? "lançamento" : "lançamentos"} / mês
+                </p>
+              </div>
+              <div className="p-4 rounded-lg bg-destructive/5 border border-destructive/20">
+                <div className="flex items-center gap-2 mb-1">
+                  <TrendingDown className="h-4 w-4 text-destructive" />
+                  <p className="text-xs text-muted-foreground">Despesas recorrentes</p>
+                </div>
+                <p className="text-lg font-bold text-destructive">{formatCurrency(totalDespesasMensal)}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  {despesas.length} {despesas.length === 1 ? "lançamento" : "lançamentos"} / mês
+                </p>
+              </div>
+              <div className={`p-4 rounded-lg border ${saldoLiquidoMensal >= 0 ? "bg-primary/5 border-primary/20" : "bg-warning/5 border-warning/20"}`}>
+                <div className="flex items-center gap-2 mb-1">
+                  <Wallet className={`h-4 w-4 ${saldoLiquidoMensal >= 0 ? "text-primary" : "text-warning"}`} />
+                  <p className="text-xs text-muted-foreground">Líquido recorrente</p>
+                </div>
+                <p className={`text-lg font-bold ${saldoLiquidoMensal >= 0 ? "text-primary" : "text-warning"}`}>
+                  {formatCurrency(saldoLiquidoMensal)}
+                </p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  Receitas − despesas / mês
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+              {[
+                { titulo: "Receitas", lista: receitas, cor: "text-success" },
+                { titulo: "Despesas", lista: despesas, cor: "text-destructive" },
+              ].map(grupo => (
+                <div key={grupo.titulo}>
+                  <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
+                    {grupo.titulo}
+                  </p>
+                  {grupo.lista.length === 0 ? (
+                    <p className="text-xs text-muted-foreground italic">Nenhuma recorrência.</p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {grupo.lista
+                        .sort((a, b) => b.valor * fatorMensal(b.recorrencia) - a.valor * fatorMensal(a.recorrencia))
+                        .map((i, idx) => (
+                        <div key={idx} className="flex items-center justify-between gap-2 py-1.5 px-2 rounded hover:bg-muted/40">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium truncate">{i.descricao}</p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <Badge variant="outline" className="text-[10px] py-0">
+                                {RECORRENCIA_LABEL[i.recorrencia] || i.recorrencia}
+                              </Badge>
+                              <span className="text-[10px] text-muted-foreground">
+                                {formatCurrency(i.valor)} por ocorrência
+                              </span>
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className={`text-sm font-semibold ${grupo.cor}`}>
+                              {formatCurrency(i.valor * fatorMensal(i.recorrencia))}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground">/ mês</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+// ==========================================
+// Projection View (used by total & per-account)
+// ==========================================
+
 interface ProjecaoViewProps {
   result: ProjectionResult;
   contas: Conta[];
@@ -347,6 +521,7 @@ interface ProjecaoViewProps {
   setCenario: (c: Cenario) => void;
   scopeLabel: string;
   showRadarFaturas?: boolean;
+  scopeContaId?: string;
 }
 
 
