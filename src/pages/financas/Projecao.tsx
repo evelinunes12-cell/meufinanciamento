@@ -1209,6 +1209,7 @@ const Projecao = () => {
                       cenario={cenario}
                       setCenario={setCenario}
                       scopeLabel={contaSel?.nome_conta || "Conta"}
+                      showRadarFaturas={false}
                     />
                   );
                 })()}
