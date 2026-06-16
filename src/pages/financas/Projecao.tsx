@@ -346,10 +346,13 @@ interface ProjecaoViewProps {
   cenario: Cenario;
   setCenario: (c: Cenario) => void;
   scopeLabel: string;
+  showRadarFaturas?: boolean;
 }
 
-const ProjecaoView = ({ result, contas, transacoes, cenario, setCenario, scopeLabel }: ProjecaoViewProps) => {
+
+const ProjecaoView = ({ result, contas, transacoes, cenario, setCenario, scopeLabel, showRadarFaturas = true }: ProjecaoViewProps) => {
   const { saldoAtual, mediaHistorica, mesesUsadosMedia, projecaoOtimista, projecaoRealista, projecaoPessimista } = result;
+
   const projecaoMensal = cenario === "otimista" ? projecaoOtimista : cenario === "pessimista" ? projecaoPessimista : projecaoRealista;
   const saldoFinal = projecaoMensal[projecaoMensal.length - 1]?.saldoAcumulado ?? 0;
   const mesNegativo = projecaoMensal.find(m => m.saldoAcumulado < 0);
@@ -654,7 +657,7 @@ const ProjecaoView = ({ result, contas, transacoes, cenario, setCenario, scopeLa
         </CardContent>
       </Card>
 
-      {radarFaturas.length > 0 && (
+      {showRadarFaturas && radarFaturas.length > 0 && (
         <Card className="shadow-card">
           <CardHeader className="pb-2">
             <div className="flex items-center gap-2">
@@ -1206,6 +1209,7 @@ const Projecao = () => {
                       cenario={cenario}
                       setCenario={setCenario}
                       scopeLabel={contaSel?.nome_conta || "Conta"}
+                      showRadarFaturas={false}
                     />
                   );
                 })()}
