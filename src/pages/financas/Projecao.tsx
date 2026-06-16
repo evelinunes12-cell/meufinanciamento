@@ -832,6 +832,10 @@ const ProjecaoView = ({ result, contas, transacoes, cenario, setCenario, scopeLa
         </CardContent>
       </Card>
 
+      {scopeContaId && (
+        <RadarRecorrencias contaId={scopeContaId} transacoes={transacoes} />
+      )}
+
       {showRadarFaturas && radarFaturas.length > 0 && (
         <Card className="shadow-card">
           <CardHeader className="pb-2">
