@@ -12,7 +12,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { TrendingUp, TrendingDown, Wallet, PiggyBank, AlertCircle, CreditCard, Info, BarChart3, Target, Gauge } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, PiggyBank, AlertCircle, CreditCard, Info, BarChart3, Target, Gauge, Repeat } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import {
   format, addMonths, subMonths, startOfMonth, endOfMonth,
