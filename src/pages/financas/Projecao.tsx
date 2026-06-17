@@ -375,11 +375,17 @@ interface RadarRecorrenciasProps {
 
 const RadarRecorrencias = ({ contaId, transacoes }: RadarRecorrenciasProps) => {
   const itens = useMemo(() => {
+    const hoje = new Date();
+    const inicioMes = startOfMonth(hoje);
+    const fimMes = endOfMonth(hoje);
     const recorrentes = transacoes.filter(t => {
       if (t.conta_id !== contaId) return false;
       if (t.forma_pagamento === "transferencia") return false;
       if (t.tipo !== "receita" && t.tipo !== "despesa") return false;
       if (!t.recorrencia || t.recorrencia === "nenhuma") return false;
+      // Apenas ocorrências do mês vigente
+      const dataRef = parseISO(t.data_pagamento || t.data);
+      if (isBefore(dataRef, inicioMes) || isAfter(dataRef, fimMes)) return false;
       // Inclui apenas fixas e mensais com número de parcela (parcelamento)
       if (t.recorrencia === "fixa") return true;
       if (t.recorrencia === "mensal" && t.parcela_atual && t.parcela_atual > 0) return true;
@@ -404,6 +410,7 @@ const RadarRecorrencias = ({ contaId, transacoes }: RadarRecorrenciasProps) => {
     }
     return Array.from(map.values());
   }, [transacoes, contaId]);
+
 
 
   const receitas = itens.filter(i => i.tipo === "receita");
