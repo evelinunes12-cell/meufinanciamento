@@ -375,12 +375,16 @@ interface RadarRecorrenciasProps {
 
 const RadarRecorrencias = ({ contaId, transacoes }: RadarRecorrenciasProps) => {
   const itens = useMemo(() => {
-    const recorrentes = transacoes.filter(t =>
-      t.conta_id === contaId &&
-      t.recorrencia &&
-      t.forma_pagamento !== "transferencia" &&
-      (t.tipo === "receita" || t.tipo === "despesa")
-    );
+    const recorrentes = transacoes.filter(t => {
+      if (t.conta_id !== contaId) return false;
+      if (t.forma_pagamento === "transferencia") return false;
+      if (t.tipo !== "receita" && t.tipo !== "despesa") return false;
+      if (!t.recorrencia || t.recorrencia === "nenhuma") return false;
+      // Inclui apenas fixas e mensais com número de parcela (parcelamento)
+      if (t.recorrencia === "fixa") return true;
+      if (t.recorrencia === "mensal" && t.parcela_atual && t.parcela_atual > 0) return true;
+      return false;
+    });
     // Dedupe by (descricao, valor, tipo, recorrencia) — recurring series share these
     const map = new Map<string, { descricao: string; valor: number; tipo: string; recorrencia: string; ocorrencias: number }>();
     for (const t of recorrentes) {
@@ -400,6 +404,7 @@ const RadarRecorrencias = ({ contaId, transacoes }: RadarRecorrenciasProps) => {
     }
     return Array.from(map.values());
   }, [transacoes, contaId]);
+
 
   const receitas = itens.filter(i => i.tipo === "receita");
   const despesas = itens.filter(i => i.tipo === "despesa");
