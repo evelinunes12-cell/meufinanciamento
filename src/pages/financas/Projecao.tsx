@@ -421,7 +421,7 @@ const RadarRecorrencias = ({ contaId, transacoes }: RadarRecorrenciasProps) => {
           <CardTitle className="text-base">Radar de Recorrências</CardTitle>
         </div>
         <p className="text-xs text-muted-foreground">
-          Compromissos e entradas recorrentes desta conta, normalizados em base mensal.
+          Recorrências fixas e parcelamentos mensais desta conta, normalizados em base mensal.
         </p>
       </CardHeader>
       <CardContent>
