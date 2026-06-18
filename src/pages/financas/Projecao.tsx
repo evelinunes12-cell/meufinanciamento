@@ -369,17 +369,19 @@ const fatorMensal = (r: string | null | undefined): number => {
 };
 
 interface RadarRecorrenciasProps {
-  contaId: string;
+  contaId?: string;
   transacoes: Transacao[];
+  titulo?: string;
+  descricao?: string;
 }
 
-const RadarRecorrencias = ({ contaId, transacoes }: RadarRecorrenciasProps) => {
+const RadarRecorrencias = ({ contaId, transacoes, titulo, descricao }: RadarRecorrenciasProps) => {
   const itens = useMemo(() => {
     const hoje = new Date();
     const inicioMes = startOfMonth(hoje);
     const fimMes = endOfMonth(hoje);
     const recorrentes = transacoes.filter(t => {
-      if (t.conta_id !== contaId) return false;
+      if (contaId && t.conta_id !== contaId) return false;
       if (t.forma_pagamento === "transferencia") return false;
       if (t.tipo !== "receita" && t.tipo !== "despesa") return false;
       if (!t.recorrencia || t.recorrencia === "nenhuma") return false;
