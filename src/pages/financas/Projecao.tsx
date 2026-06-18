@@ -369,17 +369,19 @@ const fatorMensal = (r: string | null | undefined): number => {
 };
 
 interface RadarRecorrenciasProps {
-  contaId: string;
+  contaId?: string;
   transacoes: Transacao[];
+  titulo?: string;
+  descricao?: string;
 }
 
-const RadarRecorrencias = ({ contaId, transacoes }: RadarRecorrenciasProps) => {
+const RadarRecorrencias = ({ contaId, transacoes, titulo, descricao }: RadarRecorrenciasProps) => {
   const itens = useMemo(() => {
     const hoje = new Date();
     const inicioMes = startOfMonth(hoje);
     const fimMes = endOfMonth(hoje);
     const recorrentes = transacoes.filter(t => {
-      if (t.conta_id !== contaId) return false;
+      if (contaId && t.conta_id !== contaId) return false;
       if (t.forma_pagamento === "transferencia") return false;
       if (t.tipo !== "receita" && t.tipo !== "despesa") return false;
       if (!t.recorrencia || t.recorrencia === "nenhuma") return false;
@@ -394,7 +396,7 @@ const RadarRecorrencias = ({ contaId, transacoes }: RadarRecorrenciasProps) => {
     // Dedupe by (descricao, valor, tipo, recorrencia) — recurring series share these
     const map = new Map<string, { descricao: string; valor: number; tipo: string; recorrencia: string; ocorrencias: number }>();
     for (const t of recorrentes) {
-      const key = `${(t.descricao || "").trim().toLowerCase()}|${Number(t.valor)}|${t.tipo}|${t.recorrencia}`;
+      const key = `${t.conta_id}|${(t.descricao || "").trim().toLowerCase()}|${Number(t.valor)}|${t.tipo}|${t.recorrencia}`;
       const existing = map.get(key);
       if (existing) {
         existing.ocorrencias += 1;
@@ -425,16 +427,16 @@ const RadarRecorrencias = ({ contaId, transacoes }: RadarRecorrenciasProps) => {
       <CardHeader className="pb-2">
         <div className="flex items-center gap-2">
           <Repeat className="h-4 w-4" />
-          <CardTitle className="text-base">Radar de Recorrências</CardTitle>
+          <CardTitle className="text-base">{titulo || "Radar de Recorrências"}</CardTitle>
         </div>
         <p className="text-xs text-muted-foreground">
-          Recorrências fixas e parcelamentos mensais do mês vigente desta conta, normalizados em base mensal.
+          {descricao || "Recorrências fixas e parcelamentos mensais do mês vigente desta conta, normalizados em base mensal."}
         </p>
       </CardHeader>
       <CardContent>
         {itens.length === 0 ? (
           <p className="text-sm text-muted-foreground py-2">
-            Nenhuma recorrência cadastrada para esta conta.
+            Nenhuma recorrência cadastrada {contaId ? "para esta conta" : "no mês vigente"}.
           </p>
         ) : (
           <>
@@ -844,8 +846,13 @@ const ProjecaoView = ({ result, contas, transacoes, cenario, setCenario, scopeLa
         </CardContent>
       </Card>
 
-      {scopeContaId && (
+      {scopeContaId ? (
         <RadarRecorrencias contaId={scopeContaId} transacoes={transacoes} />
+      ) : (
+        <RadarRecorrencias
+          transacoes={transacoes}
+          descricao="Recorrências fixas e parcelamentos mensais do mês vigente em todas as contas, normalizados em base mensal."
+        />
       )}
 
       {showRadarFaturas && radarFaturas.length > 0 && (
