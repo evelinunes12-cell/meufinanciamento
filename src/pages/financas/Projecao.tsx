@@ -396,7 +396,7 @@ const RadarRecorrencias = ({ contaId, transacoes, titulo, descricao }: RadarReco
     // Dedupe by (descricao, valor, tipo, recorrencia) — recurring series share these
     const map = new Map<string, { descricao: string; valor: number; tipo: string; recorrencia: string; ocorrencias: number }>();
     for (const t of recorrentes) {
-      const key = `${(t.descricao || "").trim().toLowerCase()}|${Number(t.valor)}|${t.tipo}|${t.recorrencia}`;
+      const key = `${t.conta_id}|${(t.descricao || "").trim().toLowerCase()}|${Number(t.valor)}|${t.tipo}|${t.recorrencia}`;
       const existing = map.get(key);
       if (existing) {
         existing.ocorrencias += 1;
