@@ -736,7 +736,7 @@ const ProjecaoView = ({ result, contas, transacoes, cenario, setCenario, scopeLa
                 <YAxis tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
                 <RechartsTooltip
                   formatter={(value: number, name: string) => [
-                    formatCurrency(value), name === "receitas" ? "Receitas" : "Despesas",
+                    formatCurrency(value), name,
                   ]}
                   contentStyle={{
                     backgroundColor: "hsl(var(--card))",
