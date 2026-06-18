@@ -427,16 +427,16 @@ const RadarRecorrencias = ({ contaId, transacoes, titulo, descricao }: RadarReco
       <CardHeader className="pb-2">
         <div className="flex items-center gap-2">
           <Repeat className="h-4 w-4" />
-          <CardTitle className="text-base">Radar de Recorrências</CardTitle>
+          <CardTitle className="text-base">{titulo || "Radar de Recorrências"}</CardTitle>
         </div>
         <p className="text-xs text-muted-foreground">
-          Recorrências fixas e parcelamentos mensais do mês vigente desta conta, normalizados em base mensal.
+          {descricao || "Recorrências fixas e parcelamentos mensais do mês vigente desta conta, normalizados em base mensal."}
         </p>
       </CardHeader>
       <CardContent>
         {itens.length === 0 ? (
           <p className="text-sm text-muted-foreground py-2">
-            Nenhuma recorrência cadastrada para esta conta.
+            Nenhuma recorrência cadastrada {contaId ? "para esta conta" : "no mês vigente"}.
           </p>
         ) : (
           <>
