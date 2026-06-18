@@ -846,8 +846,13 @@ const ProjecaoView = ({ result, contas, transacoes, cenario, setCenario, scopeLa
         </CardContent>
       </Card>
 
-      {scopeContaId && (
+      {scopeContaId ? (
         <RadarRecorrencias contaId={scopeContaId} transacoes={transacoes} />
+      ) : (
+        <RadarRecorrencias
+          transacoes={transacoes}
+          descricao="Recorrências fixas e parcelamentos mensais do mês vigente em todas as contas, normalizados em base mensal."
+        />
       )}
 
       {showRadarFaturas && radarFaturas.length > 0 && (
