@@ -331,15 +331,16 @@ const Cartoes = () => {
     const forcedCycleEnd = getEffectiveCycleEnd(cartao);
     const { fechada } = getFaturasInfo(cartao, new Date(), forcedCycleEnd);
     const transacoesCiclo = getTransacoesCiclo(cartao.id, fechada.inicio, fechada.fim);
-    // Mesma lógica do histórico: total de despesas do ciclo (independente de pagas)
-    // menos pagamentos/créditos do mesmo ciclo. Piso em 0.
-    const despesas = transacoesCiclo
-      .filter(t => t.tipo === "despesa")
+    // Considera apenas despesas ainda pendentes (não quitadas pelo pagamento da fatura)
+    // e subtrai créditos/estornos do próprio ciclo. Quando a fatura é paga,
+    // todas as despesas ficam is_pago_executado=true e o valor zera.
+    const despesasPendentes = transacoesCiclo
+      .filter(t => t.tipo === "despesa" && t.is_pago_executado !== true)
       .reduce((acc, t) => acc + Number(t.valor), 0);
     const creditos = transacoesCiclo
       .filter(t => t.tipo === "receita")
       .reduce((acc, t) => acc + Number(t.valor), 0);
-    return Math.max(0, despesas - creditos);
+    return Math.max(0, despesasPendentes - creditos);
   };
 
   const getFaturasAnterioresNaoPagas = (cartao: Conta) => {
