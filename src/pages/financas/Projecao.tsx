@@ -189,8 +189,11 @@ function buildProjection(
   // Filter the working set
   const transacoesFiltered = transacoes.filter(t => {
     if (t.forma_pagamento === "transferencia") {
-      // Transfers don't change global totals; per-account we still see in/out
+      // Transfers don't change global totals; per-account we still see in/out.
+      // Use ONLY the source row (the one carrying conta_destino_id) to avoid
+      // double-counting the mirror row that some transfers persist.
       if (!contaFilterId) return false;
+      if (!t.conta_destino_id) return false;
       return t.conta_id === contaFilterId || t.conta_destino_id === contaFilterId;
     }
     if (contaFilterId) return t.conta_id === contaFilterId;
