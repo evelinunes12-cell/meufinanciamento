@@ -169,6 +169,69 @@ const Relatorios = () => {
   const totalDespesas = transacoesValidas.filter(t => t.tipo === "despesa").reduce((acc, t) => acc + Number(t.valor), 0);
   const saldo = totalReceitas - totalDespesas;
 
+  // ---- Comparativo com mês anterior (KPIs) ----
+  const prevPeriod = useMemo(() => {
+    if (!startDate || !endDate) return null;
+    const ps = format(subMonths(parseISO(startDate), 1), "yyyy-MM-dd");
+    const pe = format(subMonths(parseISO(endDate), 1), "yyyy-MM-dd");
+    return { ps, pe };
+  }, [startDate, endDate]);
+
+  const prevTransacoes = useMemo(() => {
+    if (!prevPeriod) return [];
+    const base = filterTransacoesPorPeriodoEfetivo(allTransacoes, contas, prevPeriod.ps, prevPeriod.pe);
+    let result = base;
+    if (filters.tipo) result = result.filter(t => t.tipo === filters.tipo);
+    if (filters.categoriaId || filters.subcategoriaId) {
+      const ids = getCategoryIdsForFilter(filters.categoriaId, filters.subcategoriaId, categorias);
+      result = result.filter(t => t.categoria_id && ids.includes(t.categoria_id));
+    }
+    if (filters.contaId) result = result.filter(t => t.conta_id === filters.contaId);
+    if (filters.formaPagamento) result = result.filter(t => t.forma_pagamento === filters.formaPagamento);
+    if (filters.statusPagamento) {
+      result = result.filter(t => {
+        const pago = isExecutado(t.is_pago_executado);
+        return filters.statusPagamento === "pago" ? pago : !pago;
+      });
+    }
+    return result.filter(t => t.forma_pagamento !== "transferencia");
+  }, [allTransacoes, contas, categorias, prevPeriod, filters]);
+
+  const prevReceitas = prevTransacoes.filter(t => t.tipo === "receita").reduce((a, t) => a + Number(t.valor), 0);
+  const prevDespesas = prevTransacoes.filter(t => t.tipo === "despesa").reduce((a, t) => a + Number(t.valor), 0);
+  const prevSaldo = prevReceitas - prevDespesas;
+
+  const calcVar = (current: number, prev: number) => {
+    if (prev === 0) return current === 0 ? 0 : null; // null = sem base de comparação
+    return ((current - prev) / Math.abs(prev)) * 100;
+  };
+  const varReceitas = calcVar(totalReceitas, prevReceitas);
+  const varDespesas = calcVar(totalDespesas, prevDespesas);
+  const varSaldo = calcVar(saldo, prevSaldo);
+
+  // ---- Raio-X de Despesas por categoria (consolida pais) ----
+  const raioXDespesas = useMemo(() => {
+    const despesas = transacoesValidas.filter(t => t.tipo === "despesa" && t.categoria_id);
+    const totals = new Map<string, number>();
+    despesas.forEach(t => {
+      const cat = categorias.find(c => c.id === t.categoria_id);
+      if (!cat) return;
+      const rootId = cat.categoria_pai_id || cat.id;
+      totals.set(rootId, (totals.get(rootId) || 0) + Number(t.valor));
+    });
+    const items = Array.from(totals.entries()).map(([id, total]) => {
+      const cat = categorias.find(c => c.id === id);
+      return { id, nome: cat?.nome || "Sem categoria", cor: cat?.cor || "#94a3b8", total };
+    }).sort((a, b) => b.total - a.total);
+    const totalGeral = items.reduce((a, i) => a + i.total, 0);
+    const top = items.slice(0, 6);
+    const restoTotal = items.slice(6).reduce((a, i) => a + i.total, 0);
+    const chart = restoTotal > 0
+      ? [...top, { id: "__outros", nome: "Outros", cor: "#94a3b8", total: restoTotal }]
+      : top;
+    return { items, chart, totalGeral, vilao: items[0] || null };
+  }, [transacoesValidas, categorias]);
+
   // Relatório por categoria - hierárquico (pai com subcategorias expansíveis)
   const relatorioCategoria = useMemo(() => {
     const sumFor = (catId: string) => transacoesValidas
