@@ -409,50 +409,171 @@ const Relatorios = () => {
           showStatusPagamento
         />
 
-        {/* Resumo */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
-          <Card className="shadow-card">
-            <CardContent className="p-3 sm:p-4">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="p-1.5 sm:p-2 rounded-lg bg-success/10">
-                  <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-success" />
+        {/* KPIs Comparativos (Mês Atual vs Mês Anterior) */}
+        {(() => {
+          const VarBadge = ({ value, lowerIsBetter = false }: { value: number | null; lowerIsBetter?: boolean }) => {
+            if (value === null) {
+              return <Badge variant="secondary" className="gap-1 text-[10px] sm:text-xs">Sem base anterior</Badge>;
+            }
+            const isZero = Math.abs(value) < 0.05;
+            const isDown = value < 0;
+            const good = isZero ? true : (lowerIsBetter ? isDown : !isDown);
+            const Icon = isZero ? null : isDown ? ArrowDown : ArrowUp;
+            const cls = isZero
+              ? "bg-muted text-muted-foreground border-transparent"
+              : good
+                ? "bg-success/15 text-success border-success/30"
+                : "bg-destructive/15 text-destructive border-destructive/30";
+            return (
+              <Badge variant="outline" className={`gap-1 text-[10px] sm:text-xs ${cls}`}>
+                {Icon && <Icon className="h-3 w-3" />}
+                {Math.abs(value).toFixed(1)}% vs mês passado
+              </Badge>
+            );
+          };
+          return (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+              <Card className="shadow-card">
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-success/10">
+                      <TrendingUp className="h-5 w-5 text-success" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs sm:text-sm text-muted-foreground">Receitas</p>
+                      <p className="text-lg sm:text-xl font-bold text-success truncate">{formatCurrency(totalReceitas)}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <VarBadge value={varReceitas} lowerIsBetter={false} />
+                    <span className="text-[10px] text-muted-foreground tabular-nums truncate">Ant: {formatCurrency(prevReceitas)}</span>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="shadow-card">
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-destructive/10">
+                      <TrendingDown className="h-5 w-5 text-destructive" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs sm:text-sm text-muted-foreground">Despesas</p>
+                      <p className="text-lg sm:text-xl font-bold text-destructive truncate">{formatCurrency(totalDespesas)}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <VarBadge value={varDespesas} lowerIsBetter={true} />
+                    <span className="text-[10px] text-muted-foreground tabular-nums truncate">Ant: {formatCurrency(prevDespesas)}</span>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="shadow-card">
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-primary/10">
+                      <FileText className="h-5 w-5 text-primary" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs sm:text-sm text-muted-foreground">Saldo</p>
+                      <p className={`text-lg sm:text-xl font-bold truncate ${saldo >= 0 ? "text-success" : "text-destructive"}`}>{formatCurrency(saldo)}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <VarBadge value={varSaldo} lowerIsBetter={false} />
+                    <span className="text-[10px] text-muted-foreground tabular-nums truncate">Ant: {formatCurrency(prevSaldo)}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          );
+        })()}
+
+        {/* Raio-X de Despesas (apenas no relatório Geral) */}
+        {tipoRelatorio === "geral" && raioXDespesas.totalGeral > 0 && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <Card className="shadow-card lg:col-span-2">
+              <CardHeader>
+                <CardTitle className="text-base">Raio-X de Despesas</CardTitle>
+                <p className="text-xs text-muted-foreground">Distribuição por categoria no período</p>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+                  <div className="h-[240px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={raioXDespesas.chart}
+                          dataKey="total"
+                          nameKey="nome"
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={55}
+                          outerRadius={95}
+                          paddingAngle={2}
+                          stroke="hsl(var(--background))"
+                          strokeWidth={2}
+                        >
+                          {raioXDespesas.chart.map((entry) => (
+                            <Cell key={entry.id} fill={entry.cor} />
+                          ))}
+                        </Pie>
+                        <RechartsTooltip
+                          formatter={(value: number, name: string) => [formatCurrency(value), name]}
+                          contentStyle={{
+                            background: "hsl(var(--popover))",
+                            border: "1px solid hsl(var(--border))",
+                            borderRadius: "0.5rem",
+                            fontSize: "12px",
+                          }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="space-y-2">
+                    {raioXDespesas.chart.map((entry) => {
+                      const pct = raioXDespesas.totalGeral > 0 ? (entry.total / raioXDespesas.totalGeral) * 100 : 0;
+                      return (
+                        <div key={entry.id} className="flex items-center gap-2 text-sm">
+                          <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: entry.cor }} />
+                          <span className="text-foreground truncate flex-1">{entry.nome}</span>
+                          <span className="text-muted-foreground tabular-nums text-xs shrink-0">{pct.toFixed(1)}%</span>
+                          <span className="font-medium tabular-nums shrink-0 w-24 text-right">{formatCurrency(entry.total)}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-                <div className="min-w-0">
-                  <p className="text-xs sm:text-sm text-muted-foreground">Receitas</p>
-                  <p className="text-sm sm:text-xl font-bold text-success truncate">{formatCurrency(totalReceitas)}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="shadow-card">
-            <CardContent className="p-3 sm:p-4">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="p-1.5 sm:p-2 rounded-lg bg-destructive/10">
-                  <TrendingDown className="h-4 w-4 sm:h-5 sm:w-5 text-destructive" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs sm:text-sm text-muted-foreground">Despesas</p>
-                  <p className="text-sm sm:text-xl font-bold text-destructive truncate">{formatCurrency(totalDespesas)}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="shadow-card col-span-2 sm:col-span-1">
-            <CardContent className="p-3 sm:p-4">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="p-1.5 sm:p-2 rounded-lg bg-primary/10">
-                  <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs sm:text-sm text-muted-foreground">Saldo</p>
-                  <p className={`text-sm sm:text-xl font-bold truncate ${saldo >= 0 ? "text-success" : "text-destructive"}`}>
-                    {formatCurrency(saldo)}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+              </CardContent>
+            </Card>
+            <Card className="shadow-card border-destructive/30 bg-destructive/5">
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Flame className="h-4 w-4 text-destructive" />
+                  O Vilão do Período
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {raioXDespesas.vilao ? (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <span className="w-4 h-4 rounded-full shrink-0" style={{ backgroundColor: raioXDespesas.vilao.cor }} />
+                      <span className="font-semibold text-foreground truncate">{raioXDespesas.vilao.nome}</span>
+                    </div>
+                    <p className="text-2xl font-bold text-destructive tabular-nums">
+                      {formatCurrency(raioXDespesas.vilao.total)}
+                    </p>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      Seu maior gasto foi com <strong className="text-foreground">{raioXDespesas.vilao.nome}</strong>,
+                      representando <strong className="text-foreground">{((raioXDespesas.vilao.total / raioXDespesas.totalGeral) * 100).toFixed(1)}%</strong> do total de despesas do período.
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Sem despesas no período.</p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         {/* Tabela de acordo com o tipo */}
         <Card className="shadow-card">
