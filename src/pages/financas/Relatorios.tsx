@@ -5,15 +5,17 @@ import { useQuery } from "@tanstack/react-query";
 import AppLayout from "@/components/AppLayout";
 import PageLoadingSkeleton from "@/components/PageLoadingSkeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Download, FileText, TrendingUp, TrendingDown, ChevronRight, ChevronDown } from "lucide-react";
-import { format, parseISO } from "date-fns";
+import { Download, FileText, TrendingUp, TrendingDown, ChevronRight, ChevronDown, ArrowDown, ArrowUp, Flame } from "lucide-react";
+import { format, parseISO, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
 import { AdvancedFilters, FilterState, getDateRangeFromFilters, getInitialFilterState, getCategoryIdsForFilter } from "@/components/AdvancedFilters";
 import { isExecutado, filterTransacoesPorPeriodoEfetivo } from "@/lib/transactions";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from "recharts";
 
 interface Transacao {
   id: string;
