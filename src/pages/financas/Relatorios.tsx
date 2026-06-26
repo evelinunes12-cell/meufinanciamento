@@ -515,18 +515,28 @@ const Relatorios = () => {
                           paddingAngle={2}
                           stroke="hsl(var(--background))"
                           strokeWidth={2}
+                          cursor="pointer"
+                          onClick={(d: any) => {
+                            if (d?.id && d.id !== "__outros") setDrilldownCatId(d.id);
+                          }}
                         >
                           {raioXDespesas.chart.map((entry) => (
-                            <Cell key={entry.id} fill={entry.cor} />
+                            <Cell key={entry.id} fill={entry.cor} style={{ cursor: entry.id === "__outros" ? "default" : "pointer" }} />
                           ))}
                         </Pie>
                         <RechartsTooltip
-                          formatter={(value: number, name: string) => [formatCurrency(value), name]}
-                          contentStyle={{
-                            background: "hsl(var(--popover))",
-                            border: "1px solid hsl(var(--border))",
-                            borderRadius: "0.5rem",
-                            fontSize: "12px",
+                          content={({ active, payload }) => {
+                            if (!active || !payload || !payload.length) return null;
+                            const entry: any = payload[0];
+                            const value = entry.value as number;
+                            const pct = raioXDespesas.totalGeral > 0 ? ((value / raioXDespesas.totalGeral) * 100).toFixed(1) : "0";
+                            return (
+                              <div className="bg-popover border border-border rounded-lg p-3 shadow-lg">
+                                <p className="font-medium text-foreground text-sm">{entry.name}</p>
+                                <p className="text-sm text-foreground">{formatCurrency(value)}</p>
+                                <p className="text-xs text-muted-foreground">{pct}% do total</p>
+                              </div>
+                            );
                           }}
                         />
                       </PieChart>
@@ -535,8 +545,16 @@ const Relatorios = () => {
                   <div className="space-y-2">
                     {raioXDespesas.chart.map((entry) => {
                       const pct = raioXDespesas.totalGeral > 0 ? (entry.total / raioXDespesas.totalGeral) * 100 : 0;
+                      const clickable = entry.id !== "__outros";
                       return (
-                        <div key={entry.id} className="flex items-center gap-2 text-sm">
+                        <div
+                          key={entry.id}
+                          role={clickable ? "button" : undefined}
+                          tabIndex={clickable ? 0 : undefined}
+                          onClick={clickable ? () => setDrilldownCatId(entry.id) : undefined}
+                          onKeyDown={clickable ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setDrilldownCatId(entry.id); } } : undefined}
+                          className={`flex items-center gap-2 text-sm rounded-md p-1.5 -mx-1.5 ${clickable ? "cursor-pointer hover:bg-accent/50 transition-colors" : ""}`}
+                        >
                           <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: entry.cor }} />
                           <span className="text-foreground truncate flex-1">{entry.nome}</span>
                           <span className="text-muted-foreground tabular-nums text-xs shrink-0">{pct.toFixed(1)}%</span>
@@ -545,6 +563,7 @@ const Relatorios = () => {
                       );
                     })}
                   </div>
+
                 </div>
               </CardContent>
             </Card>
