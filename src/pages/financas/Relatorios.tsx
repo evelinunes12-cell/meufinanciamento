@@ -270,6 +270,41 @@ const Relatorios = () => {
     return { cat, subBuckets, lancamentos, total };
   }, [drilldownCatId, categorias, transacoesValidas]);
 
+  // ---- Comprometimento de Renda: Fixas vs Variáveis ----
+  const comprometimentoRenda = useMemo(() => {
+    // Categorias raiz cujo nome indica financiamento/empréstimo
+    const contratoRootIds = new Set(
+      categorias
+        .filter(c => !c.categoria_pai_id && /financiament|empr[eé]stim/i.test(c.nome))
+        .map(c => c.id)
+    );
+    const isContratoCat = (catId: string | null) => {
+      if (!catId) return false;
+      const cat = categorias.find(c => c.id === catId);
+      if (!cat) return false;
+      const rootId = cat.categoria_pai_id || cat.id;
+      return contratoRootIds.has(rootId);
+    };
+
+    const despesas = transacoesValidas.filter(t => t.tipo === "despesa");
+    let fixas = 0;
+    let variaveis = 0;
+    despesas.forEach(t => {
+      const rec = (t.recorrencia || "").toLowerCase();
+      const isFixa = (rec && rec !== "nenhuma") || isContratoCat(t.categoria_id);
+      if (isFixa) fixas += Number(t.valor);
+      else variaveis += Number(t.valor);
+    });
+    const totalDesp = fixas + variaveis;
+    const pctFixasReceita = totalReceitas > 0 ? (fixas / totalReceitas) * 100 : 0;
+    const pctVariaveisReceita = totalReceitas > 0 ? (variaveis / totalReceitas) * 100 : 0;
+    const pctFixasDesp = totalDesp > 0 ? (fixas / totalDesp) * 100 : 0;
+    const pctVariaveisDesp = totalDesp > 0 ? (variaveis / totalDesp) * 100 : 0;
+    return { fixas, variaveis, totalDesp, pctFixasReceita, pctVariaveisReceita, pctFixasDesp, pctVariaveisDesp };
+  }, [transacoesValidas, categorias, totalReceitas]);
+
+
+
 
 
   // Relatório por categoria - hierárquico (pai com subcategorias expansíveis)
