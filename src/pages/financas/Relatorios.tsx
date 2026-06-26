@@ -102,6 +102,8 @@ const Relatorios = () => {
     next.has(id) ? next.delete(id) : next.add(id);
     return next;
   });
+  const [drilldownCatId, setDrilldownCatId] = useState<string | null>(null);
+
 
 
   const { startDate, endDate } = getDateRangeFromFilters(filters);
