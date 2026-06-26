@@ -235,6 +235,43 @@ const Relatorios = () => {
     return { items, chart, totalGeral, vilao: items[0] || null };
   }, [transacoesValidas, categorias]);
 
+  // Drilldown da categoria raiz selecionada no Raio-X
+  const drilldownData = useMemo(() => {
+    if (!drilldownCatId) return null;
+    const cat = categorias.find(c => c.id === drilldownCatId);
+    if (!cat) return null;
+    const subcats = categorias.filter(c => c.categoria_pai_id === cat.id);
+    const allIds = [cat.id, ...subcats.map(s => s.id)];
+
+    const subBuckets = [
+      ...subcats.map(s => {
+        const total = transacoesValidas
+          .filter(t => t.categoria_id === s.id && t.tipo === "despesa")
+          .reduce((acc, t) => acc + Number(t.valor), 0);
+        return { id: s.id, name: s.nome, color: s.cor, value: total };
+      }),
+      (() => {
+        const total = transacoesValidas
+          .filter(t => t.categoria_id === cat.id && t.tipo === "despesa")
+          .reduce((acc, t) => acc + Number(t.valor), 0);
+        return { id: cat.id, name: "Sem subcategoria", color: cat.cor, value: total };
+      })(),
+    ].filter(b => b.value > 0).sort((a, b) => b.value - a.value);
+
+    const lancamentos = transacoesValidas
+      .filter(t => t.categoria_id && allIds.includes(t.categoria_id) && t.tipo === "despesa")
+      .map(t => {
+        const tcat = categorias.find(c => c.id === t.categoria_id);
+        return { ...t, categoriaNome: tcat?.nome || "—", categoriaCor: tcat?.cor };
+      })
+      .sort((a, b) => (a.data < b.data ? 1 : -1));
+
+    const total = subBuckets.reduce((s, b) => s + b.value, 0);
+    return { cat, subBuckets, lancamentos, total };
+  }, [drilldownCatId, categorias, transacoesValidas]);
+
+
+
   // Relatório por categoria - hierárquico (pai com subcategorias expansíveis)
   const relatorioCategoria = useMemo(() => {
     const sumFor = (catId: string) => transacoesValidas
