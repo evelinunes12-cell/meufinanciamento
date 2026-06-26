@@ -669,6 +669,80 @@ const Relatorios = () => {
           </div>
         )}
 
+        {/* Comprometimento de Renda (apenas no relatório Geral) */}
+        {tipoRelatorio === "geral" && comprometimentoRenda.totalDesp > 0 && (
+          <Card className="shadow-card">
+            <CardHeader>
+              <CardTitle className="text-base">Comprometimento de Renda</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              {/* Stacked bar relativa à Receita Total */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>Despesas / Receita do período</span>
+                  <span>{formatCurrency(totalReceitas)}</span>
+                </div>
+                <div className="relative w-full h-6 rounded-md overflow-hidden bg-muted">
+                  <div
+                    className="absolute inset-y-0 left-0 bg-destructive/80 flex items-center justify-end pr-2 text-[10px] font-medium text-destructive-foreground"
+                    style={{ width: `${Math.min(100, comprometimentoRenda.pctFixasReceita)}%` }}
+                    title={`Fixas: ${formatCurrency(comprometimentoRenda.fixas)}`}
+                  >
+                    {comprometimentoRenda.pctFixasReceita >= 8 && `${comprometimentoRenda.pctFixasReceita.toFixed(0)}%`}
+                  </div>
+                  <div
+                    className="absolute inset-y-0 bg-amber-500/80 flex items-center justify-end pr-2 text-[10px] font-medium text-white"
+                    style={{
+                      left: `${Math.min(100, comprometimentoRenda.pctFixasReceita)}%`,
+                      width: `${Math.min(100 - Math.min(100, comprometimentoRenda.pctFixasReceita), comprometimentoRenda.pctVariaveisReceita)}%`,
+                    }}
+                    title={`Variáveis: ${formatCurrency(comprometimentoRenda.variaveis)}`}
+                  >
+                    {comprometimentoRenda.pctVariaveisReceita >= 8 && `${comprometimentoRenda.pctVariaveisReceita.toFixed(0)}%`}
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-4 text-xs">
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-3 h-3 rounded-sm bg-destructive/80" />
+                    <span className="text-muted-foreground">Fixas:</span>
+                    <strong className="text-foreground">{formatCurrency(comprometimentoRenda.fixas)}</strong>
+                    <span className="text-muted-foreground">({comprometimentoRenda.pctFixasDesp.toFixed(1)}% das despesas)</span>
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-3 h-3 rounded-sm bg-amber-500/80" />
+                    <span className="text-muted-foreground">Variáveis:</span>
+                    <strong className="text-foreground">{formatCurrency(comprometimentoRenda.variaveis)}</strong>
+                    <span className="text-muted-foreground">({comprometimentoRenda.pctVariaveisDesp.toFixed(1)}% das despesas)</span>
+                  </span>
+                </div>
+              </div>
+
+              {/* Insight */}
+              {totalReceitas > 0 ? (
+                <div
+                  className={`rounded-lg border p-3 text-sm ${
+                    comprometimentoRenda.pctFixasReceita >= 70
+                      ? "border-destructive/30 bg-destructive/5 text-foreground"
+                      : comprometimentoRenda.pctFixasReceita >= 50
+                      ? "border-amber-500/30 bg-amber-500/5 text-foreground"
+                      : "border-emerald-500/30 bg-emerald-500/5 text-foreground"
+                  }`}
+                >
+                  <strong>{comprometimentoRenda.pctFixasReceita.toFixed(1)}%</strong> da sua receita já está comprometida com contas fixas
+                  {" "}(recorrências e financiamentos).
+                  {comprometimentoRenda.pctFixasReceita >= 70 && " Atenção: seu orçamento está muito pressionado."}
+                  {comprometimentoRenda.pctFixasReceita >= 50 && comprometimentoRenda.pctFixasReceita < 70 && " Cuidado: passou da metade da renda."}
+                  {comprometimentoRenda.pctFixasReceita < 50 && " Saudável: você mantém boa folga para variáveis e investimento."}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Sem receitas no período para calcular o comprometimento.</p>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+
+
         {/* Tabela de acordo com o tipo */}
         <Card className="shadow-card">
           <CardHeader>
