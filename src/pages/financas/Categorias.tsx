@@ -214,7 +214,7 @@ const Categorias = () => {
     return (
       <div className="rounded-xl border bg-card shadow-sm transition-all hover:shadow-md overflow-hidden">
         <div
-          className={`flex items-center justify-between gap-2 p-3 ${hasSubs ? "cursor-pointer hover:bg-muted/40" : ""}`}
+          className={`flex items-center justify-between gap-2 p-4 ${hasSubs ? "cursor-pointer hover:bg-muted/40" : ""}`}
           onClick={() => hasSubs && toggleExpand(categoria.id)}
           role={hasSubs ? "button" : undefined}
           aria-expanded={hasSubs ? isExpanded : undefined}
