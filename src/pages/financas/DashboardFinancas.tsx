@@ -237,10 +237,16 @@ const DashboardFinancas = () => {
 
   // Calculate "Economia" - entries/transfers to savings accounts (poupanca)
   const contasPoupanca = contas.filter(c => c.tipo === "poupanca");
+  const poupancaIds = new Set(contasPoupanca.map(c => c.id));
   const economiaTotal = transacoesFiltradas
     .filter(t => {
-      const isEntradaPoupanca = contasPoupanca.some(cp => cp.id === t.conta_id) && t.tipo === "receita";
-      return isEntradaPoupanca && isExecutado(t.is_pago_executado);
+      if (!isExecutado(t.is_pago_executado)) return false;
+      // Transferência para conta poupança (usa conta_destino_id)
+      if (t.forma_pagamento === "transferencia") {
+        return !!t.conta_destino_id && poupancaIds.has(t.conta_destino_id);
+      }
+      // Receita lançada diretamente em conta poupança
+      return t.tipo === "receita" && poupancaIds.has(t.conta_id);
     })
     .reduce((acc, t) => acc + Number(t.valor), 0);
 
