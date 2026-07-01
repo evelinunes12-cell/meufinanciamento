@@ -296,13 +296,13 @@ const Categorias = () => {
     );
   };
 
-  const renderGrid = (parents: Categoria[], emptyMessage: string) => (
-    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+  const renderList = (parents: Categoria[], emptyMessage: string) => (
+    <div className="flex flex-col gap-3 w-full">
       {parents.map((cat, idx) => (
         <ParentCard key={cat.id} categoria={cat} index={idx} />
       ))}
       {parents.length === 0 && (
-        <div className="col-span-full flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
+        <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
           <FolderTree className="h-10 w-10 mb-3 opacity-50" />
           <p>{emptyMessage}</p>
         </div>
