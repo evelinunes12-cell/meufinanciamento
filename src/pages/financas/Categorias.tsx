@@ -160,6 +160,17 @@ const Categorias = () => {
     invalidateQueries();
   };
 
+  const handleAddSubcategoria = (parent: Categoria) => {
+    setEditingId(null);
+    setFormData({
+      nome: "",
+      tipo: parent.tipo,
+      cor: parent.cor,
+      categoria_pai_id: parent.id,
+    });
+    setDialogOpen(true);
+  };
+
   // Separate main categories (no parent) and subcategories
   const categoriasReceita = categorias
     .filter(c => c.tipo === "receita")
