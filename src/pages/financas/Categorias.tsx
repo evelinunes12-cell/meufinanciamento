@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Trash2, Edit, TrendingUp, TrendingDown, Search, ChevronLeft, ChevronRight, ChevronDown, FolderTree } from "lucide-react";
+import { Plus, Trash2, Edit, TrendingUp, TrendingDown, Search, ChevronLeft, ChevronRight, ChevronDown, FolderTree, FolderPlus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import ColorPicker from "@/components/ColorPicker";
 import { toast } from "@/hooks/use-toast";
@@ -160,6 +160,17 @@ const Categorias = () => {
     invalidateQueries();
   };
 
+  const handleAddSubcategoria = (parent: Categoria) => {
+    setEditingId(null);
+    setFormData({
+      nome: "",
+      tipo: parent.tipo,
+      cor: parent.cor,
+      categoria_pai_id: parent.id,
+    });
+    setDialogOpen(true);
+  };
+
   // Separate main categories (no parent) and subcategories
   const categoriasReceita = categorias
     .filter(c => c.tipo === "receita")
@@ -219,6 +230,15 @@ const Categorias = () => {
                 {subs.length}
               </Badge>
             )}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => handleAddSubcategoria(categoria)}
+              aria-label="Adicionar subcategoria"
+              title="Adicionar subcategoria"
+            >
+              <FolderPlus className="h-4 w-4 text-primary" />
+            </Button>
             <Button variant="ghost" size="icon" onClick={() => handleEdit(categoria)} aria-label="Editar">
               <Edit className="h-4 w-4" />
             </Button>
