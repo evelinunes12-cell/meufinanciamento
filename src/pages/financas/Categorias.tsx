@@ -134,9 +134,19 @@ const Categorias = () => {
       toast({ title: "Sucesso", description: "Categoria criada" });
     }
 
+    const parentIdCriado = !editingId ? validated.categoria_pai_id : null;
     setDialogOpen(false);
     resetForm();
-    invalidateQueries();
+    await queryClient.invalidateQueries({ queryKey: ["categorias"] });
+    await queryClient.refetchQueries({ queryKey: ["categorias", user?.id] });
+    queryClient.invalidateQueries({ queryKey: ["transacoes"] });
+    if (parentIdCriado) {
+      setExpandedIds((prev) => {
+        const next = new Set(prev);
+        next.add(parentIdCriado);
+        return next;
+      });
+    }
   };
 
   const handleEdit = (categoria: Categoria) => {
