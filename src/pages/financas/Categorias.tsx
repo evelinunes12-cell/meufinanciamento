@@ -434,7 +434,7 @@ const Categorias = () => {
             {isTabSwitching ? (
               <TabContentSkeleton variant="list" />
             ) : (
-              renderGrid(
+              renderList(
                 paginatedParents,
                 searchTerm ? "Nenhuma categoria encontrada" : "Nenhuma categoria de despesa cadastrada",
               )
