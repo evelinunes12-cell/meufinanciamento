@@ -12,11 +12,12 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Trash2, Edit, TrendingUp, TrendingDown, Search, ChevronLeft, ChevronRight, ChevronDown, FolderTree, FolderPlus } from "lucide-react";
+import { Plus, Trash2, Edit, TrendingUp, TrendingDown, Search, ChevronLeft, ChevronRight, ChevronDown, FolderTree, FolderPlus, Sparkles, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import ColorPicker from "@/components/ColorPicker";
-import { toast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { categoriaSchema } from "@/lib/validations";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface Categoria {
   id: string;
@@ -28,6 +29,29 @@ interface Categoria {
   is_default: boolean;
 }
 
+interface DefaultCategoryGroup {
+  nome: string;
+  tipo: "receita" | "despesa";
+  cor: string;
+  subcategorias: string[];
+}
+
+const DEFAULT_CATEGORIES: DefaultCategoryGroup[] = [
+  { nome: "Salário", tipo: "receita", cor: "#22c55e", subcategorias: ["Salário Fixo", "Comissões", "Premiações", "Vale Alimentação", "Bonus"] },
+  { nome: "Investimentos e Rendimentos", tipo: "receita", cor: "#16a34a", subcategorias: ["Rendimento de Aplicações", "Rendimento de Investimentos", "Rendimentos de Poupança", "Rendimento de Cofrinhos", "Rendimentos de Conta"] },
+  { nome: "Reembolso e Cashback", tipo: "receita", cor: "#15803d", subcategorias: ["Reembolso de Plano de Saúde", "Reembolso de Plano Odontológico", "Reembolso de Compras Gerais", "Cashback de Compras"] },
+  { nome: "Transferências", tipo: "receita", cor: "#166534", subcategorias: ["Transferências de Terceiros", "Acerto de Contas Com Terceiros"] },
+  { nome: "Alugueis", tipo: "receita", cor: "#4ade80", subcategorias: ["Alugueis de Imóveis", "Alugueis de Carros", "Alugueis de Materiais"] },
+  { nome: "Outras Receitas", tipo: "receita", cor: "#86efac", subcategorias: ["Receitas Extras", "Doações", "Presentes"] },
+  { nome: "Moradia", tipo: "despesa", cor: "#3b82f6", subcategorias: ["Aluguel", "Condomínio", "Energia", "Água", "Internet", "Outras Despesas de Moradia", "Móveis", "Reformas"] },
+  { nome: "Alimentação", tipo: "despesa", cor: "#f97316", subcategorias: ["Supermercado", "Restaurantes", "Padarias", "Lanchonetes", "Delivery", "Outras Despesas de Alimentação", "Ifood"] },
+  { nome: "Transporte", tipo: "despesa", cor: "#8b5cf6", subcategorias: ["Transporte Público", "Combustível", "Manutenção", "Estacionamento", "Uber", "99", "Outras Despesas de Transporte"] },
+  { nome: "Saúde", tipo: "despesa", cor: "#ec4899", subcategorias: ["Farmácia", "Plano de Saúde", "Plano Odontológico", "Consultas", "Exames", "Psicólogo", "Outras Despesas de Saúde"] },
+  { nome: "Lazer", tipo: "despesa", cor: "#eab308", subcategorias: ["Netflix", "Spotify", "Assinaturas", "Bares", "Viagens", "Cinema", "Shows", "Teatro", "Parques", "Passeios", "Outras Despesas de Lazer", "Jogos Online"] },
+  { nome: "Despesas Pessoais", tipo: "despesa", cor: "#06b6d4", subcategorias: ["Roupas", "Sapatos", "Produtos de Beleza", "Salão de Beleza", "Barbearia", "Outras Despesas Pessoais"] },
+  { nome: "Família", tipo: "despesa", cor: "#14b8a6", subcategorias: ["Presentes", "Ajuda de Custos", "Transferências Para Familiares", "Outros Gastos Com Família", "Brinquedos", "Escola"] },
+  { nome: "Pets", tipo: "despesa", cor: "#f43f5e", subcategorias: ["Ração", "Exames", "Consultas", "Remédios", "Brinquedos", "Outros Gastos Com Pets"] },
+];
 
 const ITEMS_PER_PAGE = 10;
 
@@ -46,12 +70,16 @@ async function fetchCategoriasData(userId: string | undefined) {
 const Categorias = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const { tab: activeTab, setTab: setActiveTab, isTransitioning: isTabSwitching } = useTabTransition<"despesa" | "receita">("despesa");
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [starterPackOpen, setStarterPackOpen] = useState(false);
+  const [starterPackLoading, setStarterPackLoading] = useState(false);
+  const [selectedStarterGroups, setSelectedStarterGroups] = useState<Set<string>>(new Set(DEFAULT_CATEGORIES.map((group) => group.nome)));
 
   const toggleExpand = (id: string) => {
     setExpandedIds((prev) => {
@@ -179,6 +207,81 @@ const Categorias = () => {
       categoria_pai_id: parent.id,
     });
     setDialogOpen(true);
+  };
+
+  const toggleStarterGroup = (groupName: string) => {
+    setSelectedStarterGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupName)) next.delete(groupName);
+      else next.add(groupName);
+      return next;
+    });
+  };
+
+  const handleCreateStarterPack = async () => {
+    if (!user?.id) return;
+
+    const selectedGroups = DEFAULT_CATEGORIES.filter((group) => selectedStarterGroups.has(group.nome));
+    if (selectedGroups.length === 0) {
+      toast({ title: "Selecione categorias", description: "Marque pelo menos um grupo para criar." });
+      return;
+    }
+
+    setStarterPackLoading(true);
+    try {
+      for (const group of selectedGroups) {
+        const { data: existingParent, error: parentLookupError } = await supabase
+          .from("categorias")
+          .select("*")
+          .eq("nome", group.nome)
+          .eq("tipo", group.tipo)
+          .is("categoria_pai_id", null)
+          .maybeSingle();
+
+        if (parentLookupError) throw parentLookupError;
+
+        let parent = existingParent as Categoria | null;
+
+        if (!parent) {
+          const { data, error } = await supabase
+            .from("categorias")
+            .insert({ user_id: user.id, nome: group.nome, tipo: group.tipo, cor: group.cor, categoria_pai_id: null })
+            .select("*")
+            .single();
+
+          if (error) throw error;
+          parent = data as Categoria;
+        }
+
+        const { data: existingChildren, error: childrenError } = await supabase
+          .from("categorias")
+          .select("nome")
+          .eq("categoria_pai_id", parent.id);
+
+        if (childrenError) throw childrenError;
+
+        const existingChildNames = new Set((existingChildren || []).map((child) => child.nome));
+        const childrenToCreate = group.subcategorias
+          .filter((nome) => !existingChildNames.has(nome))
+          .map((nome) => ({ user_id: user.id, nome, tipo: group.tipo, cor: group.cor, categoria_pai_id: parent.id }));
+
+        if (childrenToCreate.length > 0) {
+          const { error } = await supabase.from("categorias").insert(childrenToCreate);
+          if (error) throw error;
+        }
+      }
+
+      toast({ title: "Categorias padrões criadas", description: "Seu starter pack financeiro foi aplicado com sucesso." });
+      setStarterPackOpen(false);
+      await queryClient.invalidateQueries({ queryKey: ["categorias"] });
+      await queryClient.refetchQueries({ queryKey: ["categorias", user.id] });
+      queryClient.invalidateQueries({ queryKey: ["transacoes"] });
+    } catch (error) {
+      console.error("Erro ao criar categorias padrões", error);
+      toast({ title: "Erro", description: "Não foi possível criar as categorias padrões.", variant: "destructive" });
+    } finally {
+      setStarterPackLoading(false);
+    }
   };
 
   // Separate main categories (no parent) and subcategories
@@ -326,7 +429,71 @@ const Categorias = () => {
             <h1 className="text-2xl font-bold text-foreground">Categorias</h1>
             <p className="text-muted-foreground">Organize suas transações por categorias ({categorias.length} categorias)</p>
           </div>
-          <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <Dialog open={starterPackOpen} onOpenChange={setStarterPackOpen}>
+              <DialogTrigger asChild>
+                <Button
+                  variant={categorias.length === 0 ? "default" : "outline"}
+                  className={categorias.length === 0 ? "gradient-primary text-primary-foreground shadow-lg shadow-primary/20" : "border-primary/30 text-primary hover:bg-primary/10"}
+                >
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  Gerar Categorias Padrões
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Starter Pack de Categorias</DialogTitle>
+                  <DialogDescription>
+                    Selecione os grupos que deseja criar. Categorias e subcategorias já existentes não serão duplicadas.
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="grid gap-5 md:grid-cols-2">
+                  {(["receita", "despesa"] as const).map((tipo) => (
+                    <div key={tipo} className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        {tipo === "receita" ? <TrendingUp className="h-4 w-4 text-emerald-500" /> : <TrendingDown className="h-4 w-4 text-blue-500" />}
+                        <h3 className="font-semibold">{tipo === "receita" ? "Receitas" : "Despesas"}</h3>
+                      </div>
+                      {DEFAULT_CATEGORIES.filter((group) => group.tipo === tipo).map((group) => (
+                        <label
+                          key={group.nome}
+                          className="flex gap-3 rounded-lg border p-3 hover:bg-muted/40 transition-colors cursor-pointer"
+                        >
+                          <Checkbox
+                            checked={selectedStarterGroups.has(group.nome)}
+                            onCheckedChange={() => toggleStarterGroup(group.nome)}
+                            className="mt-1"
+                          />
+                          <div className="min-w-0 flex-1 space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: group.cor }} />
+                              <span className="font-medium">{group.nome}</span>
+                              <Badge variant="secondary" className="ml-auto">{group.subcategorias.length}</Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground leading-relaxed">
+                              {group.subcategorias.join(", ")}
+                            </p>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button variant="outline" onClick={() => setStarterPackOpen(false)} disabled={starterPackLoading}>
+                    Cancelar
+                  </Button>
+                  <Button onClick={handleCreateStarterPack} disabled={starterPackLoading || selectedStarterGroups.size === 0} className="gradient-primary text-primary-foreground">
+                    {starterPackLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    Criar Selecionadas
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
             <DialogTrigger asChild>
               <Button
                 className="gradient-primary text-primary-foreground sm:px-5 px-0 sm:w-auto w-10"
@@ -404,7 +571,8 @@ const Categorias = () => {
                 </Button>
               </form>
             </DialogContent>
-          </Dialog>
+            </Dialog>
+          </div>
         </div>
 
         {/* Search */}
