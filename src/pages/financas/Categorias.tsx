@@ -269,11 +269,11 @@ const Categorias = () => {
         </div>
 
         {hasSubs && isExpanded && (
-          <div className="border-t bg-muted/30 px-3 py-2 space-y-1 animate-in fade-in slide-in-from-top-1 duration-200">
+          <div className="border-t bg-muted/30 px-4 py-3 space-y-1 animate-in fade-in slide-in-from-top-1 duration-200">
             {subs.map((sub) => (
               <div
                 key={sub.id}
-                className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 hover:bg-muted/60 transition-colors"
+                className="flex items-center justify-between gap-2 rounded-md px-3 py-2 hover:bg-muted/60 transition-colors"
               >
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="text-muted-foreground text-xs">↳</span>
