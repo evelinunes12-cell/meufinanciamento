@@ -214,7 +214,7 @@ const Categorias = () => {
     return (
       <div className="rounded-xl border bg-card shadow-sm transition-all hover:shadow-md overflow-hidden">
         <div
-          className={`flex items-center justify-between gap-2 p-3 ${hasSubs ? "cursor-pointer hover:bg-muted/40" : ""}`}
+          className={`flex items-center justify-between gap-2 p-4 ${hasSubs ? "cursor-pointer hover:bg-muted/40" : ""}`}
           onClick={() => hasSubs && toggleExpand(categoria.id)}
           role={hasSubs ? "button" : undefined}
           aria-expanded={hasSubs ? isExpanded : undefined}
@@ -269,11 +269,11 @@ const Categorias = () => {
         </div>
 
         {hasSubs && isExpanded && (
-          <div className="border-t bg-muted/30 px-3 py-2 space-y-1 animate-in fade-in slide-in-from-top-1 duration-200">
+          <div className="border-t bg-muted/30 px-4 py-3 space-y-1 animate-in fade-in slide-in-from-top-1 duration-200">
             {subs.map((sub) => (
               <div
                 key={sub.id}
-                className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 hover:bg-muted/60 transition-colors"
+                className="flex items-center justify-between gap-2 rounded-md px-3 py-2 hover:bg-muted/60 transition-colors"
               >
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="text-muted-foreground text-xs">↳</span>
@@ -296,13 +296,13 @@ const Categorias = () => {
     );
   };
 
-  const renderGrid = (parents: Categoria[], emptyMessage: string) => (
-    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+  const renderList = (parents: Categoria[], emptyMessage: string) => (
+    <div className="flex flex-col gap-3 w-full">
       {parents.map((cat, idx) => (
         <ParentCard key={cat.id} categoria={cat} index={idx} />
       ))}
       {parents.length === 0 && (
-        <div className="col-span-full flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
+        <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
           <FolderTree className="h-10 w-10 mb-3 opacity-50" />
           <p>{emptyMessage}</p>
         </div>
@@ -434,7 +434,7 @@ const Categorias = () => {
             {isTabSwitching ? (
               <TabContentSkeleton variant="list" />
             ) : (
-              renderGrid(
+              renderList(
                 paginatedParents,
                 searchTerm ? "Nenhuma categoria encontrada" : "Nenhuma categoria de despesa cadastrada",
               )
@@ -445,7 +445,7 @@ const Categorias = () => {
             {isTabSwitching ? (
               <TabContentSkeleton variant="list" />
             ) : (
-              renderGrid(
+              renderList(
                 paginatedParents,
                 searchTerm ? "Nenhuma categoria encontrada" : "Nenhuma categoria de receita cadastrada",
               )
