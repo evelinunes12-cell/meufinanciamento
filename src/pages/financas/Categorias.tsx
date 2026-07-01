@@ -230,6 +230,15 @@ const Categorias = () => {
                 {subs.length}
               </Badge>
             )}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => handleAddSubcategoria(categoria)}
+              aria-label="Adicionar subcategoria"
+              title="Adicionar subcategoria"
+            >
+              <FolderPlus className="h-4 w-4 text-primary" />
+            </Button>
             <Button variant="ghost" size="icon" onClick={() => handleEdit(categoria)} aria-label="Editar">
               <Edit className="h-4 w-4" />
             </Button>
