@@ -353,11 +353,15 @@ const Relatorios = () => {
   }, [categorias, transacoesValidas]);
 
 
-  // Relatório por conta - inclui transferências e pagamentos de cartão como receitas/despesas
+  // Relatório por conta - inclui transferências e pagamentos de cartão como receitas/despesas.
+  // Exclui pendentes (a menos que o usuário filtre explicitamente por status).
+  const filteredExecutadas = filters.statusPagamento
+    ? filteredTransacoes
+    : filteredTransacoes.filter(t => isExecutado(t.is_pago_executado));
   const relatorioConta = contas.map(conta => {
     const transacoesConta: TransacaoConta[] = [];
 
-    filteredTransacoes.forEach(t => {
+    filteredExecutadas.forEach(t => {
       const isTransfer = t.forma_pagamento === "transferencia";
 
       if (isTransfer) {
