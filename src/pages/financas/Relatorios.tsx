@@ -15,7 +15,7 @@ import { format, parseISO, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
 import { AdvancedFilters, FilterState, getDateRangeFromFilters, getInitialFilterState, getCategoryIdsForFilter } from "@/components/AdvancedFilters";
-import { isExecutado, filterTransacoesPorPeriodoEfetivo } from "@/lib/transactions";
+import { isExecutado, filterTransacoesPorPeriodoEfetivo, calcularSaldoRealConta } from "@/lib/transactions";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from "recharts";
 
 interface Transacao {
