@@ -165,9 +165,14 @@ const Relatorios = () => {
     return result;
   }, [transacoesNoPeriodo, categorias, filters.tipo, filters.categoriaId, filters.subcategoriaId, filters.contaId, filters.formaPagamento, filters.statusPagamento]);
 
-  // Filter valid transactions: exclude transfers for aggregations
-  const transacoesValidas = filteredTransacoes.filter(t => t.forma_pagamento !== "transferencia");
-  
+  // Filter valid transactions: exclude transfers for aggregations.
+  // Also exclude pending (not yet executed) transactions so numbers reflect what
+  // actually happened — unless the user explicitly filtered by status.
+  const transacoesValidasComPendentes = filteredTransacoes.filter(t => t.forma_pagamento !== "transferencia");
+  const transacoesValidas = filters.statusPagamento
+    ? transacoesValidasComPendentes
+    : transacoesValidasComPendentes.filter(t => isExecutado(t.is_pago_executado));
+
   const totalReceitas = transacoesValidas.filter(t => t.tipo === "receita").reduce((acc, t) => acc + Number(t.valor), 0);
   const totalDespesas = transacoesValidas.filter(t => t.tipo === "despesa").reduce((acc, t) => acc + Number(t.valor), 0);
   const saldo = totalReceitas - totalDespesas;
