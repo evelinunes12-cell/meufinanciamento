@@ -165,9 +165,14 @@ const Relatorios = () => {
     return result;
   }, [transacoesNoPeriodo, categorias, filters.tipo, filters.categoriaId, filters.subcategoriaId, filters.contaId, filters.formaPagamento, filters.statusPagamento]);
 
-  // Filter valid transactions: exclude transfers for aggregations
-  const transacoesValidas = filteredTransacoes.filter(t => t.forma_pagamento !== "transferencia");
-  
+  // Filter valid transactions: exclude transfers for aggregations.
+  // Also exclude pending (not yet executed) transactions so numbers reflect what
+  // actually happened — unless the user explicitly filtered by status.
+  const transacoesValidasComPendentes = filteredTransacoes.filter(t => t.forma_pagamento !== "transferencia");
+  const transacoesValidas = filters.statusPagamento
+    ? transacoesValidasComPendentes
+    : transacoesValidasComPendentes.filter(t => isExecutado(t.is_pago_executado));
+
   const totalReceitas = transacoesValidas.filter(t => t.tipo === "receita").reduce((acc, t) => acc + Number(t.valor), 0);
   const totalDespesas = transacoesValidas.filter(t => t.tipo === "despesa").reduce((acc, t) => acc + Number(t.valor), 0);
   const saldo = totalReceitas - totalDespesas;
@@ -197,7 +202,10 @@ const Relatorios = () => {
         return filters.statusPagamento === "pago" ? pago : !pago;
       });
     }
-    return result.filter(t => t.forma_pagamento !== "transferencia");
+    const noTransfer = result.filter(t => t.forma_pagamento !== "transferencia");
+    return filters.statusPagamento
+      ? noTransfer
+      : noTransfer.filter(t => isExecutado(t.is_pago_executado));
   }, [allTransacoes, contas, categorias, prevPeriod, filters]);
 
   const prevReceitas = prevTransacoes.filter(t => t.tipo === "receita").reduce((a, t) => a + Number(t.valor), 0);
@@ -271,6 +279,8 @@ const Relatorios = () => {
   }, [drilldownCatId, categorias, transacoesValidas]);
 
   // ---- Comprometimento de Renda: Fixas vs Variáveis ----
+  // Este widget considera TODAS as despesas (executadas + pendentes) porque
+  // reflete o compromisso financeiro do período, não apenas o que já foi pago.
   const comprometimentoRenda = useMemo(() => {
     // Categorias raiz cujo nome indica financiamento/empréstimo
     const contratoRootIds = new Set(
@@ -286,7 +296,12 @@ const Relatorios = () => {
       return contratoRootIds.has(rootId);
     };
 
-    const despesas = transacoesValidas.filter(t => t.tipo === "despesa");
+    // Receitas: considera também pendentes (renda comprometida vs renda prevista)
+    const receitasComPendentes = transacoesValidasComPendentes
+      .filter(t => t.tipo === "receita")
+      .reduce((a, t) => a + Number(t.valor), 0);
+
+    const despesas = transacoesValidasComPendentes.filter(t => t.tipo === "despesa");
     let fixas = 0;
     let variaveis = 0;
     despesas.forEach(t => {
@@ -296,12 +311,12 @@ const Relatorios = () => {
       else variaveis += Number(t.valor);
     });
     const totalDesp = fixas + variaveis;
-    const pctFixasReceita = totalReceitas > 0 ? (fixas / totalReceitas) * 100 : 0;
-    const pctVariaveisReceita = totalReceitas > 0 ? (variaveis / totalReceitas) * 100 : 0;
+    const pctFixasReceita = receitasComPendentes > 0 ? (fixas / receitasComPendentes) * 100 : 0;
+    const pctVariaveisReceita = receitasComPendentes > 0 ? (variaveis / receitasComPendentes) * 100 : 0;
     const pctFixasDesp = totalDesp > 0 ? (fixas / totalDesp) * 100 : 0;
     const pctVariaveisDesp = totalDesp > 0 ? (variaveis / totalDesp) * 100 : 0;
     return { fixas, variaveis, totalDesp, pctFixasReceita, pctVariaveisReceita, pctFixasDesp, pctVariaveisDesp };
-  }, [transacoesValidas, categorias, totalReceitas]);
+  }, [transacoesValidasComPendentes, categorias]);
 
 
 
@@ -338,11 +353,15 @@ const Relatorios = () => {
   }, [categorias, transacoesValidas]);
 
 
-  // Relatório por conta - inclui transferências e pagamentos de cartão como receitas/despesas
+  // Relatório por conta - inclui transferências e pagamentos de cartão como receitas/despesas.
+  // Exclui pendentes (a menos que o usuário filtre explicitamente por status).
+  const filteredExecutadas = filters.statusPagamento
+    ? filteredTransacoes
+    : filteredTransacoes.filter(t => isExecutado(t.is_pago_executado));
   const relatorioConta = contas.map(conta => {
     const transacoesConta: TransacaoConta[] = [];
 
-    filteredTransacoes.forEach(t => {
+    filteredExecutadas.forEach(t => {
       const isTransfer = t.forma_pagamento === "transferencia";
 
       if (isTransfer) {
