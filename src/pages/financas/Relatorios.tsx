@@ -568,7 +568,7 @@ const Relatorios = () => {
                       <FileText className="h-5 w-5 text-primary" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs sm:text-sm text-muted-foreground">Saldo</p>
+                      <p className="text-xs sm:text-sm text-muted-foreground">Resultado</p>
                       <p className={`text-lg sm:text-xl font-bold truncate ${saldo >= 0 ? "text-success" : "text-destructive"}`}>{formatCurrency(saldo)}</p>
                     </div>
                   </div>
