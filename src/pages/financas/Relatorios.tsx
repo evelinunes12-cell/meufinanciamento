@@ -972,6 +972,10 @@ const Relatorios = () => {
                             <span>·</span>
                             <span>↓ {formatCurrency(r.despesas)}</span>
                           </div>
+                          <div className="flex items-center gap-3 text-xs pl-6">
+                            <span className="text-muted-foreground">Saldo real:</span>
+                            <span className={`font-semibold tabular-nums ${r.saldoReal >= 0 ? "text-success" : "text-destructive"}`}>{formatCurrency(r.saldoReal)}</span>
+                          </div>
                         </button>
                         {isOpen && hasTx && (
                           <div className="bg-muted/30 divide-y divide-border">
