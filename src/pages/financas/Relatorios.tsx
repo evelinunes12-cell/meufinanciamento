@@ -1050,6 +1050,7 @@ const Relatorios = () => {
                                   {t._tipoEfetivo === "despesa" ? formatCurrency(Number(t.valor)) : ""}
                                 </TableCell>
                                 <TableCell></TableCell>
+                                <TableCell></TableCell>
                               </TableRow>
                             ))}
                           </Fragment>
