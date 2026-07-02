@@ -1002,7 +1002,7 @@ const Relatorios = () => {
                         <TableHead>Conta</TableHead>
                         <TableHead className="text-right">Receitas</TableHead>
                         <TableHead className="text-right">Despesas</TableHead>
-                        <TableHead className="text-right">Saldo</TableHead>
+                        <TableHead className="text-right">Resultado</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
