@@ -15,7 +15,7 @@ import { format, parseISO, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
 import { AdvancedFilters, FilterState, getDateRangeFromFilters, getInitialFilterState, getCategoryIdsForFilter } from "@/components/AdvancedFilters";
-import { isExecutado, filterTransacoesPorPeriodoEfetivo } from "@/lib/transactions";
+import { isExecutado, filterTransacoesPorPeriodoEfetivo, calcularSaldoRealConta } from "@/lib/transactions";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from "recharts";
 
 interface Transacao {
@@ -396,7 +396,8 @@ const Relatorios = () => {
     transacoesConta.sort((a, b) => (b.data > a.data ? 1 : -1));
     const receitas = transacoesConta.filter(t => t._tipoEfetivo === "receita").reduce((a, t) => a + Number(t.valor), 0);
     const despesas = transacoesConta.filter(t => t._tipoEfetivo === "despesa").reduce((a, t) => a + Number(t.valor), 0);
-    return { id: conta.id, conta: conta.nome_conta, receitas, despesas, saldo: receitas - despesas, transacoes: transacoesConta };
+    const saldoReal = calcularSaldoRealConta(conta, allTransacoes);
+    return { id: conta.id, conta: conta.nome_conta, receitas, despesas, saldo: receitas - despesas, saldoReal, transacoes: transacoesConta };
   }).filter(r => r.receitas !== 0 || r.despesas !== 0);
 
 
@@ -435,9 +436,9 @@ const Relatorios = () => {
         });
       });
     } else if (tipoRelatorio === "conta") {
-      csv = "Conta,Receitas,Despesas,Saldo\n";
+      csv = "Conta,Receitas,Despesas,Resultado,Saldo Real\n";
       relatorioConta.forEach(r => {
-        csv += `${r.conta},${r.receitas},${r.despesas},${r.saldo}\n`;
+        csv += `${r.conta},${r.receitas},${r.despesas},${r.saldo},${r.saldoReal}\n`;
       });
     } else if (tipoRelatorio === "pagamento") {
       csv = "Forma de Pagamento,Receitas,Despesas,Saldo\n";
@@ -971,6 +972,10 @@ const Relatorios = () => {
                             <span>·</span>
                             <span>↓ {formatCurrency(r.despesas)}</span>
                           </div>
+                          <div className="flex items-center gap-3 text-xs pl-6">
+                            <span className="text-muted-foreground">Saldo real:</span>
+                            <span className={`font-semibold tabular-nums ${r.saldoReal >= 0 ? "text-success" : "text-destructive"}`}>{formatCurrency(r.saldoReal)}</span>
+                          </div>
                         </button>
                         {isOpen && hasTx && (
                           <div className="bg-muted/30 divide-y divide-border">
@@ -1003,6 +1008,7 @@ const Relatorios = () => {
                         <TableHead className="text-right">Receitas</TableHead>
                         <TableHead className="text-right">Despesas</TableHead>
                         <TableHead className="text-right">Resultado</TableHead>
+                        <TableHead className="text-right">Saldo Real</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1026,6 +1032,9 @@ const Relatorios = () => {
                               <TableCell className={`text-right font-medium ${r.saldo >= 0 ? "text-success" : "text-destructive"}`}>
                                 {formatCurrency(r.saldo)}
                               </TableCell>
+                              <TableCell className={`text-right font-medium ${r.saldoReal >= 0 ? "text-success" : "text-destructive"}`}>
+                                {formatCurrency(r.saldoReal)}
+                              </TableCell>
                             </TableRow>
                             {isOpen && hasTx && r.transacoes.map((t) => (
                               <TableRow key={t.id} className="bg-muted/30">
@@ -1044,6 +1053,7 @@ const Relatorios = () => {
                                 <TableCell className="text-right text-sm text-destructive">
                                   {t._tipoEfetivo === "despesa" ? formatCurrency(Number(t.valor)) : ""}
                                 </TableCell>
+                                <TableCell></TableCell>
                                 <TableCell></TableCell>
                               </TableRow>
                             ))}
