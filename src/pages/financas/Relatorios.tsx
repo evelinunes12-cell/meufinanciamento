@@ -202,7 +202,10 @@ const Relatorios = () => {
         return filters.statusPagamento === "pago" ? pago : !pago;
       });
     }
-    return result.filter(t => t.forma_pagamento !== "transferencia");
+    const noTransfer = result.filter(t => t.forma_pagamento !== "transferencia");
+    return filters.statusPagamento
+      ? noTransfer
+      : noTransfer.filter(t => isExecutado(t.is_pago_executado));
   }, [allTransacoes, contas, categorias, prevPeriod, filters]);
 
   const prevReceitas = prevTransacoes.filter(t => t.tipo === "receita").reduce((a, t) => a + Number(t.valor), 0);
