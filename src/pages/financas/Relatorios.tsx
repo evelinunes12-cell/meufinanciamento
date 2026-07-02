@@ -436,9 +436,9 @@ const Relatorios = () => {
         });
       });
     } else if (tipoRelatorio === "conta") {
-      csv = "Conta,Receitas,Despesas,Saldo\n";
+      csv = "Conta,Receitas,Despesas,Resultado,Saldo Real\n";
       relatorioConta.forEach(r => {
-        csv += `${r.conta},${r.receitas},${r.despesas},${r.saldo}\n`;
+        csv += `${r.conta},${r.receitas},${r.despesas},${r.saldo},${r.saldoReal}\n`;
       });
     } else if (tipoRelatorio === "pagamento") {
       csv = "Forma de Pagamento,Receitas,Despesas,Saldo\n";
