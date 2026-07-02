@@ -1028,7 +1028,9 @@ const Relatorios = () => {
                               <TableCell className={`text-right font-medium ${r.saldo >= 0 ? "text-success" : "text-destructive"}`}>
                                 {formatCurrency(r.saldo)}
                               </TableCell>
-                            </TableRow>
+                              <TableCell className={`text-right font-medium ${r.saldoReal >= 0 ? "text-success" : "text-destructive"}`}>
+                                {formatCurrency(r.saldoReal)}
+                              </TableCell>
                             {isOpen && hasTx && r.transacoes.map((t) => (
                               <TableRow key={t.id} className="bg-muted/30">
                                 <TableCell></TableCell>
