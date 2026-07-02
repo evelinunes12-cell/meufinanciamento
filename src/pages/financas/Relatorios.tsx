@@ -396,7 +396,8 @@ const Relatorios = () => {
     transacoesConta.sort((a, b) => (b.data > a.data ? 1 : -1));
     const receitas = transacoesConta.filter(t => t._tipoEfetivo === "receita").reduce((a, t) => a + Number(t.valor), 0);
     const despesas = transacoesConta.filter(t => t._tipoEfetivo === "despesa").reduce((a, t) => a + Number(t.valor), 0);
-    return { id: conta.id, conta: conta.nome_conta, receitas, despesas, saldo: receitas - despesas, transacoes: transacoesConta };
+    const saldoReal = calcularSaldoRealConta(conta, allTransacoes);
+    return { id: conta.id, conta: conta.nome_conta, receitas, despesas, saldo: receitas - despesas, saldoReal, transacoes: transacoesConta };
   }).filter(r => r.receitas !== 0 || r.despesas !== 0);
 
 
