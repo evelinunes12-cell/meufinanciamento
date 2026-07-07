@@ -252,7 +252,8 @@ const Cartoes = () => {
     queryKey: ["cartoes", user?.id],
     queryFn: () => fetchCartoesData(user?.id),
     enabled: !!user?.id,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   const cartoes = data?.cartoes || [];
