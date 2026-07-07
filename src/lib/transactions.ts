@@ -229,7 +229,7 @@ export async function propagateFixaUpdate(
 
   const { error: updateError } = await supabase
     .from("transacoes")
-    .update(updatePayload)
+    .update(updatePayload as any)
     .in("id", idsToUpdate);
 
   if (updateError) return { updated: 0, error: updateError.message };
