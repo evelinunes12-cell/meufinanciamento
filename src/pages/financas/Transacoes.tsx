@@ -703,6 +703,10 @@ const Transacoes = () => {
       recorrencia: transacao.recorrencia,
       transacao_origem_id: transacao.transacao_origem_id,
       data: transacao.data,
+      parcela_atual: transacao.parcela_atual ?? null,
+      parcelas_total: transacao.parcelas_total ?? null,
+      data_pagamento: transacao.data_pagamento ?? null,
+      is_pago_executado: transacao.is_pago_executado ?? null,
     });
     setDialogOpen(true);
   };
