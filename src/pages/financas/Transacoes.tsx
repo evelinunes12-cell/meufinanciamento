@@ -156,6 +156,10 @@ const Transacoes = () => {
     recorrencia: string;
     transacao_origem_id: string | null;
     data: string;
+    parcela_atual: number | null;
+    parcelas_total: number | null;
+    data_pagamento: string | null;
+    is_pago_executado: boolean | null;
   } | null>(null);
   const [editSeriesDialog, setEditSeriesDialog] = useState<{
     open: boolean;
