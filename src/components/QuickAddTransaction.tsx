@@ -252,6 +252,7 @@ const QuickAddTransaction = ({ open, onOpenChange }: QuickAddTransactionProps) =
     queryClient.invalidateQueries({ queryKey: ["transacoes"] });
     queryClient.invalidateQueries({ queryKey: ["dashboard-financas"] });
     queryClient.invalidateQueries({ queryKey: ["orcamentos"] });
+    queryClient.invalidateQueries({ queryKey: ["cartoes"] });
   };
 
   useEffect(() => {

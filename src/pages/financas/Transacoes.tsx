@@ -325,6 +325,7 @@ const Transacoes = () => {
     queryClient.invalidateQueries({ queryKey: ["contas"] });
     queryClient.invalidateQueries({ queryKey: ["dashboard-financas"] });
     queryClient.invalidateQueries({ queryKey: ["orcamentos"] });
+    queryClient.invalidateQueries({ queryKey: ["cartoes"] });
   };
 
   useEffect(() => {
