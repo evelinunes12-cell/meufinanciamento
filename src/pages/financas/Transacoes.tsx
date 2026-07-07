@@ -719,7 +719,7 @@ const Transacoes = () => {
       // Always update the currently edited row first (full payload).
       const { error: updateError } = await supabase
         .from("transacoes")
-        .update(editSeriesDialog.pendingDataToSave)
+        .update(editSeriesDialog.pendingDataToSave as any)
         .eq("id", editingId);
 
       if (updateError) {
