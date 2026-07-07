@@ -628,6 +628,17 @@ const Transacoes = () => {
         isPaid = false;
       }
 
+      // When editing an existing installment/credit-card transaction, preserve the
+      // original installment position, total, payment date and paid status so that
+      // editing a middle installment (e.g. 3/6) doesn't reset it to 1/1 and doesn't
+      // shift the invoice month it belongs to.
+      const isEditingExistingInstallment =
+        !!editingId &&
+        editingOriginal &&
+        (editingOriginal.parcelas_total ?? 0) > 0;
+
+      const preserveInstallmentFields = isEditingExistingInstallment;
+
       const dataToSave = {
         user_id: user?.id as string,
         conta_id: formData.conta_id,
@@ -635,13 +646,23 @@ const Transacoes = () => {
         valor: parsedValor,
         tipo: formData.tipo,
         data: formData.data,
-        data_pagamento: paymentDate,
+        data_pagamento: preserveInstallmentFields
+          ? editingOriginal!.data_pagamento
+          : paymentDate,
         forma_pagamento: formData.forma_pagamento,
         recorrencia: formData.recorrencia,
         descricao: formData.descricao || null,
-        is_pago_executado: isPaid,
-        parcelas_total: parsedParcelas,
-        parcela_atual: parsedParcelas ? 1 : null,
+        is_pago_executado: preserveInstallmentFields
+          ? editingOriginal!.is_pago_executado ?? isPaid
+          : isPaid,
+        parcelas_total: preserveInstallmentFields
+          ? editingOriginal!.parcelas_total
+          : parsedParcelas,
+        parcela_atual: preserveInstallmentFields
+          ? editingOriginal!.parcela_atual
+          : parsedParcelas
+            ? 1
+            : null,
       };
 
       if (editingId) {
