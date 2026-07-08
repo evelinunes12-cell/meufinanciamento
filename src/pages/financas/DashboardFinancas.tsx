@@ -30,6 +30,7 @@ import { ContasConfirmarWidget } from "@/components/dashboard/ContasConfirmarWid
 import { EvolucaoMensalWidget } from "@/components/dashboard/EvolucaoMensalWidget";
 import { ProximosFechamentosWidget } from "@/components/dashboard/ProximosFechamentosWidget";
 import RadarEmocional from "@/components/dashboard/RadarEmocional";
+import { CalendarioFinanceiroWidget } from "@/components/dashboard/CalendarioFinanceiroWidget";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -121,6 +122,7 @@ const DashboardFinancas = () => {
     ultimasTransacoes: { label: "Últimas Transações", defaultSize: "md" },
     contasConfirmar: { label: "Contas a Confirmar", defaultSize: "md" },
     proximosFechamentos: { label: "Próximos Fechamentos", defaultSize: "md" },
+    calendarioFinanceiro: { label: "Calendário Financeiro", defaultSize: "lg" },
   }), []);
   const { layout, setLayout, setSize, toggleVisible, reset: resetLayout } = useDashboardLayout(WIDGET_CATALOG);
   const visibility = useMemo(() => Object.fromEntries(layout.map((w) => [w.id, w.visible])) as Record<string, boolean>, [layout]);
@@ -744,6 +746,9 @@ const DashboardFinancas = () => {
 
       case "proximosFechamentos":
         return <ProximosFechamentosWidget contas={contas} transacoes={todasTransacoes} />;
+
+      case "calendarioFinanceiro":
+        return <CalendarioFinanceiroWidget transacoes={todasTransacoes} categorias={categorias} />;
 
       default:
         return null;
