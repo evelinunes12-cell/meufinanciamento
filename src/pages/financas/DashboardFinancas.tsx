@@ -118,11 +118,11 @@ const DashboardFinancas = () => {
     graficoDespesas: { label: "Despesas por Categoria", defaultSize: "md" },
     graficoReceitas: { label: "Receitas por Categoria", defaultSize: "md" },
     saldoContas: { label: "Saldos por Conta", defaultSize: "md" },
+    calendarioFinanceiro: { label: "Calendário Financeiro", defaultSize: "md" },
     evolucaoMensal: { label: "Evolução Mensal", defaultSize: "full" },
     ultimasTransacoes: { label: "Últimas Transações", defaultSize: "md" },
     contasConfirmar: { label: "Contas a Confirmar", defaultSize: "md" },
     proximosFechamentos: { label: "Próximos Fechamentos", defaultSize: "md" },
-    calendarioFinanceiro: { label: "Calendário Financeiro", defaultSize: "lg" },
   }), []);
   const { layout, setLayout, setSize, toggleVisible, reset: resetLayout } = useDashboardLayout(WIDGET_CATALOG);
   const visibility = useMemo(() => Object.fromEntries(layout.map((w) => [w.id, w.visible])) as Record<string, boolean>, [layout]);
