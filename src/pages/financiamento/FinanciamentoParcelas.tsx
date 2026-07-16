@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import StatsCards from "@/components/StatsCards";
 import InstallmentsTable from "@/components/InstallmentsTable";
 import ExportButton from "@/components/ExportButton";
+import FinancingSimulator from "@/components/FinancingSimulator";
 import { Landmark, Plus } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -187,6 +188,13 @@ const FinanciamentoParcelas = () => {
                     <InstallmentsTable parcelas={currentParcelas} taxaDiaria={item.taxa_diaria} onUpdate={fetchData} contrato={{ id: item.id, nome: item.nome, tipo: item.tipo, categoria_id: item.categoria_id }} />
                   </CardContent>
                 </Card>
+
+                <FinancingSimulator
+                  parcelas={currentParcelas}
+                  taxaDiaria={item.taxa_diaria}
+                  valorFinanciado={item.valor_financiado}
+                  contratoNome={(item.icone || "📄") + " " + item.nome}
+                />
               </TabsContent>
             );
           })}
