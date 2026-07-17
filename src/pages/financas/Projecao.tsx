@@ -1422,6 +1422,15 @@ const Projecao = () => {
               </>
             )}
           </TabsContent>
+
+          <TabsContent value="simulador" className="mt-6">
+            <SimuladorGastos
+              contas={contas}
+              transacoes={transacoes}
+              orcamentos={orcamentos}
+              buildProjection={buildProjection}
+            />
+          </TabsContent>
         </Tabs>
       </div>
     </AppLayout>
