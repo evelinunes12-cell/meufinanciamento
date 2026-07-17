@@ -28,6 +28,7 @@ import {
   isExecutado, calcularSaldoRealConta, getDataEfetiva,
   getDataCompetenciaTransacao, calcularFaturaAbertaCartao,
 } from "@/lib/transactions";
+import SimuladorGastos from "@/components/projecao/SimuladorGastos";
 
 // ==========================================
 // Types
