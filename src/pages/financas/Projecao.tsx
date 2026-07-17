@@ -28,6 +28,7 @@ import {
   isExecutado, calcularSaldoRealConta, getDataEfetiva,
   getDataCompetenciaTransacao, calcularFaturaAbertaCartao,
 } from "@/lib/transactions";
+import SimuladorGastos from "@/components/projecao/SimuladorGastos";
 
 // ==========================================
 // Types
@@ -1304,7 +1305,7 @@ const Projecao = () => {
   });
 
   const [cenario, setCenario] = useState<Cenario>("realista");
-  const [tab, setTab] = useState<"total" | "conta">("total");
+  const [tab, setTab] = useState<"total" | "conta" | "simulador">("total");
 
   const transacoes = data?.transacoes || [];
   const contas = data?.contas || [];
@@ -1349,10 +1350,11 @@ const Projecao = () => {
           </p>
         </div>
 
-        <Tabs value={tab} onValueChange={(v) => setTab(v as "total" | "conta")}>
-          <TabsList className="grid grid-cols-2 w-full sm:w-auto">
+        <Tabs value={tab} onValueChange={(v) => setTab(v as "total" | "conta" | "simulador")}>
+          <TabsList className="grid grid-cols-3 w-full sm:w-auto">
             <TabsTrigger value="total">Projeção Total</TabsTrigger>
             <TabsTrigger value="conta">Por Conta</TabsTrigger>
+            <TabsTrigger value="simulador">Simulador</TabsTrigger>
           </TabsList>
 
           <TabsContent value="total" className="mt-6">
@@ -1419,6 +1421,15 @@ const Projecao = () => {
                 })()}
               </>
             )}
+          </TabsContent>
+
+          <TabsContent value="simulador" className="mt-6">
+            <SimuladorGastos
+              contas={contas}
+              transacoes={transacoes}
+              orcamentos={orcamentos}
+              buildProjection={buildProjection}
+            />
           </TabsContent>
         </Tabs>
       </div>
