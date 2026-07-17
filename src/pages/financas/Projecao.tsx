@@ -1305,7 +1305,7 @@ const Projecao = () => {
   });
 
   const [cenario, setCenario] = useState<Cenario>("realista");
-  const [tab, setTab] = useState<"total" | "conta">("total");
+  const [tab, setTab] = useState<"total" | "conta" | "simulador">("total");
 
   const transacoes = data?.transacoes || [];
   const contas = data?.contas || [];
