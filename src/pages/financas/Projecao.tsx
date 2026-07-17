@@ -1350,10 +1350,11 @@ const Projecao = () => {
           </p>
         </div>
 
-        <Tabs value={tab} onValueChange={(v) => setTab(v as "total" | "conta")}>
-          <TabsList className="grid grid-cols-2 w-full sm:w-auto">
+        <Tabs value={tab} onValueChange={(v) => setTab(v as "total" | "conta" | "simulador")}>
+          <TabsList className="grid grid-cols-3 w-full sm:w-auto">
             <TabsTrigger value="total">Projeção Total</TabsTrigger>
             <TabsTrigger value="conta">Por Conta</TabsTrigger>
+            <TabsTrigger value="simulador">Simulador</TabsTrigger>
           </TabsList>
 
           <TabsContent value="total" className="mt-6">
