@@ -323,7 +323,21 @@ export default function SimuladorGastos({ contas, transacoes, buildProjection, o
 
       {simulacoes.length > 0 && (
         <>
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertTitle>Escopo da projeção</AlertTitle>
+            <AlertDescription>
+              {contasEnvolvidasIds.length === 0
+                ? "Mostrando projeção total (todas as contas)."
+                : `Mostrando projeção apenas de: ${contasEnvolvidasIds
+                    .map(id => contas.find(c => c.id === id)?.nome_conta)
+                    .filter(Boolean)
+                    .join(", ")}.`}
+            </AlertDescription>
+          </Alert>
+
           {/* Impact KPIs */}
+
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Card className="shadow-card">
               <CardContent className="p-4">
