@@ -82,13 +82,18 @@ interface Props {
 const formatCurrency = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
-const FORMAS_PAGAMENTO = [
+const FORMAS_PAGAMENTO_PADRAO = [
   { value: "dinheiro", label: "Dinheiro" },
   { value: "debito", label: "Débito" },
-  { value: "credito", label: "Crédito" },
   { value: "pix", label: "PIX" },
   { value: "boleto", label: "Boleto" },
 ];
+const FORMAS_PAGAMENTO_CREDITO = [{ value: "credito", label: "Crédito" }];
+
+function formasPagamentoPara(conta?: Conta) {
+  if (!conta) return FORMAS_PAGAMENTO_PADRAO;
+  return conta.tipo === "credito" ? FORMAS_PAGAMENTO_CREDITO : FORMAS_PAGAMENTO_PADRAO;
+}
 
 function expandirSimulacaoEmTransacoes(sim: SimulacaoItem, contas: Conta[]): Transacao[] {
   const parcelas = Math.max(1, sim.parcelas || 1);
