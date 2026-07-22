@@ -135,14 +135,29 @@ export default function SimuladorGastos({ contas, transacoes, buildProjection, o
   );
 
   const [simulacoes, setSimulacoes] = useState<SimulacaoItem[]>([]);
+  const contaInicial = contasOrdenadas[0];
   const [form, setForm] = useState<Omit<SimulacaoItem, "id">>({
     descricao: "",
-    conta_id: contasOrdenadas[0]?.id || "",
-    forma_pagamento: "credito",
+    conta_id: contaInicial?.id || "",
+    forma_pagamento: contaInicial?.tipo === "credito" ? "credito" : "debito",
     valor: 0,
     data_vencimento: format(new Date(), "yyyy-MM-dd"),
     parcelas: 1,
   });
+
+  const contaSelecionadaForm = contas.find(c => c.id === form.conta_id);
+  const formasDisponiveis = formasPagamentoPara(contaSelecionadaForm);
+
+  // Keep forma_pagamento consistent with the account type
+  const handleContaChange = (v: string) => {
+    const c = contas.find(x => x.id === v);
+    const permitidas = formasPagamentoPara(c).map(f => f.value);
+    setForm(f => ({
+      ...f,
+      conta_id: v,
+      forma_pagamento: permitidas.includes(f.forma_pagamento) ? f.forma_pagamento : permitidas[0],
+    }));
+  };
 
   const canAdd = form.conta_id && form.valor > 0 && form.data_vencimento && form.parcelas >= 1;
 
@@ -161,14 +176,28 @@ export default function SimuladorGastos({ contas, transacoes, buildProjection, o
     return [...transacoes, ...extras];
   }, [transacoes, simulacoes, contas]);
 
+  // Scope view to accounts touched by the simulations (if any).
+  // With no simulations, show global totals.
+  const contasEnvolvidasIds = useMemo(
+    () => Array.from(new Set(simulacoes.map(s => s.conta_id))),
+    [simulacoes],
+  );
+  const contaFilterUnica = contasEnvolvidasIds.length === 1 ? contasEnvolvidasIds[0] : null;
+
+  const contasParaProjecao = useMemo(() => {
+    if (contasEnvolvidasIds.length === 0) return contas;
+    return contas.filter(c => contasEnvolvidasIds.includes(c.id));
+  }, [contas, contasEnvolvidasIds]);
+
   const baseProj = useMemo(
-    () => buildProjection(contas, transacoes, orcamentos, null),
-    [contas, transacoes, orcamentos, buildProjection],
+    () => buildProjection(contasParaProjecao, transacoes, orcamentos, contaFilterUnica),
+    [contasParaProjecao, transacoes, orcamentos, buildProjection, contaFilterUnica],
   );
   const simProj = useMemo(
-    () => buildProjection(contas, transacoesSimuladas, orcamentos, null),
-    [contas, transacoesSimuladas, orcamentos, buildProjection],
+    () => buildProjection(contasParaProjecao, transacoesSimuladas, orcamentos, contaFilterUnica),
+    [contasParaProjecao, transacoesSimuladas, orcamentos, buildProjection, contaFilterUnica],
   );
+
 
   const chartData = baseProj.projecaoRealista.map((m, i) => ({
     name: m.label,
