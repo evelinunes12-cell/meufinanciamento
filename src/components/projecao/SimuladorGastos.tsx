@@ -82,13 +82,18 @@ interface Props {
 const formatCurrency = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
-const FORMAS_PAGAMENTO = [
+const FORMAS_PAGAMENTO_PADRAO = [
   { value: "dinheiro", label: "Dinheiro" },
   { value: "debito", label: "Débito" },
-  { value: "credito", label: "Crédito" },
   { value: "pix", label: "PIX" },
   { value: "boleto", label: "Boleto" },
 ];
+const FORMAS_PAGAMENTO_CREDITO = [{ value: "credito", label: "Crédito" }];
+
+function formasPagamentoPara(conta?: Conta) {
+  if (!conta) return FORMAS_PAGAMENTO_PADRAO;
+  return conta.tipo === "credito" ? FORMAS_PAGAMENTO_CREDITO : FORMAS_PAGAMENTO_PADRAO;
+}
 
 function expandirSimulacaoEmTransacoes(sim: SimulacaoItem, contas: Conta[]): Transacao[] {
   const parcelas = Math.max(1, sim.parcelas || 1);
@@ -130,14 +135,29 @@ export default function SimuladorGastos({ contas, transacoes, buildProjection, o
   );
 
   const [simulacoes, setSimulacoes] = useState<SimulacaoItem[]>([]);
+  const contaInicial = contasOrdenadas[0];
   const [form, setForm] = useState<Omit<SimulacaoItem, "id">>({
     descricao: "",
-    conta_id: contasOrdenadas[0]?.id || "",
-    forma_pagamento: "credito",
+    conta_id: contaInicial?.id || "",
+    forma_pagamento: contaInicial?.tipo === "credito" ? "credito" : "debito",
     valor: 0,
     data_vencimento: format(new Date(), "yyyy-MM-dd"),
     parcelas: 1,
   });
+
+  const contaSelecionadaForm = contas.find(c => c.id === form.conta_id);
+  const formasDisponiveis = formasPagamentoPara(contaSelecionadaForm);
+
+  // Keep forma_pagamento consistent with the account type
+  const handleContaChange = (v: string) => {
+    const c = contas.find(x => x.id === v);
+    const permitidas = formasPagamentoPara(c).map(f => f.value);
+    setForm(f => ({
+      ...f,
+      conta_id: v,
+      forma_pagamento: permitidas.includes(f.forma_pagamento) ? f.forma_pagamento : permitidas[0],
+    }));
+  };
 
   const canAdd = form.conta_id && form.valor > 0 && form.data_vencimento && form.parcelas >= 1;
 
@@ -156,14 +176,28 @@ export default function SimuladorGastos({ contas, transacoes, buildProjection, o
     return [...transacoes, ...extras];
   }, [transacoes, simulacoes, contas]);
 
+  // Scope view to accounts touched by the simulations (if any).
+  // With no simulations, show global totals.
+  const contasEnvolvidasIds = useMemo(
+    () => Array.from(new Set(simulacoes.map(s => s.conta_id))),
+    [simulacoes],
+  );
+  const contaFilterUnica = contasEnvolvidasIds.length === 1 ? contasEnvolvidasIds[0] : null;
+
+  const contasParaProjecao = useMemo(() => {
+    if (contasEnvolvidasIds.length === 0) return contas;
+    return contas.filter(c => contasEnvolvidasIds.includes(c.id));
+  }, [contas, contasEnvolvidasIds]);
+
   const baseProj = useMemo(
-    () => buildProjection(contas, transacoes, orcamentos, null),
-    [contas, transacoes, orcamentos, buildProjection],
+    () => buildProjection(contasParaProjecao, transacoes, orcamentos, contaFilterUnica),
+    [contasParaProjecao, transacoes, orcamentos, buildProjection, contaFilterUnica],
   );
   const simProj = useMemo(
-    () => buildProjection(contas, transacoesSimuladas, orcamentos, null),
-    [contas, transacoesSimuladas, orcamentos, buildProjection],
+    () => buildProjection(contasParaProjecao, transacoesSimuladas, orcamentos, contaFilterUnica),
+    [contasParaProjecao, transacoesSimuladas, orcamentos, buildProjection, contaFilterUnica],
   );
+
 
   const chartData = baseProj.projecaoRealista.map((m, i) => ({
     name: m.label,
@@ -212,7 +246,7 @@ export default function SimuladorGastos({ contas, transacoes, buildProjection, o
               <Label className="text-xs">Conta</Label>
               <Select
                 value={form.conta_id}
-                onValueChange={v => setForm(f => ({ ...f, conta_id: v }))}
+                onValueChange={handleContaChange}
               >
                 <SelectTrigger><SelectValue placeholder="Conta" /></SelectTrigger>
                 <SelectContent>
@@ -221,6 +255,7 @@ export default function SimuladorGastos({ contas, transacoes, buildProjection, o
                       <div className="flex items-center gap-2">
                         <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: c.cor }} />
                         {c.nome_conta}
+                        <span className="text-[10px] text-muted-foreground capitalize">({c.tipo})</span>
                       </div>
                     </SelectItem>
                   ))}
@@ -232,15 +267,17 @@ export default function SimuladorGastos({ contas, transacoes, buildProjection, o
               <Select
                 value={form.forma_pagamento}
                 onValueChange={v => setForm(f => ({ ...f, forma_pagamento: v }))}
+                disabled={formasDisponiveis.length === 1}
               >
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {FORMAS_PAGAMENTO.map(fp => (
+                  {formasDisponiveis.map(fp => (
                     <SelectItem key={fp.value} value={fp.value}>{fp.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
+
             <div>
               <Label className="text-xs">Valor total (R$)</Label>
               <Input
@@ -286,7 +323,21 @@ export default function SimuladorGastos({ contas, transacoes, buildProjection, o
 
       {simulacoes.length > 0 && (
         <>
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertTitle>Escopo da projeção</AlertTitle>
+            <AlertDescription>
+              {contasEnvolvidasIds.length === 0
+                ? "Mostrando projeção total (todas as contas)."
+                : `Mostrando projeção apenas de: ${contasEnvolvidasIds
+                    .map(id => contas.find(c => c.id === id)?.nome_conta)
+                    .filter(Boolean)
+                    .join(", ")}.`}
+            </AlertDescription>
+          </Alert>
+
           {/* Impact KPIs */}
+
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Card className="shadow-card">
               <CardContent className="p-4">
