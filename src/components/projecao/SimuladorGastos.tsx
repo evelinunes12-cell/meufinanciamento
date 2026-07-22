@@ -246,7 +246,7 @@ export default function SimuladorGastos({ contas, transacoes, buildProjection, o
               <Label className="text-xs">Conta</Label>
               <Select
                 value={form.conta_id}
-                onValueChange={v => setForm(f => ({ ...f, conta_id: v }))}
+                onValueChange={handleContaChange}
               >
                 <SelectTrigger><SelectValue placeholder="Conta" /></SelectTrigger>
                 <SelectContent>
@@ -255,6 +255,7 @@ export default function SimuladorGastos({ contas, transacoes, buildProjection, o
                       <div className="flex items-center gap-2">
                         <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: c.cor }} />
                         {c.nome_conta}
+                        <span className="text-[10px] text-muted-foreground capitalize">({c.tipo})</span>
                       </div>
                     </SelectItem>
                   ))}
@@ -266,15 +267,17 @@ export default function SimuladorGastos({ contas, transacoes, buildProjection, o
               <Select
                 value={form.forma_pagamento}
                 onValueChange={v => setForm(f => ({ ...f, forma_pagamento: v }))}
+                disabled={formasDisponiveis.length === 1}
               >
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {FORMAS_PAGAMENTO.map(fp => (
+                  {formasDisponiveis.map(fp => (
                     <SelectItem key={fp.value} value={fp.value}>{fp.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
+
             <div>
               <Label className="text-xs">Valor total (R$)</Label>
               <Input
